@@ -1,33 +1,39 @@
+/**
+ * Layout de navegación por tabs
+ */
+
 import { Tabs } from 'expo-router';
 import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Text } from 'react-native';
+import { useTema } from '../src/context/TemaContext';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { tema } = useTema();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: tema.colores.primario,
+        tabBarInactiveTintColor: tema.colores.textoSecundario,
+        tabBarStyle: {
+          backgroundColor: tema.colores.fondoSecundario,
+          borderTopColor: tema.colores.bordes,
+        },
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Gastos',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: () => <Text style={{ fontSize: 19 }}>💰</Text>,
         }}
       />
       <Tabs.Screen
         name="perfil"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          tabBarIcon: () => <Text style={{ fontSize: 19 }}>👤</Text>,
         }}
       />
     </Tabs>

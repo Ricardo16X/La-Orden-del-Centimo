@@ -1,6 +1,12 @@
+/**
+ * Context para gestión de temas
+ * Maneja el tema activo y su persistencia
+ */
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Tema, obtenerTema, TEMAS } from '../constants/temas';
+import { Tema } from '../types';
+import { obtenerTema, TEMAS } from '../constants/temas';
+import { cargarTema as cargarTemaStorage, guardarTema as guardarTemaStorage } from '../services/storage';
 
 interface TemaContextType {
   tema: Tema;
@@ -10,34 +16,24 @@ interface TemaContextType {
 
 const TemaContext = createContext<TemaContextType | undefined>(undefined);
 
-const STORAGE_KEY_TEMA = 'tema_seleccionado';
-
 export const TemaProvider = ({ children }: { children: ReactNode }) => {
   const [tema, setTema] = useState<Tema>(TEMAS[0]);
 
   useEffect(() => {
-    cargarTema();
+    cargarDatos();
   }, []);
 
-  const cargarTema = async () => {
-    try {
-      const temaGuardado = await AsyncStorage.getItem(STORAGE_KEY_TEMA);
-      if (temaGuardado) {
-        setTema(obtenerTema(temaGuardado));
-      }
-    } catch (error) {
-      console.error('Error cargando tema:', error);
+  const cargarDatos = async () => {
+    const temaGuardado = await cargarTemaStorage();
+    if (temaGuardado) {
+      setTema(obtenerTema(temaGuardado));
     }
   };
 
   const cambiarTema = async (temaId: string) => {
     const nuevoTema = obtenerTema(temaId);
     setTema(nuevoTema);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEY_TEMA, temaId);
-    } catch (error) {
-      console.error('Error guardando tema:', error);
-    }
+    await guardarTemaStorage(temaId);
   };
 
   return (

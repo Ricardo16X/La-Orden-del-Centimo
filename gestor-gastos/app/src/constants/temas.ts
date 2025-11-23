@@ -1,32 +1,8 @@
-export interface Tema {
-  id: string;
-  nombre: string;
-  emoji: string;
-  colores: {
-    fondo: string;
-    fondoSecundario: string;
-    primario: string;
-    primarioClaro: string;
-    acento: string;
-    bordes: string;
-    texto: string;
-    textoSecundario: string;
-  };
-  companero: {
-    avatar: string;
-    nombre: string;
-  };
-  moneda: string;
-  categorias: {
-    comida: string;
-    transporte: string;
-    equipo: string;
-    pociones: string;
-    vivienda: string;
-    entrenamiento: string;
-    otros: string;
-  };
-}
+/**
+ * Configuración de temas de la aplicación
+ */
+
+import { Tema } from '../types';
 
 export const TEMAS: Tema[] = [
   {

@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { SelectorCategoria } from './SelectorCategoria';
 import { useTema } from '../context/TemaContext';
+import { useFormGasto } from '../hooks';
 
 interface Props {
   onAgregar: (monto: number, descripcion: string, categoria: string) => void;
@@ -9,19 +9,23 @@ interface Props {
 
 export const FormularioGasto = ({ onAgregar }: Props) => {
   const { tema } = useTema();
-  const [monto, setMonto] = useState<string>('');
-  const [descripcion, setDescripcion] = useState<string>('');
-  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>('comida');
+
+  const {
+    monto,
+    setMonto,
+    descripcion,
+    setDescripcion,
+    categoriaSeleccionada,
+    setCategoriaSeleccionada,
+    handleSubmit,
+    resetForm,
+  } = useFormGasto(onAgregar);
 
   const handleAgregar = () => {
-    if (!monto || !descripcion) {
-      Alert.alert('Error', 'Llena todos los campos');
-      return;
+    const success = handleSubmit();
+    if (success) {
+      resetForm();
     }
-
-    onAgregar(parseFloat(monto), descripcion, categoriaSeleccionada);
-    setMonto('');
-    setDescripcion('');
   };
 
   return (

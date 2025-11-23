@@ -1,10 +1,13 @@
+/**
+ * Lógica del compañero y sus frases según contexto
+ */
+
 import { FRASES_KAWAII } from './frasesKawaii';
 import { FRASES_MEDIEVAL } from './frasesMedieval';
+import { FraseCompanero, TipoFrase } from '../types';
 
-export interface FraseCompanero {
-  tipo: 'bienvenida' | 'gasto_agregado' | 'gasto_alto' | 'gasto_bajo' | 'motivacional' | 'consejo';
-  texto: string;
-}
+// Re-exportar para backwards compatibility
+export type { FraseCompanero, TipoFrase };
 
 export const obtenerFrasesSegunTema = (temaId: string): FraseCompanero[] => {
   switch (temaId) {
@@ -17,7 +20,7 @@ export const obtenerFrasesSegunTema = (temaId: string): FraseCompanero[] => {
   }
 };
 
-export const obtenerFraseAleatoria = (tipo: FraseCompanero['tipo'], temaId: string = 'medieval'): string => {
+export const obtenerFraseAleatoria = (tipo: TipoFrase, temaId: string = 'medieval'): string => {
   const frases = obtenerFrasesSegunTema(temaId);
   const frasesFiltradas = frases.filter(f => f.tipo === tipo);
   const indiceAleatorio = Math.floor(Math.random() * frasesFiltradas.length);

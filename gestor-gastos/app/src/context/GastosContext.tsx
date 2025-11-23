@@ -1,11 +1,17 @@
+/**
+ * Context para gestión de gastos
+ * Maneja el estado global de gastos y su persistencia
+ */
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Gasto } from '../types';
+import { Gasto, NuevoGasto, ActualizacionGasto } from '../types';
 import { cargarGastos, guardarGastos } from '../services/storage';
+import { generarId, getFechaActual } from '../utils';
 
 interface GastosContextType {
   gastos: Gasto[];
-  agregarGasto: (gasto: Omit<Gasto, 'id' | 'fecha'>) => void;
-  editarGasto: (id: string, gastoActualizado: Partial<Omit<Gasto, 'id'>>) => void;
+  agregarGasto: (gasto: NuevoGasto) => void;
+  editarGasto: (id: string, gastoActualizado: ActualizacionGasto) => void;
   eliminarGasto: (id: string) => void;
   totalGastado: number;
   ultimoGastoAgregado: Gasto | null;
@@ -19,42 +25,36 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
   const [cargado, setCargado] = useState(false);
 
   useEffect(() => {
-    console.log('🔵 GastosProvider montado - cargando datos...');
     cargarDatos();
   }, []);
 
   useEffect(() => {
     if (cargado && gastos.length >= 0) {
-      console.log('💾 Guardando gastos:', gastos.length);
       guardarGastos(gastos);
     }
   }, [gastos, cargado]);
 
   const cargarDatos = async () => {
-    console.log('📂 Cargando gastos desde storage...');
     const gastosGuardados = await cargarGastos();
-    console.log('✅ Gastos cargados:', gastosGuardados.length);
     setGastos(gastosGuardados);
     setCargado(true);
   };
 
-  const agregarGasto = (gasto: Omit<Gasto, 'id' | 'fecha'>) => {
+  const agregarGasto = (gasto: NuevoGasto) => {
     const nuevoGasto: Gasto = {
-      id: Date.now().toString(),
-      fecha: new Date().toLocaleDateString(),
+      id: generarId(),
+      fecha: getFechaActual(),
+      tipo: 'gasto',
       ...gasto,
     };
-    console.log('➕ Agregando gasto:', nuevoGasto);
     setGastos(prev => {
       const nuevos = [nuevoGasto, ...prev];
-      console.log('📊 Total gastos ahora:', nuevos.length);
       return nuevos;
     });
     setUltimoGastoAgregado(nuevoGasto);
   };
 
-  const editarGasto = async (id: string, gastoActualizado: Partial<Omit<Gasto, 'id'>>) => {
-    console.log('✏️ Editando gasto:', id);
+  const editarGasto = async (id: string, gastoActualizado: ActualizacionGasto) => {
     const nuevosGastos = gastos.map(gasto => 
       gasto.id === id 
         ? { ...gasto, ...gastoActualizado }
@@ -65,15 +65,12 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const eliminarGasto = async (id: string) => {
-    console.log('🗑️ Eliminando gasto:', id);
     const nuevosGastos = gastos.filter(gasto => gasto.id !== id);
     setGastos(nuevosGastos);
     await guardarGastos(nuevosGastos);
   };
 
   const totalGastado = gastos.reduce((sum, gasto) => sum + gasto.monto, 0);
-
-  console.log('🔄 Context render - Gastos:', gastos.length, 'Total:', totalGastado);
 
   return (
     <GastosContext.Provider
