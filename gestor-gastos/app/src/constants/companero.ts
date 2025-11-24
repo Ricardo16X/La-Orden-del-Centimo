@@ -27,12 +27,14 @@ export const obtenerFraseAleatoria = (tipo: TipoFrase, temaId: string = 'medieva
   return frasesFiltradas[indiceAleatorio]?.texto || "...";
 };
 
-export const obtenerFraseSegunMonto = (monto: number, temaId: string = 'medieval'): string => {
+export const obtenerFraseSegunMonto = (monto: number, temaId: string = 'medieval', tipo: 'gasto' | 'ingreso' = 'gasto'): string => {
+  const tipoBase = tipo === 'ingreso' ? 'ingreso' : 'gasto';
+
   if (monto > 100) {
-    return obtenerFraseAleatoria('gasto_alto', temaId);
+    return obtenerFraseAleatoria(`${tipoBase}_alto` as TipoFrase, temaId);
   } else if (monto < 10) {
-    return obtenerFraseAleatoria('gasto_bajo', temaId);
+    return obtenerFraseAleatoria(`${tipoBase}_bajo` as TipoFrase, temaId);
   } else {
-    return obtenerFraseAleatoria('gasto_agregado', temaId);
+    return obtenerFraseAleatoria(`${tipoBase}_agregado` as TipoFrase, temaId);
   }
 };

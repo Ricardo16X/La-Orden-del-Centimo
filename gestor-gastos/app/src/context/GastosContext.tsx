@@ -14,6 +14,8 @@ interface GastosContextType {
   editarGasto: (id: string, gastoActualizado: ActualizacionGasto) => void;
   eliminarGasto: (id: string) => void;
   totalGastado: number;
+  totalIngresos: number;
+  balance: number;
   ultimoGastoAgregado: Gasto | null;
 }
 
@@ -70,7 +72,15 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
     await guardarGastos(nuevosGastos);
   };
 
-  const totalGastado = gastos.reduce((sum, gasto) => sum + gasto.monto, 0);
+  const totalGastado = gastos
+    .filter(g => g.tipo === 'gasto')
+    .reduce((sum, gasto) => sum + gasto.monto, 0);
+
+  const totalIngresos = gastos
+    .filter(g => g.tipo === 'ingreso')
+    .reduce((sum, gasto) => sum + gasto.monto, 0);
+
+  const balance = totalIngresos - totalGastado;
 
   return (
     <GastosContext.Provider
@@ -80,6 +90,8 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
         editarGasto,
         eliminarGasto,
         totalGastado,
+        totalIngresos,
+        balance,
         ultimoGastoAgregado,
       }}
     >

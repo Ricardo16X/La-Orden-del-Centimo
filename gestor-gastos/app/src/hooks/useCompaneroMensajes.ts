@@ -25,16 +25,21 @@ export const useCompaneroMensajes = (
     return () => clearTimeout(timer);
   }, [temaId]);
 
-  // Mensaje cuando se agrega un gasto
+  // Mensaje cuando se agrega un gasto o ingreso
   useEffect(() => {
     if (ultimoGastoAgregado && ultimoGastoAgregado.id !== ultimoGastoIdProcesado.current) {
       ultimoGastoIdProcesado.current = ultimoGastoAgregado.id;
 
-      if (onGastoAgregado) {
+      // Solo otorgar XP si es un gasto (no por ingresos)
+      if (ultimoGastoAgregado.tipo === 'gasto' && onGastoAgregado) {
         onGastoAgregado();
       }
 
-      const frase = obtenerFraseSegunMonto(ultimoGastoAgregado.monto, temaId);
+      const frase = obtenerFraseSegunMonto(
+        ultimoGastoAgregado.monto,
+        temaId,
+        ultimoGastoAgregado.tipo
+      );
       mostrarMensaje(frase);
 
       // 30% de probabilidad de mensaje extra

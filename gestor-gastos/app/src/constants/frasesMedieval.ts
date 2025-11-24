@@ -25,7 +25,26 @@ export const FRASES_MEDIEVAL: FraseCompanero[] = [
   { tipo: 'gasto_bajo', texto: "Sabio eres al cuidar tus monedas." },
   { tipo: 'gasto_bajo', texto: "Pequeños gastos construyen grandes fortunas... o las preservan." },
   { tipo: 'gasto_bajo', texto: "Aún los dragones comenzaron como pequeños lagartos." },
-  
+
+  // Al agregar ingreso
+  { tipo: 'ingreso_agregado', texto: "¡Ah! Oro fresco para tu cofre. Sabia decisión registrarlo." },
+  { tipo: 'ingreso_agregado', texto: "Tus arcas crecen. Los Nueve sonríen sobre ti." },
+  { tipo: 'ingreso_agregado', texto: "¡Septims! El dulce sonido del metal en tu bolsa." },
+  { tipo: 'ingreso_agregado', texto: "Registrado. Tu riqueza aumenta como la marea." },
+  { tipo: 'ingreso_agregado', texto: "¡Excelente! Cada ingreso te acerca a tus metas." },
+
+  // Ingreso alto
+  { tipo: 'ingreso_alto', texto: "¡Por Talos! ¡Esa es una suma digna de un jarl!" },
+  { tipo: 'ingreso_alto', texto: "¡Qué fortuna! Incluso los dragones envidiarían tal tesoro." },
+  { tipo: 'ingreso_alto', texto: "¡Magnífico! Tu cofre rebosa de riqueza hoy." },
+  { tipo: 'ingreso_alto', texto: "¡Espléndido! Una recompensa digna de tus esfuerzos." },
+
+  // Ingreso bajo
+  { tipo: 'ingreso_bajo', texto: "Pequeños arroyos forman grandes ríos. Cada moneda cuenta." },
+  { tipo: 'ingreso_bajo', texto: "Modesto pero valioso. Las grandes fortunas comienzan así." },
+  { tipo: 'ingreso_bajo', texto: "Sabio es quien valora incluso las monedas menores." },
+  { tipo: 'ingreso_bajo', texto: "Cada septim suma. Los comienzos humildes tienen finales grandiosos." },
+
   // Motivacionales
   { tipo: 'motivacional', texto: "Cada registro te acerca a dominar tus finanzas como un Thu'um." },
   { tipo: 'motivacional', texto: "El camino del ahorro es largo, pero tú eres persistente." },

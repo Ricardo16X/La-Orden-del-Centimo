@@ -6,7 +6,7 @@ export type TipoTransaccion = 'ingreso' | 'gasto';
 /**
  * Tipos de frases del compañero
  */
-export type TipoFrase = 'bienvenida' | 'gasto_agregado' | 'gasto_alto' | 'gasto_bajo' | 'motivacional' | 'consejo';
+export type TipoFrase = 'bienvenida' | 'gasto_agregado' | 'gasto_alto' | 'gasto_bajo' | 'ingreso_agregado' | 'ingreso_alto' | 'ingreso_bajo' | 'motivacional' | 'consejo';
 
 /**
  * Interfaz para un gasto/ingreso
@@ -38,6 +38,7 @@ export interface Categoria {
   nombre: string;
   emoji: string;
   color: string;
+  esPersonalizada?: boolean; // true si fue creada por el usuario
 }
 
 /**

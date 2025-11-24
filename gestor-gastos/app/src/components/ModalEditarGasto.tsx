@@ -38,10 +38,12 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
 
   const handleEliminar = () => {
     if (!gasto) return;
-    
+
+    const tipoTexto = gasto.tipo === 'ingreso' ? 'Ingreso' : 'Gasto';
+
     Alert.alert(
-      'Eliminar Gasto',
-      '¿Estás seguro de que quieres eliminar este gasto?',
+      `Eliminar ${tipoTexto}`,
+      `¿Estás seguro de que quieres eliminar este ${tipoTexto.toLowerCase()}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
@@ -69,7 +71,7 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
         <View style={[styles.contenido, { backgroundColor: tema.colores.fondo }]}>
           <View style={styles.header}>
             <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-              ✏️ Editar Gasto
+              {gasto.tipo === 'ingreso' ? '💰' : '✏️'} Editar {gasto.tipo === 'ingreso' ? 'Ingreso' : 'Gasto'}
             </Text>
             <TouchableOpacity onPress={onClose}>
               <Text style={[styles.cerrar, { color: tema.colores.texto }]}>✕</Text>

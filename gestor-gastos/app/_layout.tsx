@@ -11,6 +11,7 @@ import 'react-native-reanimated';
 import { GastosProvider } from './src/context/GastosContext';
 import { NivelProvider } from './src/context/NivelContext';
 import { TemaProvider } from './src/context/TemaContext';
+import { CategoriasProvider } from './src/context/CategoriasContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -19,15 +20,17 @@ export default function RootLayout() {
 
   return (
     <TemaProvider>
-      <GastosProvider>
-        <NivelProvider>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" />
-        </NivelProvider>
-      </GastosProvider>
+      <CategoriasProvider>
+        <GastosProvider>
+          <NivelProvider>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="auto" />
+          </NivelProvider>
+        </GastosProvider>
+      </CategoriasProvider>
     </TemaProvider>
   );
 }

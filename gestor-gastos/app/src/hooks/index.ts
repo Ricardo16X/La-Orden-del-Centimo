@@ -5,3 +5,4 @@
 export * from './useFormGasto';
 export * from './useCompaneroMensajes';
 export * from './useEstadisticas';
+export * from './useCategoriasPopulares';

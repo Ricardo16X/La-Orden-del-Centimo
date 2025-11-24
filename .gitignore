@@ -44,5 +44,4 @@ app-example
 /android
 
 # Claude
-.claude/
 .claude

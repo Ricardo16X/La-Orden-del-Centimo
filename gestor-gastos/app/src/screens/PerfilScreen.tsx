@@ -1,19 +1,21 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useState } from 'react';
 import { useNivel } from '../context/NivelContext';
 import { useGastos } from '../context/GastosContext';
 import { useTema } from '../context/TemaContext';
+import { useCategorias } from '../context/CategoriasContext';
 import { useEstadisticas } from '../hooks';
 import { BarraNivel } from '../components/BarraNivel';
 import { SelectorTema } from '../components/SelectorTema';
-import { obtenerCategorias } from '../constants/categorias';
+import { ModalGestionarCategorias } from '../components/ModalGestionarCategorias';
 
 export const PerfilScreen = () => {
   const { datosJugador } = useNivel();
-  const { gastos } = useGastos();
+  const { gastos, totalIngresos, totalGastado, balance } = useGastos();
   const { tema } = useTema();
+  const { categorias } = useCategorias();
 
-  // Obtener categorías según el tema
-  const categorias = obtenerCategorias(tema.id, tema.categorias);
+  const [modalCategoriasVisible, setModalCategoriasVisible] = useState(false);
 
   // Usar hook de estadísticas
   const { gastosPorCategoria } = useEstadisticas(gastos, categorias);
@@ -23,6 +25,13 @@ export const PerfilScreen = () => {
       <Text style={[styles.titulo, { color: tema.colores.primario }]}>👤 Tu Perfil</Text>
 
       <SelectorTema />
+
+      <TouchableOpacity
+        style={[styles.botonCategorias, { backgroundColor: tema.colores.primario }]}
+        onPress={() => setModalCategoriasVisible(true)}
+      >
+        <Text style={styles.textoBoton}>📂 Gestionar Categorías</Text>
+      </TouchableOpacity>
 
       <BarraNivel datosJugador={datosJugador} />
 
@@ -34,14 +43,41 @@ export const PerfilScreen = () => {
 
         <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
           <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-            Gastos registrados:
+            Total Ingresos:
+          </Text>
+          <Text style={[styles.estatValor, { color: '#4ade80' }]}>
+            +{totalIngresos.toFixed(2)} {tema.moneda}
+          </Text>
+        </View>
+
+        <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
+          <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
+            Total Gastos:
+          </Text>
+          <Text style={[styles.estatValor, { color: tema.colores.acento }]}>
+            -{totalGastado.toFixed(2)} {tema.moneda}
+          </Text>
+        </View>
+
+        <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
+          <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
+            Balance:
+          </Text>
+          <Text style={[styles.estatValor, { color: balance >= 0 ? '#4ade80' : '#ef4444' }]}>
+            {balance >= 0 ? '+' : ''}{balance.toFixed(2)} {tema.moneda}
+          </Text>
+        </View>
+
+        <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
+          <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
+            Transacciones:
           </Text>
           <Text style={[styles.estatValor, { color: tema.colores.primarioClaro }]}>
             {gastos.length}
           </Text>
         </View>
 
-        <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
+        <View style={[styles.estadistica, { borderBottomWidth: 0 }]}>
           <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
             Experiencia total:
           </Text>
@@ -85,6 +121,11 @@ export const PerfilScreen = () => {
           </Text>
         </View>
       )}
+
+      <ModalGestionarCategorias
+        visible={modalCategoriasVisible}
+        onClose={() => setModalCategoriasVisible(false)}
+      />
     </ScrollView>
   );
 };
@@ -150,5 +191,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  botonCategorias: {
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  textoBoton: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

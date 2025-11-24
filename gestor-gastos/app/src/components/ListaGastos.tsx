@@ -39,8 +39,15 @@ export const ListaGastos = ({ gastos, onEliminar, onEditar }: Props) => {
               </Text>
             </View>
             <View style={styles.actions}>
-              <Text style={[styles.monto, { color: tema?.colores?.primarioClaro || '#ffd700' }]}>
-                {item.monto.toFixed(2)} 🪙
+              <Text style={[
+                styles.monto,
+                {
+                  color: item.tipo === 'ingreso'
+                    ? '#4ade80'
+                    : tema?.colores?.primarioClaro || '#ffd700'
+                }
+              ]}>
+                {item.tipo === 'ingreso' ? '+' : '-'}{item.monto.toFixed(2)} 🪙
               </Text>
             </View>
           </TouchableOpacity>

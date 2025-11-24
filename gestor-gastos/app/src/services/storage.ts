@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Gasto } from '../types';
+import { Gasto, Categoria } from '../types';
 import { STORAGE_KEYS } from '../utils/storage-keys';
 
 /**
@@ -85,6 +85,32 @@ export const guardarTema = async (temaId: string): Promise<void> => {
 };
 
 /**
+ * Carga las categorías desde AsyncStorage
+ * @returns Array de categorías guardadas
+ */
+export const cargarCategorias = async (): Promise<Categoria[]> => {
+  try {
+    const categoriasGuardadas = await AsyncStorage.getItem(STORAGE_KEYS.CATEGORIAS);
+    return categoriasGuardadas ? JSON.parse(categoriasGuardadas) : [];
+  } catch (error) {
+    console.error('Error cargando categorías:', error);
+    return [];
+  }
+};
+
+/**
+ * Guarda las categorías en AsyncStorage
+ * @param categorias - Array de categorías a guardar
+ */
+export const guardarCategorias = async (categorias: Categoria[]): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIAS, JSON.stringify(categorias));
+  } catch (error) {
+    console.error('Error guardando categorías:', error);
+  }
+};
+
+/**
  * Limpia todos los datos almacenados (útil para reset)
  */
 export const limpiarDatos = async (): Promise<void> => {
@@ -93,6 +119,7 @@ export const limpiarDatos = async (): Promise<void> => {
       STORAGE_KEYS.GASTOS,
       STORAGE_KEYS.XP_TOTAL,
       STORAGE_KEYS.TEMA,
+      STORAGE_KEYS.CATEGORIAS,
     ]);
   } catch (error) {
     console.error('Error limpiando datos:', error);

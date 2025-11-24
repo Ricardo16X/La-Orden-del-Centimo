@@ -7,7 +7,7 @@ interface Props {
   onAgregar: (monto: number, descripcion: string, categoria: string) => void;
 }
 
-export const FormularioGasto = ({ onAgregar }: Props) => {
+export const FormularioIngreso = ({ onAgregar }: Props) => {
   const { tema } = useTema();
 
   const {
@@ -31,7 +31,7 @@ export const FormularioGasto = ({ onAgregar }: Props) => {
   return (
     <View style={[styles.container, {
       backgroundColor: tema.colores.fondoSecundario,
-      borderColor: tema.colores.bordes,
+      borderColor: tema.colores.primario,
     }]}>
       <TextInput
         style={[styles.input, {
@@ -48,25 +48,25 @@ export const FormularioGasto = ({ onAgregar }: Props) => {
           borderColor: tema.colores.bordes,
           backgroundColor: tema.colores.texto,
         }]}
-        placeholder="¿En qué lo gastaste?"
+        placeholder="¿De dónde viene?"
         value={descripcion}
         onChangeText={setDescripcion}
       />
-      
+
       <SelectorCategoria
         categoriaSeleccionada={categoriaSeleccionada}
         onSeleccionar={setCategoriaSeleccionada}
       />
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.boton, {
-          backgroundColor: tema.colores.acento,
+          backgroundColor: tema.colores.primarioClaro,
           borderColor: tema.colores.primario,
-        }]} 
+        }]}
         onPress={handleAgregar}
       >
-        <Text style={[styles.botonTexto, { color: tema.colores.primarioClaro }]}>
-          📜 Registrar Gasto
+        <Text style={[styles.botonTexto, { color: tema.colores.fondo }]}>
+          💰 Registrar Ingreso
         </Text>
       </TouchableOpacity>
     </View>
