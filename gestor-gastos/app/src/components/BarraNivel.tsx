@@ -28,11 +28,11 @@ export const BarraNivel = ({ datosJugador }: Props) => {
             Nivel {datosJugador.nivel}
           </Text>
           <Text style={[styles.titulo, { color: tema.colores.texto }]}>
-            ⚔️ {datosJugador.titulo}
+            {`⚔️ ${datosJugador.titulo}`}
           </Text>
         </View>
         <Text style={[styles.xpTexto, { color: tema.colores.textoSecundario }]}>
-          {xpEnNivelActual}/{xpNecesarioParaNivel} XP
+          {`${xpEnNivelActual}/${xpNecesarioParaNivel} XP`}
         </Text>
       </View>
       

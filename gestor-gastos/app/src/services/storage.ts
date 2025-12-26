@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Gasto, Categoria } from '../types';
+import { Gasto, Categoria, Recordatorio } from '../types';
 import { STORAGE_KEYS } from '../utils/storage-keys';
 
 /**
@@ -107,6 +107,58 @@ export const guardarCategorias = async (categorias: Categoria[]): Promise<void> 
     await AsyncStorage.setItem(STORAGE_KEYS.CATEGORIAS, JSON.stringify(categorias));
   } catch (error) {
     console.error('Error guardando categorías:', error);
+  }
+};
+
+/**
+ * Carga los recordatorios desde AsyncStorage
+ * @returns Array de recordatorios guardados
+ */
+export const cargarRecordatorios = async (): Promise<Recordatorio[]> => {
+  try {
+    const recordatoriosGuardados = await AsyncStorage.getItem(STORAGE_KEYS.RECORDATORIOS);
+    return recordatoriosGuardados ? JSON.parse(recordatoriosGuardados) : [];
+  } catch (error) {
+    console.error('Error cargando recordatorios:', error);
+    return [];
+  }
+};
+
+/**
+ * Guarda los recordatorios en AsyncStorage
+ * @param recordatorios - Array de recordatorios a guardar
+ */
+export const guardarRecordatorios = async (recordatorios: Recordatorio[]): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.RECORDATORIOS, JSON.stringify(recordatorios));
+  } catch (error) {
+    console.error('Error guardando recordatorios:', error);
+  }
+};
+
+/**
+ * Carga el estado del modo oscuro automático
+ * @returns true si está activado, false si no
+ */
+export const cargarModoOscuroAuto = async (): Promise<boolean> => {
+  try {
+    const modoGuardado = await AsyncStorage.getItem(STORAGE_KEYS.MODO_OSCURO_AUTO);
+    return modoGuardado === 'true';
+  } catch (error) {
+    console.error('Error cargando modo oscuro auto:', error);
+    return false;
+  }
+};
+
+/**
+ * Guarda el estado del modo oscuro automático
+ * @param activo - true para activar, false para desactivar
+ */
+export const guardarModoOscuroAuto = async (activo: boolean): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.MODO_OSCURO_AUTO, activo.toString());
+  } catch (error) {
+    console.error('Error guardando modo oscuro auto:', error);
   }
 };
 

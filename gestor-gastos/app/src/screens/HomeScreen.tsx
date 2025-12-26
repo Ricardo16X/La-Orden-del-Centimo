@@ -1,10 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGastos } from '../context/GastosContext';
 import { useNivel } from '../context/NivelContext';
 import { useTema } from '../context/TemaContext';
-import { useCompaneroMensajes } from '../hooks';
+import { useCompaneroMensajes, useFiltrosGastos } from '../hooks';
 import { Balance } from '../components/Balance';
 import { ListaGastos } from '../components/ListaGastos';
 import { Companero } from '../components/Companero';
@@ -14,6 +14,12 @@ import { ModalAgregarIngreso } from '../components/ModalAgregarIngreso';
 import { ModalEditarGasto } from '../components/ModalEditarGasto';
 import { ModalSeleccionarTipo } from '../components/ModalSeleccionarTipo';
 import { NotificacionNivel } from '../components/NotificacionNivel';
+import { AlertasPresupuesto } from '../components/AlertasPresupuesto';
+import { ModalAlertasDiarias } from '../components/ModalAlertasDiarias';
+import { Filtros } from '../components/Filtros';
+import { ResumenMetas } from '../components/ResumenMetas';
+import { ResumenBalance } from '../components/ResumenBalance';
+import { useAlertasDiarias } from '../hooks/useAlertasDiarias';
 import { XP_POR_GASTO } from '../constants/niveles';
 import { Gasto } from '../types';
 
@@ -21,12 +27,28 @@ export const HomeScreen = () => {
   const { gastos, agregarGasto, editarGasto, eliminarGasto, totalGastado, totalIngresos, ultimoGastoAgregado } = useGastos();
   const { datosJugador, ganarXP, subisteDeNivel } = useNivel();
   const { tema } = useTema();
+  const { modalVisible, descartarAlertas } = useAlertasDiarias();
 
   const [modalSeleccionarTipoVisible, setModalSeleccionarTipoVisible] = useState<boolean>(false);
   const [modalAgregarGastoVisible, setModalAgregarGastoVisible] = useState<boolean>(false);
   const [modalAgregarIngresoVisible, setModalAgregarIngresoVisible] = useState<boolean>(false);
   const [modalEditarVisible, setModalEditarVisible] = useState<boolean>(false);
   const [gastoAEditar, setGastoAEditar] = useState<Gasto | null>(null);
+  const [mostrarFiltros, setMostrarFiltros] = useState<boolean>(false);
+
+  // Hook de filtros
+  const {
+    gastosFiltrados,
+    textoBusqueda,
+    setTextoBusqueda,
+    periodo,
+    setPeriodo,
+    tipoFiltro,
+    setTipoFiltro,
+    limpiarFiltros,
+    hayFiltrosActivos,
+    totalFiltrados,
+  } = useFiltrosGastos(gastos);
 
   const { mensajeCompanero, mostrarCompanero, contadorMensajes } = useCompaneroMensajes(
     tema.id,
@@ -61,9 +83,24 @@ export const HomeScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-        {tema.emoji} Mis Gastos
-      </Text>
+      <View style={styles.headerContainer}>
+        <Text style={[styles.titulo, { color: tema.colores.primario }]}>
+          {tema.emoji} Mis Gastos
+        </Text>
+        <TouchableOpacity
+          style={[styles.botonFiltro, {
+            backgroundColor: mostrarFiltros ? tema.colores.primario : tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+          }]}
+          onPress={() => setMostrarFiltros(!mostrarFiltros)}
+        >
+          <Text style={[styles.botonFiltroTexto, {
+            color: mostrarFiltros ? '#fff' : tema.colores.texto
+          }]}>
+            🔍 {mostrarFiltros ? 'Ocultar' : 'Filtros'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       <Companero
         mensaje={mensajeCompanero}
@@ -73,10 +110,28 @@ export const HomeScreen = () => {
 
       <NotificacionNivel visible={subisteDeNivel} nivel={datosJugador.nivel} />
 
-      <Balance totalIngresos={totalIngresos} totalGastos={totalGastado} />
+      <ResumenBalance />
+
+      <AlertasPresupuesto />
+
+      <ResumenMetas />
+
+      {mostrarFiltros && (
+        <Filtros
+          textoBusqueda={textoBusqueda}
+          onBusquedaChange={setTextoBusqueda}
+          periodo={periodo}
+          onPeriodoChange={setPeriodo}
+          tipoFiltro={tipoFiltro}
+          onTipoChange={setTipoFiltro}
+          hayFiltrosActivos={hayFiltrosActivos}
+          onLimpiarFiltros={limpiarFiltros}
+          totalFiltrados={totalFiltrados}
+        />
+      )}
 
       <ListaGastos
-        gastos={gastos}
+        gastos={gastosFiltrados}
         onEliminar={eliminarGasto}
         onEditar={handleAbrirEditar}
       />
@@ -109,6 +164,11 @@ export const HomeScreen = () => {
         onEliminar={eliminarGasto}
       />
 
+      <ModalAlertasDiarias
+        visible={modalVisible}
+        onClose={descartarAlertas}
+      />
+
       <StatusBar style="auto" />
     </View>
   );
@@ -120,10 +180,25 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingHorizontal: 20,
   },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   titulo: {
     fontSize: 28,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
+    flex: 1,
+  },
+  botonFiltro: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 2,
+  },
+  botonFiltroTexto: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

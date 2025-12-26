@@ -25,8 +25,22 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Gastos',
-          tabBarIcon: () => <Text style={{ fontSize: 19 }}>💰</Text>,
+          title: 'Inicio',
+          tabBarIcon: () => <Text style={{ fontSize: 19 }}>🏠</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="estadisticas"
+        options={{
+          title: 'Estadísticas',
+          tabBarIcon: () => <Text style={{ fontSize: 19 }}>📊</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="gestion"
+        options={{
+          title: 'Gestión',
+          tabBarIcon: () => <Text style={{ fontSize: 19 }}>⚙️</Text>,
         }}
       />
       <Tabs.Screen

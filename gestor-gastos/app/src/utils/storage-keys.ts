@@ -10,6 +10,13 @@ export const STORAGE_KEYS = {
   ULTIMA_RACHA: 'ultima_racha',
   DATOS_JUGADOR: 'datos_jugador',
   CATEGORIAS: 'categorias_personalizadas',
+  PRESUPUESTOS: 'presupuestos',
+  TARJETAS: 'tarjetas_credito',
+  ULTIMA_ALERTA_DESCARTADA: 'ultima_alerta_descartada',
+  FRECUENCIA_ALERTAS: 'frecuencia_alertas',
+  RECORDATORIOS: 'recordatorios',
+  MODO_OSCURO_AUTO: 'modo_oscuro_automatico',
+  METAS: 'metas_ahorro',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

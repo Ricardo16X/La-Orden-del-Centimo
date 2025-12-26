@@ -1,130 +1,160 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useState } from 'react';
 import { useNivel } from '../context/NivelContext';
-import { useGastos } from '../context/GastosContext';
 import { useTema } from '../context/TemaContext';
-import { useCategorias } from '../context/CategoriasContext';
-import { useEstadisticas } from '../hooks';
-import { BarraNivel } from '../components/BarraNivel';
-import { SelectorTema } from '../components/SelectorTema';
-import { ModalGestionarCategorias } from '../components/ModalGestionarCategorias';
+import { useBackup } from '../hooks';
+import { ModalPersonalizacion } from '../components/ModalPersonalizacion';
+import { ModalProgreso } from '../components/ModalProgreso';
+import { ModalExportar } from '../components/ModalExportar';
 
 export const PerfilScreen = () => {
   const { datosJugador } = useNivel();
-  const { gastos, totalIngresos, totalGastado, balance } = useGastos();
   const { tema } = useTema();
-  const { categorias } = useCategorias();
+  const { crearBackup, restaurarBackup } = useBackup();
 
-  const [modalCategoriasVisible, setModalCategoriasVisible] = useState(false);
-
-  // Usar hook de estadísticas
-  const { gastosPorCategoria } = useEstadisticas(gastos, categorias);
+  const [modalPersonalizacionVisible, setModalPersonalizacionVisible] = useState(false);
+  const [modalProgresoVisible, setModalProgresoVisible] = useState(false);
+  const [modalExportarVisible, setModalExportarVisible] = useState(false);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
       <Text style={[styles.titulo, { color: tema.colores.primario }]}>👤 Tu Perfil</Text>
+      <Text style={[styles.subtitulo, { color: tema.colores.textoSecundario }]}>
+        Personalización y progreso
+      </Text>
 
-      <SelectorTema />
+      {/* Menú de opciones */}
+      <View style={styles.menu}>
+        {/* Personalización */}
+        <TouchableOpacity
+          style={[styles.menuItem, {
+            backgroundColor: tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+          }]}
+          onPress={() => setModalPersonalizacionVisible(true)}
+        >
+          <View style={[styles.menuIcono, { backgroundColor: tema.colores.primario }]}>
+            <Text style={styles.menuIconoTexto}>🎨</Text>
+          </View>
+          <View style={styles.menuInfo}>
+            <Text style={[styles.menuTitulo, { color: tema.colores.texto }]}>
+              Personalización
+            </Text>
+            <Text style={[styles.menuDescripcion, { color: tema.colores.textoSecundario }]}>
+              Cambia el tema y apariencia
+            </Text>
+          </View>
+          <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.botonCategorias, { backgroundColor: tema.colores.primario }]}
-        onPress={() => setModalCategoriasVisible(true)}
-      >
-        <Text style={styles.textoBoton}>📂 Gestionar Categorías</Text>
-      </TouchableOpacity>
+        {/* Progreso */}
+        <TouchableOpacity
+          style={[styles.menuItem, {
+            backgroundColor: tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+          }]}
+          onPress={() => setModalProgresoVisible(true)}
+        >
+          <View style={[styles.menuIcono, { backgroundColor: tema.colores.primarioClaro }]}>
+            <Text style={styles.menuIconoTexto}>⭐</Text>
+          </View>
+          <View style={styles.menuInfo}>
+            <Text style={[styles.menuTitulo, { color: tema.colores.texto }]}>
+              Tu Progreso
+            </Text>
+            <Text style={[styles.menuDescripcion, { color: tema.colores.textoSecundario }]}>
+              {`Nivel ${datosJugador.nivel} • ${datosJugador.xp} XP`}
+            </Text>
+          </View>
+          <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>
+        </TouchableOpacity>
 
-      <BarraNivel datosJugador={datosJugador} />
+        {/* Exportar Datos */}
+        <TouchableOpacity
+          style={[styles.menuItem, {
+            backgroundColor: tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+          }]}
+          onPress={() => setModalExportarVisible(true)}
+        >
+          <View style={[styles.menuIcono, { backgroundColor: tema.colores.primario }]}>
+            <Text style={styles.menuIconoTexto}>📤</Text>
+          </View>
+          <View style={styles.menuInfo}>
+            <Text style={[styles.menuTitulo, { color: tema.colores.texto }]}>
+              Exportar Datos
+            </Text>
+            <Text style={[styles.menuDescripcion, { color: tema.colores.textoSecundario }]}>
+              Comparte tus gastos y resúmenes
+            </Text>
+          </View>
+          <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>
+        </TouchableOpacity>
 
-      <View style={[styles.seccion, {
-        backgroundColor: tema.colores.fondoSecundario,
-        borderColor: tema.colores.bordes,
-      }]}>
-        <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>📊 Estadísticas</Text>
+        {/* Crear Copia de Seguridad */}
+        <TouchableOpacity
+          style={[styles.menuItem, {
+            backgroundColor: tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+          }]}
+          onPress={async () => {
+            const exito = await crearBackup();
+            if (exito) {
+              Alert.alert('Éxito', 'Copia de seguridad creada correctamente');
+            }
+          }}
+        >
+          <View style={[styles.menuIcono, { backgroundColor: '#10b981' }]}>
+            <Text style={styles.menuIconoTexto}>💾</Text>
+          </View>
+          <View style={styles.menuInfo}>
+            <Text style={[styles.menuTitulo, { color: tema.colores.texto }]}>
+              Copia de Seguridad
+            </Text>
+            <Text style={[styles.menuDescripcion, { color: tema.colores.textoSecundario }]}>
+              Guarda todos tus datos de forma segura
+            </Text>
+          </View>
+          <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>
+        </TouchableOpacity>
 
-        <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
-          <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-            Total Ingresos:
-          </Text>
-          <Text style={[styles.estatValor, { color: '#4ade80' }]}>
-            +{totalIngresos.toFixed(2)} {tema.moneda}
-          </Text>
-        </View>
-
-        <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
-          <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-            Total Gastos:
-          </Text>
-          <Text style={[styles.estatValor, { color: tema.colores.acento }]}>
-            -{totalGastado.toFixed(2)} {tema.moneda}
-          </Text>
-        </View>
-
-        <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
-          <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-            Balance:
-          </Text>
-          <Text style={[styles.estatValor, { color: balance >= 0 ? '#4ade80' : '#ef4444' }]}>
-            {balance >= 0 ? '+' : ''}{balance.toFixed(2)} {tema.moneda}
-          </Text>
-        </View>
-
-        <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
-          <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-            Transacciones:
-          </Text>
-          <Text style={[styles.estatValor, { color: tema.colores.primarioClaro }]}>
-            {gastos.length}
-          </Text>
-        </View>
-
-        <View style={[styles.estadistica, { borderBottomWidth: 0 }]}>
-          <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-            Experiencia total:
-          </Text>
-          <Text style={[styles.estatValor, { color: tema.colores.primarioClaro }]}>
-            {datosJugador.xp} XP
-          </Text>
-        </View>
+        {/* Restaurar Copia de Seguridad */}
+        <TouchableOpacity
+          style={[styles.menuItem, {
+            backgroundColor: tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+          }]}
+          onPress={restaurarBackup}
+        >
+          <View style={[styles.menuIcono, { backgroundColor: '#6366f1' }]}>
+            <Text style={styles.menuIconoTexto}>📥</Text>
+          </View>
+          <View style={styles.menuInfo}>
+            <Text style={[styles.menuTitulo, { color: tema.colores.texto }]}>
+              Restaurar Backup
+            </Text>
+            <Text style={[styles.menuDescripcion, { color: tema.colores.textoSecundario }]}>
+              Recupera tus datos desde un archivo
+            </Text>
+          </View>
+          <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>
+        </TouchableOpacity>
       </View>
 
-      {gastosPorCategoria.length > 0 ? (
-        <View style={[styles.seccion, {
-          backgroundColor: tema.colores.fondoSecundario,
-          borderColor: tema.colores.bordes,
-        }]}>
-          <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-            🏷️ Por Categoría
-          </Text>
-          {gastosPorCategoria.map(cat => (
-            <View key={cat.id} style={[styles.categoriaItem, {
-              borderBottomColor: tema.colores.bordes
-            }]}>
-              <Text style={styles.categoriaEmoji}>{cat.emoji}</Text>
-              <View style={styles.categoriaInfo}>
-                <Text style={[styles.categoriaNombre, { color: tema.colores.texto }]}>
-                  {cat.nombre}
-                </Text>
-                <Text style={[styles.categoriaDetalle, { color: tema.colores.textoSecundario }]}>
-                  {cat.cantidad} gastos • {cat.total.toFixed(2)} {tema.moneda}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      ) : (
-        <View style={[styles.seccion, {
-          backgroundColor: tema.colores.fondoSecundario,
-          borderColor: tema.colores.bordes,
-        }]}>
-          <Text style={[styles.vacio, { color: tema.colores.textoSecundario }]}>
-            No hay gastos registrados todavía.
-          </Text>
-        </View>
-      )}
+      {/* Modales */}
+      <ModalPersonalizacion
+        visible={modalPersonalizacionVisible}
+        onClose={() => setModalPersonalizacionVisible(false)}
+      />
 
-      <ModalGestionarCategorias
-        visible={modalCategoriasVisible}
-        onClose={() => setModalCategoriasVisible(false)}
+      <ModalProgreso
+        visible={modalProgresoVisible}
+        onClose={() => setModalProgresoVisible(false)}
+      />
+
+      <ModalExportar
+        visible={modalExportarVisible}
+        onClose={() => setModalExportarVisible(false)}
       />
     </ScrollView>
   );
@@ -140,67 +170,47 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 20,
-  },
-  seccion: {
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 20,
-    borderWidth: 2,
+    marginBottom: 8,
   },
   subtitulo: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  estadistica: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  estatLabel: {
-    fontSize: 16,
-  },
-  estatValor: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  categoriaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  categoriaEmoji: {
-    fontSize: 32,
-    marginRight: 15,
-  },
-  categoriaInfo: {
-    flex: 1,
-  },
-  categoriaNombre: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  categoriaDetalle: {
     fontSize: 14,
-    marginTop: 2,
-  },
-  vacio: {
-    fontSize: 16,
     textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  botonCategorias: {
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
     marginBottom: 20,
   },
-  textoBoton: {
-    color: '#fff',
-    fontSize: 16,
+  menu: {
+    gap: 15,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 15,
+    borderWidth: 2,
+  },
+  menuIcono: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  menuIconoTexto: {
+    fontSize: 24,
+  },
+  menuInfo: {
+    flex: 1,
+  },
+  menuTitulo: {
+    fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  menuDescripcion: {
+    fontSize: 13,
+  },
+  menuFlecha: {
+    fontSize: 32,
+    fontWeight: '300',
   },
 });

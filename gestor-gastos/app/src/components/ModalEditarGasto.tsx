@@ -71,7 +71,7 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
         <View style={[styles.contenido, { backgroundColor: tema.colores.fondo }]}>
           <View style={styles.header}>
             <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-              {gasto.tipo === 'ingreso' ? '💰' : '✏️'} Editar {gasto.tipo === 'ingreso' ? 'Ingreso' : 'Gasto'}
+              {gasto.tipo === 'ingreso' ? '💰 Editar Ingreso' : '✏️ Editar Gasto'}
             </Text>
             <TouchableOpacity onPress={onClose}>
               <Text style={[styles.cerrar, { color: tema.colores.texto }]}>✕</Text>

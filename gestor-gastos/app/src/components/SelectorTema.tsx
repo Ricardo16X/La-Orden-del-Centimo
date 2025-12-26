@@ -6,8 +6,6 @@ export const SelectorTema = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.titulo, { color: tema.colores.primario }]}>🎨 Tema de la App</Text>
-      
       <View style={styles.temas}>
         {temasDisponibles.map(t => (
           <TouchableOpacity
@@ -38,12 +36,7 @@ export const SelectorTema = () => {
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
-  },
-  titulo: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
+    marginBottom: 0,
   },
   temas: {
     flexDirection: 'row',
