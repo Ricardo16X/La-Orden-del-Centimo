@@ -1,4 +1,4 @@
-import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useMetas } from '../context/MetasContext';
@@ -158,18 +158,22 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
       visible={visible}
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
-        <View style={[styles.modal, { backgroundColor: tema.colores.fondo }]}>
-          <View style={styles.header}>
-            <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-              🎯 Metas de Ahorro
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={[styles.cerrar, { color: tema.colores.texto }]}>✕</Text>
-            </TouchableOpacity>
-          </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <View style={styles.overlay}>
+          <View style={[styles.modal, { backgroundColor: tema.colores.fondo }]}>
+            <View style={styles.header}>
+              <Text style={[styles.titulo, { color: tema.colores.primario }]}>
+                🎯 Metas de Ahorro
+              </Text>
+              <TouchableOpacity onPress={onClose}>
+                <Text style={[styles.cerrar, { color: tema.colores.texto }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {!mostrarFormulario ? (
               <>
                 {/* Lista de metas */}
@@ -458,6 +462,7 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
           </ScrollView>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </Modal>
 
     {/* Modal para Aportar/Retirar */}
@@ -467,11 +472,15 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
       animationType="fade"
       onRequestClose={() => setModalAportarVisible(false)}
     >
-      <View style={styles.overlay}>
-        <View style={[styles.modalAportar, { backgroundColor: tema.colores.fondo }]}>
-          <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-            {esRetiro ? '↩️ Retirar de Meta' : '💰 Aportar a Meta'}
-          </Text>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <View style={styles.overlay}>
+          <View style={[styles.modalAportar, { backgroundColor: tema.colores.fondo }]}>
+            <Text style={[styles.titulo, { color: tema.colores.primario }]}>
+              {esRetiro ? '↩️ Retirar de Meta' : '💰 Aportar a Meta'}
+            </Text>
 
           {!esRetiro && (
             <Text style={[styles.infoBalance, { color: tema.colores.textoSecundario }]}>
@@ -525,6 +534,7 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
           </View>
         </View>
       </View>
+    </KeyboardAvoidingView>
     </Modal>
     </>
   );
@@ -803,5 +813,8 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
 });

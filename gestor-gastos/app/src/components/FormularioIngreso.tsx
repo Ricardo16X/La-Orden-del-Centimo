@@ -36,9 +36,11 @@ export const FormularioIngreso = ({ onAgregar }: Props) => {
       <TextInput
         style={[styles.input, {
           borderColor: tema.colores.bordes,
-          backgroundColor: tema.colores.texto,
+          backgroundColor: tema.colores.fondo,
+          color: tema.colores.texto,
         }]}
         placeholder={`Cantidad de ${tema.moneda}`}
+        placeholderTextColor={tema.colores.textoSecundario}
         keyboardType="numeric"
         value={monto}
         onChangeText={setMonto}
@@ -46,9 +48,11 @@ export const FormularioIngreso = ({ onAgregar }: Props) => {
       <TextInput
         style={[styles.input, {
           borderColor: tema.colores.bordes,
-          backgroundColor: tema.colores.texto,
+          backgroundColor: tema.colores.fondo,
+          color: tema.colores.texto,
         }]}
         placeholder="¿De dónde viene?"
+        placeholderTextColor={tema.colores.textoSecundario}
         value={descripcion}
         onChangeText={setDescripcion}
       />

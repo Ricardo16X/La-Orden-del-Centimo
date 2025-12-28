@@ -17,6 +17,7 @@ import { TarjetasProvider } from './src/context/TarjetasContext';
 import { RecordatoriosProvider } from './src/context/RecordatoriosContext';
 import { MetasProvider } from './src/context/MetasContext';
 import { BalanceProvider } from './src/context/BalanceContext';
+import { LogrosProvider } from './src/context/LogrosContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -32,13 +33,20 @@ export default function RootLayout() {
               <RecordatoriosProvider>
                 <MetasProvider>
                   <BalanceProvider>
-                    <NivelProvider>
-                      <Stack>
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                        <Stack.Screen name="+not-found" />
-                      </Stack>
-                      <StatusBar style="auto" />
-                    </NivelProvider>
+                    <LogrosProvider>
+                      <NivelProvider>
+                        <Stack>
+                          <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+                          <Stack.Screen name="categorias" options={{ headerShown: false }} />
+                          <Stack.Screen name="presupuestos" options={{ headerShown: false }} />
+                          <Stack.Screen name="tarjetas" options={{ headerShown: false }} />
+                          <Stack.Screen name="recordatorios" options={{ headerShown: false }} />
+                          <Stack.Screen name="metas" options={{ headerShown: false }} />
+                          <Stack.Screen name="+not-found" />
+                        </Stack>
+                        <StatusBar style="auto" />
+                      </NivelProvider>
+                    </LogrosProvider>
                   </BalanceProvider>
                 </MetasProvider>
               </RecordatoriosProvider>

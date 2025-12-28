@@ -1,4 +1,4 @@
-import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useCategorias } from '../context/CategoriasContext';
@@ -78,7 +78,11 @@ export const ModalGestionarCategorias = ({ visible, onClose }: Props) => {
       visible={visible}
       onRequestClose={onClose}
     >
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoid}
+      >
+        <View style={styles.overlay}>
         <View style={[styles.modal, { backgroundColor: tema.colores.fondo }]}>
           <View style={styles.header}>
             <Text style={[styles.titulo, { color: tema.colores.primario }]}>
@@ -89,7 +93,7 @@ export const ModalGestionarCategorias = ({ visible, onClose }: Props) => {
             </TouchableOpacity>
           </View>
 
-          <ScrollView>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Formulario para agregar nueva categoría */}
             <View style={[styles.seccion, { borderColor: tema.colores.bordes }]}>
               <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
@@ -193,11 +197,15 @@ export const ModalGestionarCategorias = ({ visible, onClose }: Props) => {
           </ScrollView>
         </View>
       </View>
+    </KeyboardAvoidingView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  keyboardAvoid: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',

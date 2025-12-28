@@ -25,6 +25,43 @@ export const formatearFecha = (fecha: string | Date): string => {
 };
 
 /**
+ * Formatea una fecha a formato compacto para listas
+ * @param fecha - Fecha en string o Date
+ * @returns Fecha formateada (ej: "27 Dic 2025, 11:30 PM")
+ */
+export const formatearFechaCompacta = (fecha: string | Date): string => {
+  const date = typeof fecha === 'string' ? new Date(fecha) : fecha;
+  const hoy = new Date();
+  const ayer = new Date(hoy);
+  ayer.setDate(ayer.getDate() - 1);
+
+  // Si es hoy, mostrar solo la hora
+  if (date.toDateString() === hoy.toDateString()) {
+    return `Hoy, ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  // Si es ayer
+  if (date.toDateString() === ayer.toDateString()) {
+    return `Ayer, ${date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+
+  // Si es de este año, no mostrar el año
+  if (date.getFullYear() === hoy.getFullYear()) {
+    return date.toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'short',
+    });
+  }
+
+  // Si es de otro año, mostrar todo
+  return date.toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+/**
  * Verifica si una fecha es de hoy
  * @param fecha - Fecha en string
  * @returns true si es hoy
@@ -99,6 +136,11 @@ export const formatearTiempoRestante = (dias: number): string => {
  * Para metas a largo plazo, muestra el ahorro mensual en vez del diario
  */
 export const formatearAhorroRequerido = (diasRestantes: number, ahorroRequeridoDiario: number, ahorroRequeridoMensual: number): string => {
+  // Validar que los valores no sean undefined o null
+  if (diasRestantes == null || ahorroRequeridoDiario == null || ahorroRequeridoMensual == null) {
+    return '$0.00/día';
+  }
+
   if (diasRestantes < 60) {
     return `$${ahorroRequeridoDiario.toFixed(2)}/día`;
   }

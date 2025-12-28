@@ -43,8 +43,8 @@ export const SelectorCategoria = ({ categoriaSeleccionada, onSeleccionar }: Prop
                 borderColor: categoriaSeleccionada === categoria!.id
                   ? categoria!.color
                   : tema.colores.bordes,
+                borderWidth: categoriaSeleccionada === categoria!.id ? 3 : 2,
               },
-              categoriaSeleccionada === categoria!.id && styles.seleccionada,
             ]}
             onPress={() => onSeleccionar(categoria!.id)}
           >
@@ -95,15 +95,12 @@ const styles = StyleSheet.create({
     padding: 10,
     marginRight: 10,
     borderRadius: 8,
-    borderWidth: 2,
     alignItems: 'center',
     minWidth: 100,
   },
-  seleccionada: {
-    transform: [{ scale: 1.05 }],
-  },
   botonVerTodas: {
     borderStyle: 'dashed',
+    borderWidth: 2,
   },
   emoji: {
     fontSize: 24,

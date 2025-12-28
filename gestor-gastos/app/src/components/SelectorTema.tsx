@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useTema } from '../context/TemaContext';
 
 export const SelectorTema = () => {
@@ -6,13 +6,17 @@ export const SelectorTema = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.temas}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         {temasDisponibles.map(t => (
           <TouchableOpacity
             key={t.id}
             style={[
               styles.temaBoton,
-              { 
+              {
                 backgroundColor: t.colores.fondoSecundario,
                 borderColor: tema.id === t.id ? t.colores.primario : t.colores.bordes,
                 borderWidth: tema.id === t.id ? 3 : 2,
@@ -25,11 +29,11 @@ export const SelectorTema = () => {
               {t.nombre}
             </Text>
             {tema.id === t.id && (
-              <Text style={styles.seleccionado}>✓</Text>
+              <View style={[styles.indicadorSeleccionado, { backgroundColor: t.colores.primario }]} />
             )}
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
     </View>
   );
 };
@@ -38,30 +42,31 @@ const styles = StyleSheet.create({
   container: {
     marginBottom: 0,
   },
-  temas: {
-    flexDirection: 'row',
-    gap: 15,
+  scrollContent: {
+    gap: 12,
+    paddingHorizontal: 4,
   },
   temaBoton: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 10,
+    width: 120,
+    padding: 16,
+    borderRadius: 12,
     alignItems: 'center',
     position: 'relative',
   },
   temaEmoji: {
-    fontSize: 40,
-    marginBottom: 8,
+    fontSize: 32,
+    marginBottom: 6,
   },
   temaNombre: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
+    textAlign: 'center',
   },
-  seleccionado: {
+  indicadorSeleccionado: {
     position: 'absolute',
-    top: 5,
-    right: 5,
-    fontSize: 20,
-    color: '#4CAF50',
+    bottom: 8,
+    width: 24,
+    height: 3,
+    borderRadius: 2,
   },
 });

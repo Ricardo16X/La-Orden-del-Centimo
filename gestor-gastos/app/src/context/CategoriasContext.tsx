@@ -26,14 +26,49 @@ export const CategoriasProvider = ({ children }: { children: ReactNode }) => {
 
   // Categorías predeterminadas basadas en el tema actual
   const obtenerCategoriasDefault = (): Categoria[] => {
+    // Nombres según el tema
+    let nombres;
+
+    if (tema.id === 'kawaii') {
+      nombres = {
+        comida: 'Comidita Rica',
+        transporte: 'Movilidad',
+        equipo: 'Ropa y Accesorios',
+        pociones: 'Bebidas y Cafecito',
+        vivienda: 'Casita',
+        entrenamiento: 'Ejercicio',
+        otros: 'Compras',
+      };
+    } else if (tema.id === 'minimal-light' || tema.id === 'minimal-dark') {
+      nombres = {
+        comida: 'Alimentación',
+        transporte: 'Transporte',
+        equipo: 'Compras',
+        pociones: 'Café y Bebidas',
+        vivienda: 'Hogar',
+        entrenamiento: 'Salud y Fitness',
+        otros: 'Otros',
+      };
+    } else {
+      nombres = {
+        comida: 'Comida y Bebida',
+        transporte: 'Transporte',
+        equipo: 'Equipo y Armamento',
+        pociones: 'Pociones y Alquimia',
+        vivienda: 'Vivienda',
+        entrenamiento: 'Entrenamiento',
+        otros: 'Comercio General',
+      };
+    }
+
     const categoriasBase = [
-      { id: 'comida', nombre: 'Comida', emoji: tema.categorias.comida, color: '#ff6b6b', esPersonalizada: false },
-      { id: 'transporte', nombre: 'Transporte', emoji: tema.categorias.transporte, color: '#4ecdc4', esPersonalizada: false },
-      { id: 'equipo', nombre: 'Equipo', emoji: tema.categorias.equipo, color: '#45b7d1', esPersonalizada: false },
-      { id: 'pociones', nombre: 'Pociones', emoji: tema.categorias.pociones, color: '#96ceb4', esPersonalizada: false },
-      { id: 'vivienda', nombre: 'Vivienda', emoji: tema.categorias.vivienda, color: '#ffeaa7', esPersonalizada: false },
-      { id: 'entrenamiento', nombre: 'Entrenamiento', emoji: tema.categorias.entrenamiento, color: '#dfe6e9', esPersonalizada: false },
-      { id: 'otros', nombre: 'Otros', emoji: tema.categorias.otros, color: '#b2bec3', esPersonalizada: false },
+      { id: 'comida', nombre: nombres.comida, emoji: tema.categorias.comida, color: '#ff6b6b', esPersonalizada: false },
+      { id: 'transporte', nombre: nombres.transporte, emoji: tema.categorias.transporte, color: '#4ecdc4', esPersonalizada: false },
+      { id: 'equipo', nombre: nombres.equipo, emoji: tema.categorias.equipo, color: '#45b7d1', esPersonalizada: false },
+      { id: 'pociones', nombre: nombres.pociones, emoji: tema.categorias.pociones, color: '#96ceb4', esPersonalizada: false },
+      { id: 'vivienda', nombre: nombres.vivienda, emoji: tema.categorias.vivienda, color: '#ffeaa7', esPersonalizada: false },
+      { id: 'entrenamiento', nombre: nombres.entrenamiento, emoji: tema.categorias.entrenamiento, color: '#dfe6e9', esPersonalizada: false },
+      { id: 'otros', nombre: nombres.otros, emoji: tema.categorias.otros, color: '#b2bec3', esPersonalizada: false },
     ];
 
     return categoriasBase;
@@ -43,7 +78,7 @@ export const CategoriasProvider = ({ children }: { children: ReactNode }) => {
     cargarDatos();
   }, []);
 
-  // Actualizar emojis de categorías predeterminadas cuando cambia el tema
+  // Actualizar emojis y nombres de categorías predeterminadas cuando cambia el tema
   useEffect(() => {
     if (cargado) {
       setCategorias(prev => {
@@ -52,7 +87,7 @@ export const CategoriasProvider = ({ children }: { children: ReactNode }) => {
           if (!cat.esPersonalizada) {
             const defaultCat = defaultCats.find(dc => dc.id === cat.id);
             if (defaultCat) {
-              return { ...cat, emoji: defaultCat.emoji };
+              return { ...cat, emoji: defaultCat.emoji, nombre: defaultCat.nombre };
             }
           }
           return cat;
@@ -74,13 +109,13 @@ export const CategoriasProvider = ({ children }: { children: ReactNode }) => {
       const defaultCats = obtenerCategoriasDefault();
       const personalizadas = categoriasGuardadas.filter(c => c.esPersonalizada);
 
-      // Actualizar las predeterminadas con los emojis del tema actual
-      // Siempre usar el emoji del tema actual, pero preservar otros cambios
+      // Actualizar las predeterminadas con los emojis y nombres del tema actual
+      // Siempre usar emoji y nombre del tema actual, pero preservar otros cambios
       const predeterminadasActualizadas = defaultCats.map(defaultCat => {
         const guardada = categoriasGuardadas.find(c => c.id === defaultCat.id && !c.esPersonalizada);
         if (guardada) {
-          // Preservar datos guardados pero actualizar emoji del tema
-          return { ...guardada, emoji: defaultCat.emoji };
+          // Preservar datos guardados pero actualizar emoji y nombre del tema
+          return { ...guardada, emoji: defaultCat.emoji, nombre: defaultCat.nombre };
         }
         return defaultCat;
       });

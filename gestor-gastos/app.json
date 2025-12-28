@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "gestor-gastos",
+    "name": "La Orden del Céntimo",
     "slug": "gestor-gastos",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ricardo16x.gestorgastos"
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +21,9 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.gestorgastos"
+      "package": "com.ricardo16x.gestorgastos",
+      "versionCode": 1,
+      "permissions": []
     },
     "web": {
       "output": "static",

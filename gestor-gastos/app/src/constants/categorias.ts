@@ -10,8 +10,8 @@ export const CATEGORIAS_BASE: Omit<Categoria, 'nombre'>[] = [
   { id: 'otros', emoji: '💼', color: '#696969' },
 ];
 
-// Nombres por defecto (medieval)
-const NOMBRES_DEFAULT: Record<string, string> = {
+// Nombres tema Medieval (Skyrim)
+const NOMBRES_MEDIEVAL: Record<string, string> = {
   comida: 'Comida y Bebida',
   transporte: 'Transporte',
   equipo: 'Equipo y Armamento',
@@ -19,6 +19,28 @@ const NOMBRES_DEFAULT: Record<string, string> = {
   vivienda: 'Vivienda',
   entrenamiento: 'Entrenamiento',
   otros: 'Comercio General',
+};
+
+// Nombres tema Kawaii
+const NOMBRES_KAWAII: Record<string, string> = {
+  comida: 'Comidita Rica',
+  transporte: 'Movilidad',
+  equipo: 'Ropa y Accesorios',
+  pociones: 'Bebidas y Cafecito',
+  vivienda: 'Casita',
+  entrenamiento: 'Ejercicio',
+  otros: 'Compras',
+};
+
+// Nombres tema Minimalista
+const NOMBRES_MINIMAL: Record<string, string> = {
+  comida: 'Alimentación',
+  transporte: 'Transporte',
+  equipo: 'Compras',
+  pociones: 'Café y Bebidas',
+  vivienda: 'Hogar',
+  entrenamiento: 'Salud y Fitness',
+  otros: 'Otros',
 };
 
 // Emojis Kawaii alternativos
@@ -34,12 +56,22 @@ export const EMOJIS_KAWAII: Record<string, string> = {
 
 // Genera categorías según el tema
 export const obtenerCategorias = (
-  temaId: string = 'medieval', 
+  temaId: string = 'medieval',
   categoriasNombres?: Record<string, string>
 ): Categoria[] => {
   const emojis = temaId === 'kawaii' ? EMOJIS_KAWAII : {};
-  const nombres = categoriasNombres || NOMBRES_DEFAULT;
-  
+
+  let nombresDefault;
+  if (temaId === 'kawaii') {
+    nombresDefault = NOMBRES_KAWAII;
+  } else if (temaId === 'minimal-light' || temaId === 'minimal-dark') {
+    nombresDefault = NOMBRES_MINIMAL;
+  } else {
+    nombresDefault = NOMBRES_MEDIEVAL;
+  }
+
+  const nombres = categoriasNombres || nombresDefault;
+
   return CATEGORIAS_BASE.map(cat => ({
     ...cat,
     emoji: emojis[cat.id] || cat.emoji,

@@ -1,7 +1,8 @@
 import { FlatList, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Gasto } from '../types';
-import { obtenerCategoria } from '../constants/categorias';
 import { useTema } from '../context/TemaContext';
+import { useCategorias } from '../context/CategoriasContext';
+import { formatearFechaCompacta } from '../utils/date';
 
 interface Props {
   gastos: Gasto[];
@@ -11,17 +12,19 @@ interface Props {
 
 export const ListaGastos = ({ gastos, onEliminar, onEditar }: Props) => {
   const { tema } = useTema();
-  
+  const { categorias } = useCategorias();
+
   return (
     <FlatList
       data={gastos}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => {
-        const categoria = obtenerCategoria(item.categoria, tema?.id || 'medieval', tema?.categorias);
+        // Buscar la categoría en el contexto (incluye personalizadas y predeterminadas)
+        const categoria = categorias.find(cat => cat.id === item.categoria) || categorias[0];
         return (
-          <TouchableOpacity 
-            style={[styles.item, { 
-              borderLeftColor: categoria.color, 
+          <TouchableOpacity
+            style={[styles.item, {
+              borderLeftColor: categoria.color,
               borderLeftWidth: 4,
               backgroundColor: tema?.colores?.fondoSecundario || '#3d2f1f',
               borderColor: tema?.colores?.bordes || '#8b7355',
@@ -35,7 +38,7 @@ export const ListaGastos = ({ gastos, onEliminar, onEditar }: Props) => {
                 {item.descripcion}
               </Text>
               <Text style={[styles.fecha, { color: tema?.colores?.textoSecundario || '#c9b08a' }]}>
-                {item.fecha}
+                {formatearFechaCompacta(item.fecha)}
               </Text>
             </View>
             <View style={styles.actions}>

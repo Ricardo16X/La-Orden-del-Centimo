@@ -62,15 +62,13 @@ export const TemaProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const aplicarTemaAutomatico = () => {
-    // Si el modo oscuro está activado en el sistema, usar un tema oscuro
-    // De lo contrario, usar el tema manual guardado o el primero
+    // Si el modo oscuro está activado en el sistema, usar minimal-dark
+    // De lo contrario, usar minimal-light
     if (colorScheme === 'dark') {
-      // Buscar un tema con tonos oscuros (puedes ajustar esto según tus temas)
-      const temaOscuro = TEMAS.find(t => t.id === 'cyberpunk') || TEMAS[0];
+      const temaOscuro = TEMAS.find(t => t.id === 'minimal-dark') || TEMAS[0];
       setTema(temaOscuro);
     } else {
-      // Usar el tema manual si existe, o el primero
-      const temaClaro = temaManual ? obtenerTema(temaManual) : TEMAS[0];
+      const temaClaro = TEMAS.find(t => t.id === 'minimal-light') || TEMAS[0];
       setTema(temaClaro);
     }
   };

@@ -1,16 +1,12 @@
-import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, Switch } from 'react-native';
 import { useState, useEffect } from 'react';
-import { useTema } from '../context/TemaContext';
-import { useRecordatorios } from '../context/RecordatoriosContext';
-import { useNotificaciones } from '../hooks/useNotificaciones'; // Import directo para build nativo
-import { Recordatorio, FrecuenciaRecordatorio } from '../types';
+import { router } from 'expo-router';
+import { useTema } from './src/context/TemaContext';
+import { useRecordatorios } from './src/context/RecordatoriosContext';
+import { useNotificaciones } from './src/hooks/useNotificaciones';
+import { Recordatorio, FrecuenciaRecordatorio } from './src/types';
 
-interface Props {
-  visible: boolean;
-  onClose: () => void;
-}
-
-export const ModalRecordatorios = ({ visible, onClose }: Props) => {
+export default function RecordatoriosScreen() {
   const { tema } = useTema();
   const { recordatorios, agregarRecordatorio, editarRecordatorio, eliminarRecordatorio, toggleRecordatorio } = useRecordatorios();
   const { programarNotificacion, cancelarNotificacion, permisoConcedido } = useNotificaciones();
@@ -129,26 +125,14 @@ export const ModalRecordatorios = ({ visible, onClose }: Props) => {
   ];
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
-      >
-        <View style={styles.overlay}>
-          <View style={[styles.modal, { backgroundColor: tema.colores.fondo }]}>
-            <View style={styles.header}>
-              <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-                ⏰ Recordatorios
-              </Text>
-              <TouchableOpacity onPress={onClose}>
-                <Text style={[styles.cerrar, { color: tema.colores.texto }]}>✕</Text>
-              </TouchableOpacity>
-            </View>
+    <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
+        </TouchableOpacity>
+        <Text style={[styles.titulo, { color: tema.colores.primario }]}>⏰ Recordatorios</Text>
+        <View style={{ width: 70 }} />
+      </View>
 
             {!permisoConcedido && (
             <View style={[styles.alerta, {
@@ -372,27 +356,19 @@ export const ModalRecordatorios = ({ visible, onClose }: Props) => {
               </>
             )}
           </ScrollView>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
-    </Modal>
+            </View>
   );
 };
 
 const styles = StyleSheet.create({
-  keyboardAvoid: {
+  container: {
     flex: 1,
+    paddingTop: 50,
+    paddingHorizontal: 20,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modal: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '90%',
+  botonVolver: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',

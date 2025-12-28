@@ -1,13 +1,9 @@
-import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useState } from 'react';
-import { useTema } from '../context/TemaContext';
-import { useCategorias } from '../context/CategoriasContext';
-import { usePresupuestos } from '../context/PresupuestosContext';
-
-interface Props {
-  visible: boolean;
-  onClose: () => void;
-}
+import { router } from 'expo-router';
+import { useTema } from './src/context/TemaContext';
+import { useCategorias } from './src/context/CategoriasContext';
+import { usePresupuestos } from './src/context/PresupuestosContext';
 
 const PERIODOS = [
   { id: 'semanal', nombre: 'Semanal', emoji: '📅' },
@@ -15,7 +11,7 @@ const PERIODOS = [
   { id: 'anual', nombre: 'Anual', emoji: '📆' },
 ] as const;
 
-export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
+export default function PresupuestosScreen() {
   const { tema } = useTema();
   const { categorias } = useCategorias();
   const { presupuestos, agregarPresupuesto, editarPresupuesto, eliminarPresupuesto } = usePresupuestos();
@@ -112,28 +108,16 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
   };
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
-      >
-        <View style={styles.overlay}>
-        <View style={[styles.modal, { backgroundColor: tema.colores.fondo }]}>
-          <View style={styles.header}>
-            <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-              💰 Gestionar Presupuestos
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={[styles.cerrar, { color: tema.colores.texto }]}>✕</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
+        </TouchableOpacity>
+        <Text style={[styles.titulo, { color: tema.colores.primario }]}>💰 Presupuestos</Text>
+        <View style={{ width: 70 }} />
+      </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Formulario para agregar nuevo presupuesto */}
             <View style={[styles.seccion, { borderColor: tema.colores.bordes }]}>
               <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
@@ -279,29 +263,20 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
                 ))
               )}
             </View>
-          </ScrollView>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
-    </Modal>
+      </ScrollView>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  keyboardAvoid: {
+  container: {
     flex: 1,
+    paddingTop: 50,
+    paddingHorizontal: 20,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modal: {
-    width: '90%',
-    maxHeight: '80%',
-    borderRadius: 20,
-    padding: 20,
+  botonVolver: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
@@ -310,6 +285,15 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   titulo: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  seccion: {
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+  },
+  subtitulo: {
     fontSize: 24,
     fontWeight: 'bold',
   },

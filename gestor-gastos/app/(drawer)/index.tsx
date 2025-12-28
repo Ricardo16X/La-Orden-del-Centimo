@@ -1,35 +1,29 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useGastos } from '../context/GastosContext';
-import { useNivel } from '../context/NivelContext';
-import { useTema } from '../context/TemaContext';
-import { useCompaneroMensajes, useFiltrosGastos } from '../hooks';
-import { useDetectorLogros } from '../hooks/useDetectorLogros';
-import { Balance } from '../components/Balance';
-import { ListaGastos } from '../components/ListaGastos';
-import { Companero } from '../components/Companero';
-import { BotonAgregar } from '../components/BotonAgregar';
-import { ModalAgregarGasto } from '../components/ModalAgregarGasto';
-import { ModalAgregarIngreso } from '../components/ModalAgregarIngreso';
-import { ModalEditarGasto } from '../components/ModalEditarGasto';
-import { ModalSeleccionarTipo } from '../components/ModalSeleccionarTipo';
-import { NotificacionNivel } from '../components/NotificacionNivel';
-import { NotificacionLogro } from '../components/NotificacionLogro';
-import { AlertasPresupuesto } from '../components/AlertasPresupuesto';
-import { ModalAlertasDiarias } from '../components/ModalAlertasDiarias';
-import { Filtros } from '../components/Filtros';
-import { ResumenMetas } from '../components/ResumenMetas';
-import { ResumenBalance } from '../components/ResumenBalance';
-import { useAlertasDiarias } from '../hooks/useAlertasDiarias';
-import { XP_POR_GASTO } from '../constants/niveles';
-import { Gasto } from '../types';
+import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { useGastos } from '../src/context/GastosContext';
+import { useNivel } from '../src/context/NivelContext';
+import { useTema } from '../src/context/TemaContext';
+import { useFiltrosGastos } from '../src/hooks';
+import { ListaGastos } from '../src/components/ListaGastos';
+import { Companero } from '../src/components/Companero';
+import { BotonAgregar } from '../src/components/BotonAgregar';
+import { ModalAgregarGasto } from '../src/components/ModalAgregarGasto';
+import { ModalAgregarIngreso } from '../src/components/ModalAgregarIngreso';
+import { ModalEditarGasto } from '../src/components/ModalEditarGasto';
+import { ModalSeleccionarTipo } from '../src/components/ModalSeleccionarTipo';
+import { NotificacionNivel } from '../src/components/NotificacionNivel';
+import { NotificacionLogro } from '../src/components/NotificacionLogro';
+import { Filtros } from '../src/components/Filtros';
+import { useCompaneroMensajes } from '../src/hooks';
+import { useDetectorLogros } from '../src/hooks/useDetectorLogros';
+import { XP_POR_GASTO } from '../src/constants/niveles';
+import { Gasto } from '../src/types';
 
-export const HomeScreen = () => {
-  const { gastos, agregarGasto, editarGasto, eliminarGasto, totalGastado, totalIngresos, ultimoGastoAgregado } = useGastos();
+export default function HomeScreen() {
+  const { gastos, agregarGasto, editarGasto, eliminarGasto, ultimoGastoAgregado } = useGastos();
   const { datosJugador, ganarXP, subisteDeNivel } = useNivel();
   const { tema } = useTema();
-  const { modalVisible, descartarAlertas } = useAlertasDiarias();
   const { ultimoLogroDesbloqueado } = useDetectorLogros();
 
   const [modalSeleccionarTipoVisible, setModalSeleccionarTipoVisible] = useState<boolean>(false);
@@ -86,10 +80,8 @@ export const HomeScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      <View style={styles.headerContainer}>
-        <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-          {tema.emoji} Mis Gastos
-        </Text>
+      {/* Botón de filtros en esquina superior derecha */}
+      <View style={styles.filtroContainer}>
         <TouchableOpacity
           style={[styles.botonFiltro, {
             backgroundColor: mostrarFiltros ? tema.colores.primario : tema.colores.fondoSecundario,
@@ -114,12 +106,6 @@ export const HomeScreen = () => {
       <NotificacionNivel visible={subisteDeNivel} nivel={datosJugador.nivel} />
 
       <NotificacionLogro logroDesbloqueado={ultimoLogroDesbloqueado} />
-
-      <ResumenBalance />
-
-      <AlertasPresupuesto />
-
-      <ResumenMetas />
 
       {mostrarFiltros && (
         <Filtros
@@ -169,32 +155,20 @@ export const HomeScreen = () => {
         onEliminar={eliminarGasto}
       />
 
-      <ModalAlertasDiarias
-        visible={modalVisible}
-        onClose={descartarAlertas}
-      />
-
       <StatusBar style="auto" />
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 20,
+    paddingTop: 10,
     paddingHorizontal: 20,
   },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  titulo: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    flex: 1,
+  filtroContainer: {
+    alignItems: 'flex-end',
+    marginBottom: 10,
   },
   botonFiltro: {
     paddingHorizontal: 12,

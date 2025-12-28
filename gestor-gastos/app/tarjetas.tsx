@@ -1,12 +1,8 @@
-import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useState } from 'react';
-import { useTema } from '../context/TemaContext';
-import { useTarjetas } from '../context/TarjetasContext';
-
-interface Props {
-  visible: boolean;
-  onClose: () => void;
-}
+import { router } from 'expo-router';
+import { useTema } from './src/context/TemaContext';
+import { useTarjetas } from './src/context/TarjetasContext';
 
 const COLORES_TARJETA = [
   '#000', '#C0C0C0', '#FFD700',
@@ -15,7 +11,7 @@ const COLORES_TARJETA = [
   '#84cc16', '#f97316', '#14b8a6', '#a855f7',
 ];
 
-export const ModalGestionarTarjetas = ({ visible, onClose }: Props) => {
+export default function TarjetasScreen() {
   const { tema } = useTema();
   const { tarjetas, agregarTarjeta, eliminarTarjeta, obtenerEstadoTarjeta } = useTarjetas();
 
@@ -95,28 +91,16 @@ export const ModalGestionarTarjetas = ({ visible, onClose }: Props) => {
   };
 
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoid}
-      >
-        <View style={styles.overlay}>
-        <View style={[styles.modal, { backgroundColor: tema.colores.fondo }]}>
-          <View style={styles.header}>
-            <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-              💳 Gestionar Tarjetas
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={[styles.cerrar, { color: tema.colores.texto }]}>✕</Text>
-            </TouchableOpacity>
-          </View>
+    <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
+        </TouchableOpacity>
+        <Text style={[styles.titulo, { color: tema.colores.primario }]}>💳 Tarjetas</Text>
+        <View style={{ width: 70 }} />
+      </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Formulario */}
             <View style={[styles.seccion, { borderColor: tema.colores.bordes }]}>
               <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
@@ -288,27 +272,22 @@ export const ModalGestionarTarjetas = ({ visible, onClose }: Props) => {
                 })
               )}
             </View>
-          </ScrollView>
-        </View>
-      </View>
-    </KeyboardAvoidingView>
-    </Modal>
+      </ScrollView>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  keyboardAvoid: {
+  container: {
     flex: 1,
+    paddingTop: 50,
+    paddingHorizontal: 20,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  botonVolver: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  modal: {
-    width: '90%',
-    maxHeight: '85%',
+  seccion: {
     borderRadius: 20,
     padding: 20,
   },

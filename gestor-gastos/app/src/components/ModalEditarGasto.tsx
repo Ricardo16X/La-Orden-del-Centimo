@@ -1,8 +1,10 @@
-import { Modal, View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import { SelectorCategoria } from './SelectorCategoria';
+import { ModalBase } from './ModalBase';
 import { useTema } from '../context/TemaContext';
 import { Gasto } from '../types';
+import { formatearFechaCompacta } from '../utils/date';
 
 interface Props {
   visible: boolean;
@@ -46,8 +48,8 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
       `¿Estás seguro de que quieres eliminar este ${tipoTexto.toLowerCase()}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { 
-          text: 'Eliminar', 
+        {
+          text: 'Eliminar',
           style: 'destructive',
           onPress: () => {
             onEliminar(gasto.id);
@@ -61,109 +63,74 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
   if (!gasto) return null;
 
   return (
-    <Modal
+    <ModalBase
       visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      onClose={onClose}
+      title={gasto.tipo === 'ingreso' ? '💰 Editar Ingreso' : '✏️ Editar Gasto'}
+      position="center"
+      maxHeight="85%"
     >
-      <View style={styles.overlay}>
-        <View style={[styles.contenido, { backgroundColor: tema.colores.fondo }]}>
-          <View style={styles.header}>
-            <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-              {gasto.tipo === 'ingreso' ? '💰 Editar Ingreso' : '✏️ Editar Gasto'}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={[styles.cerrar, { color: tema.colores.texto }]}>✕</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView>
-            <View style={[styles.formulario, {
-              backgroundColor: tema.colores.fondoSecundario,
-              borderColor: tema.colores.bordes,
-            }]}>
-              <Text style={[styles.label, { color: tema.colores.primario }]}>Monto</Text>
-              <TextInput
-                style={[styles.input, {
-                  borderColor: tema.colores.bordes,
-                  backgroundColor: tema.colores.texto,
-                }]}
-                placeholder={`Cantidad de ${tema.moneda}`}
-                keyboardType="numeric"
-                value={monto}
-                onChangeText={setMonto}
-              />
+      <View style={[styles.formulario, {
+        backgroundColor: tema.colores.fondoSecundario,
+        borderColor: tema.colores.bordes,
+      }]}>
+        <Text style={[styles.label, { color: tema.colores.primario }]}>Monto</Text>
+        <TextInput
+          style={[styles.input, {
+            borderColor: tema.colores.bordes,
+            backgroundColor: tema.colores.fondo,
+            color: tema.colores.texto,
+          }]}
+          placeholder={`Cantidad de ${tema.moneda}`}
+          placeholderTextColor={tema.colores.textoSecundario}
+          keyboardType="numeric"
+          value={monto}
+          onChangeText={setMonto}
+        />
 
-              <Text style={[styles.label, { color: tema.colores.primario }]}>Descripción</Text>
-              <TextInput
-                style={[styles.input, {
-                  borderColor: tema.colores.bordes,
-                  backgroundColor: tema.colores.texto,
-                }]}
-                placeholder="¿En qué lo gastaste?"
-                value={descripcion}
-                onChangeText={setDescripcion}
-              />
-              
-              <SelectorCategoria
-                categoriaSeleccionada={categoriaSeleccionada}
-                onSeleccionar={setCategoriaSeleccionada}
-              />
+        <Text style={[styles.label, { color: tema.colores.primario }]}>Descripción</Text>
+        <TextInput
+          style={[styles.input, {
+            borderColor: tema.colores.bordes,
+            backgroundColor: tema.colores.fondo,
+            color: tema.colores.texto,
+          }]}
+          placeholder="¿En qué lo gastaste?"
+          placeholderTextColor={tema.colores.textoSecundario}
+          value={descripcion}
+          onChangeText={setDescripcion}
+        />
 
-              <Text style={[styles.fecha, { color: tema.colores.textoSecundario }]}>
-                Registrado: {gasto.fecha}
-              </Text>
+        <SelectorCategoria
+          categoriaSeleccionada={categoriaSeleccionada}
+          onSeleccionar={setCategoriaSeleccionada}
+        />
 
-              <TouchableOpacity 
-                style={[styles.botonGuardar, {
-                  backgroundColor: tema.colores.acento,
-                  borderColor: tema.colores.primario,
-                }]} 
-                onPress={handleGuardar}
-              >
-                <Text style={[styles.botonTexto, { color: tema.colores.primarioClaro }]}>
-                  💾 Guardar Cambios
-                </Text>
-              </TouchableOpacity>
+        <Text style={[styles.fecha, { color: tema.colores.textoSecundario }]}>
+          Registrado: {formatearFechaCompacta(gasto.fecha)}
+        </Text>
 
-              <TouchableOpacity style={styles.botonEliminar} onPress={handleEliminar}>
-                <Text style={styles.botonEliminarTexto}>🗑️ Eliminar Gasto</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </View>
+        <TouchableOpacity
+          style={[styles.botonGuardar, {
+            backgroundColor: tema.colores.acento,
+            borderColor: tema.colores.primario,
+          }]}
+          onPress={handleGuardar}
+        >
+          <Text style={styles.botonTexto}>
+            💾 Guardar Cambios
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.botonEliminar} onPress={handleEliminar}>
+          <Text style={styles.botonEliminarTexto}>🗑️ Eliminar {gasto.tipo === 'ingreso' ? 'Ingreso' : 'Gasto'}</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </ModalBase>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
-  },
-  contenido: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '85%',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  titulo: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  cerrar: {
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
   formulario: {
     padding: 15,
     borderRadius: 10,
@@ -197,6 +164,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   botonTexto: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },

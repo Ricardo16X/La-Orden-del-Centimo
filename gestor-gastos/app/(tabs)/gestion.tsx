@@ -1,20 +1,9 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useState } from 'react';
+import { router } from 'expo-router';
 import { useTema } from '../src/context/TemaContext';
-import { ModalGestionarCategorias } from '../src/components/ModalGestionarCategorias';
-import { ModalGestionarPresupuestos } from '../src/components/ModalGestionarPresupuestos';
-import { ModalTarjetas } from '../src/components/ModalTarjetas';
-import { ModalRecordatorios } from '../src/components/ModalRecordatorios';
-import { ModalGestionarMetas } from '../src/components/ModalGestionarMetas';
 
 export default function GestionScreen() {
   const { tema } = useTema();
-
-  const [modalCategoriasVisible, setModalCategoriasVisible] = useState(false);
-  const [modalPresupuestosVisible, setModalPresupuestosVisible] = useState(false);
-  const [modalTarjetasVisible, setModalTarjetasVisible] = useState(false);
-  const [modalRecordatoriosVisible, setModalRecordatoriosVisible] = useState(false);
-  const [modalMetasVisible, setModalMetasVisible] = useState(false);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
@@ -31,7 +20,7 @@ export default function GestionScreen() {
             backgroundColor: tema.colores.fondoSecundario,
             borderColor: tema.colores.bordes,
           }]}
-          onPress={() => setModalCategoriasVisible(true)}
+          onPress={() => router.push('/categorias')}
         >
           <View style={[styles.menuIcono, { backgroundColor: tema.colores.primario }]}>
             <Text style={styles.menuIconoTexto}>📂</Text>
@@ -53,7 +42,7 @@ export default function GestionScreen() {
             backgroundColor: tema.colores.fondoSecundario,
             borderColor: tema.colores.bordes,
           }]}
-          onPress={() => setModalPresupuestosVisible(true)}
+          onPress={() => router.push('/presupuestos')}
         >
           <View style={[styles.menuIcono, { backgroundColor: tema.colores.acento }]}>
             <Text style={styles.menuIconoTexto}>💰</Text>
@@ -75,7 +64,7 @@ export default function GestionScreen() {
             backgroundColor: tema.colores.fondoSecundario,
             borderColor: tema.colores.bordes,
           }]}
-          onPress={() => setModalTarjetasVisible(true)}
+          onPress={() => router.push('/tarjetas')}
         >
           <View style={[styles.menuIcono, { backgroundColor: '#8b5cf6' }]}>
             <Text style={styles.menuIconoTexto}>💳</Text>
@@ -97,7 +86,7 @@ export default function GestionScreen() {
             backgroundColor: tema.colores.fondoSecundario,
             borderColor: tema.colores.bordes,
           }]}
-          onPress={() => setModalRecordatoriosVisible(true)}
+          onPress={() => router.push('/recordatorios')}
         >
           <View style={[styles.menuIcono, { backgroundColor: '#f59e0b' }]}>
             <Text style={styles.menuIconoTexto}>⏰</Text>
@@ -119,7 +108,7 @@ export default function GestionScreen() {
             backgroundColor: tema.colores.fondoSecundario,
             borderColor: tema.colores.bordes,
           }]}
-          onPress={() => setModalMetasVisible(true)}
+          onPress={() => router.push('/metas')}
         >
           <View style={[styles.menuIcono, { backgroundColor: '#3b82f6' }]}>
             <Text style={styles.menuIconoTexto}>🎯</Text>
@@ -135,32 +124,6 @@ export default function GestionScreen() {
           <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Modales */}
-      <ModalGestionarCategorias
-        visible={modalCategoriasVisible}
-        onClose={() => setModalCategoriasVisible(false)}
-      />
-
-      <ModalGestionarPresupuestos
-        visible={modalPresupuestosVisible}
-        onClose={() => setModalPresupuestosVisible(false)}
-      />
-
-      <ModalTarjetas
-        visible={modalTarjetasVisible}
-        onClose={() => setModalTarjetasVisible(false)}
-      />
-
-      <ModalRecordatorios
-        visible={modalRecordatoriosVisible}
-        onClose={() => setModalRecordatoriosVisible(false)}
-      />
-
-      <ModalGestionarMetas
-        visible={modalMetasVisible}
-        onClose={() => setModalMetasVisible(false)}
-      />
     </ScrollView>
   );
 }
