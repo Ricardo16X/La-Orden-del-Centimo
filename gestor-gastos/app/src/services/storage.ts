@@ -34,32 +34,6 @@ export const guardarGastos = async (gastos: Gasto[]): Promise<void> => {
 };
 
 /**
- * Carga el XP total desde AsyncStorage
- * @returns XP total del jugador
- */
-export const cargarXP = async (): Promise<number> => {
-  try {
-    const xpGuardado = await AsyncStorage.getItem(STORAGE_KEYS.XP_TOTAL);
-    return xpGuardado ? parseInt(xpGuardado, 10) : 0;
-  } catch (error) {
-    console.error('Error cargando XP:', error);
-    return 0;
-  }
-};
-
-/**
- * Guarda el XP total en AsyncStorage
- * @param xp - XP total a guardar
- */
-export const guardarXP = async (xp: number): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEYS.XP_TOTAL, xp.toString());
-  } catch (error) {
-    console.error('Error guardando XP:', error);
-  }
-};
-
-/**
  * Carga el tema seleccionado desde AsyncStorage
  * @returns ID del tema seleccionado o null
  */
@@ -169,7 +143,6 @@ export const limpiarDatos = async (): Promise<void> => {
   try {
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.GASTOS,
-      STORAGE_KEYS.XP_TOTAL,
       STORAGE_KEYS.TEMA,
       STORAGE_KEYS.CATEGORIAS,
     ]);

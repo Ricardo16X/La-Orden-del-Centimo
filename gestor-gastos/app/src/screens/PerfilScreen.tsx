@@ -1,30 +1,24 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useState } from 'react';
-import { useNivel } from '../context/NivelContext';
 import { useTema } from '../context/TemaContext';
-import { useLogros } from '../context/LogrosContext';
 import { useBackup } from '../hooks';
 import { ModalPersonalizacion } from '../components/ModalPersonalizacion';
-import { ModalProgreso } from '../components/ModalProgreso';
 import { ModalExportar } from '../components/ModalExportar';
-import { ModalLogros } from '../components/ModalLogros';
+import { ModalConfiguracionMonedas } from '../components/ModalConfiguracionMonedas';
 
 export const PerfilScreen = () => {
-  const { datosJugador } = useNivel();
   const { tema } = useTema();
-  const { totalLogrosDesbloqueados, porcentajeCompletado } = useLogros();
   const { crearBackup, restaurarBackup } = useBackup();
 
   const [modalPersonalizacionVisible, setModalPersonalizacionVisible] = useState(false);
-  const [modalProgresoVisible, setModalProgresoVisible] = useState(false);
   const [modalExportarVisible, setModalExportarVisible] = useState(false);
-  const [modalLogrosVisible, setModalLogrosVisible] = useState(false);
+  const [modalMonedasVisible, setModalMonedasVisible] = useState(false);
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
       <Text style={[styles.titulo, { color: tema.colores.primario }]}>👤 Tu Perfil</Text>
       <Text style={[styles.subtitulo, { color: tema.colores.textoSecundario }]}>
-        Personalización y progreso
+        Configuración y preferencias
       </Text>
 
       {/* Menú de opciones */}
@@ -51,45 +45,23 @@ export const PerfilScreen = () => {
           <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>
         </TouchableOpacity>
 
-        {/* Progreso */}
+        {/* Configuración de Monedas */}
         <TouchableOpacity
           style={[styles.menuItem, {
             backgroundColor: tema.colores.fondoSecundario,
             borderColor: tema.colores.bordes,
           }]}
-          onPress={() => setModalProgresoVisible(true)}
+          onPress={() => setModalMonedasVisible(true)}
         >
-          <View style={[styles.menuIcono, { backgroundColor: tema.colores.primarioClaro }]}>
-            <Text style={styles.menuIconoTexto}>⭐</Text>
+          <View style={[styles.menuIcono, { backgroundColor: '#f59e0b' }]}>
+            <Text style={styles.menuIconoTexto}>💱</Text>
           </View>
           <View style={styles.menuInfo}>
             <Text style={[styles.menuTitulo, { color: tema.colores.texto }]}>
-              Tu Progreso
+              Configuración de Monedas
             </Text>
             <Text style={[styles.menuDescripcion, { color: tema.colores.textoSecundario }]}>
-              {`Nivel ${datosJugador.nivel} • ${datosJugador.xp} XP`}
-            </Text>
-          </View>
-          <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>
-        </TouchableOpacity>
-
-        {/* Logros */}
-        <TouchableOpacity
-          style={[styles.menuItem, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}
-          onPress={() => setModalLogrosVisible(true)}
-        >
-          <View style={[styles.menuIcono, { backgroundColor: '#FFD700' }]}>
-            <Text style={styles.menuIconoTexto}>🏆</Text>
-          </View>
-          <View style={styles.menuInfo}>
-            <Text style={[styles.menuTitulo, { color: tema.colores.texto }]}>
-              Tus Logros
-            </Text>
-            <Text style={[styles.menuDescripcion, { color: tema.colores.textoSecundario }]}>
-              {`${totalLogrosDesbloqueados} desbloqueados • ${porcentajeCompletado.toFixed(0)}% completado`}
+              Gestiona tus monedas y tipos de cambio
             </Text>
           </View>
           <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>
@@ -173,19 +145,14 @@ export const PerfilScreen = () => {
         onClose={() => setModalPersonalizacionVisible(false)}
       />
 
-      <ModalProgreso
-        visible={modalProgresoVisible}
-        onClose={() => setModalProgresoVisible(false)}
-      />
-
       <ModalExportar
         visible={modalExportarVisible}
         onClose={() => setModalExportarVisible(false)}
       />
 
-      <ModalLogros
-        visible={modalLogrosVisible}
-        onClose={() => setModalLogrosVisible(false)}
+      <ModalConfiguracionMonedas
+        visible={modalMonedasVisible}
+        onClose={() => setModalMonedasVisible(false)}
       />
     </ScrollView>
   );

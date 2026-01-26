@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useTema } from '../context/TemaContext';
+import { useMonedas } from '../context/MonedasContext';
 
 interface Props {
   totalIngresos: number;
@@ -8,7 +9,11 @@ interface Props {
 
 export const Balance = ({ totalIngresos, totalGastos }: Props) => {
   const { tema } = useTema();
+  const { monedaBase } = useMonedas();
   const balance = totalIngresos - totalGastos;
+
+  // Usar símbolo de moneda base
+  const simboloMoneda = monedaBase?.simbolo || tema.moneda;
 
   return (
     <View style={[styles.container, {
@@ -21,7 +26,7 @@ export const Balance = ({ totalIngresos, totalGastos }: Props) => {
             Ingresos
           </Text>
           <Text style={[styles.valor, { color: '#4ade80' }]}>
-            +{totalIngresos.toFixed(2)}
+            +{simboloMoneda}{totalIngresos.toFixed(2)}
           </Text>
         </View>
 
@@ -30,7 +35,7 @@ export const Balance = ({ totalIngresos, totalGastos }: Props) => {
             Gastos
           </Text>
           <Text style={[styles.valor, { color: tema.colores.acento }]}>
-            -{totalGastos.toFixed(2)}
+            -{simboloMoneda}{totalGastos.toFixed(2)}
           </Text>
         </View>
 
@@ -47,13 +52,13 @@ export const Balance = ({ totalIngresos, totalGastos }: Props) => {
                 : '#ef4444'
             }
           ]}>
-            {balance >= 0 ? '+' : ''}{balance.toFixed(2)}
+            {balance >= 0 ? '+' : ''}{simboloMoneda}{balance.toFixed(2)}
           </Text>
         </View>
       </View>
 
       <Text style={[styles.moneda, { color: tema.colores.primario }]}>
-        {tema.moneda}
+        {monedaBase?.nombre || 'Moneda Base'}
       </Text>
     </View>
   );

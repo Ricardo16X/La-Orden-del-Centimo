@@ -4,11 +4,6 @@
 export type TipoTransaccion = 'ingreso' | 'gasto';
 
 /**
- * Tipos de frases del compañero
- */
-export type TipoFrase = 'bienvenida' | 'gasto_agregado' | 'gasto_alto' | 'gasto_bajo' | 'ingreso_agregado' | 'ingreso_alto' | 'ingreso_bajo' | 'motivacional' | 'consejo';
-
-/**
  * Interfaz para un gasto/ingreso
  */
 export interface Gasto {
@@ -18,6 +13,10 @@ export interface Gasto {
   fecha: string;
   categoria: string;
   tipo: TipoTransaccion;
+  // Campos para multi-moneda
+  moneda?: string; // Código de moneda (GTQ, USD, etc.). Si no existe, se asume moneda base
+  tipoCambio?: number; // Tipo de cambio usado al momento de registrar
+  montoEnMonedaBase?: number; // Monto convertido a la moneda base del usuario
 }
 
 /**
@@ -42,26 +41,6 @@ export interface Categoria {
 }
 
 /**
- * Interfaz para los datos del jugador (sistema de XP)
- */
-export interface DatosJugador {
-  nivel: number;
-  xp: number;
-  xpParaSiguienteNivel: number;
-  titulo: string;
-}
-
-/**
- * Interfaz para un nivel
- */
-export interface Nivel {
-  nivel: number;
-  xpRequerido: number;
-  titulo: string;
-  descripcion: string;
-}
-
-/**
  * Interfaz para colores del tema
  */
 export interface ColoresTema {
@@ -73,14 +52,6 @@ export interface ColoresTema {
   bordes: string;
   texto: string;
   textoSecundario: string;
-}
-
-/**
- * Interfaz para el compañero
- */
-export interface Companero {
-  avatar: string;
-  nombre: string;
 }
 
 /**
@@ -105,17 +76,8 @@ export interface Tema {
   nombre: string;
   emoji: string;
   colores: ColoresTema;
-  companero: Companero;
   moneda: string;
   categorias: CategoriasTema;
-}
-
-/**
- * Interfaz para una frase del compañero
- */
-export interface FraseCompanero {
-  tipo: TipoFrase;
-  texto: string;
 }
 
 /**
@@ -285,3 +247,71 @@ export interface ResumenBalance {
   tendencia: 'positiva' | 'negativa' | 'neutral';
   cambioMensual: number; // % de cambio respecto al mes anterior
 }
+
+/**
+ * Estado de una cuota sin intereses
+ */
+export type EstadoCuota = 'activa' | 'completada' | 'cancelada';
+
+/**
+ * Interfaz para una compra a cuotas sin intereses
+ */
+export interface CuotaSinIntereses {
+  id: string;
+  tarjetaId: string;
+  descripcion: string;
+  montoTotal: number;
+  cantidadCuotas: number;
+  cuotasPagadas: number;
+  montoPorCuota: number;
+  fechaCompra: string; // ISO format
+  fechaProximaCuota: string; // ISO format - se actualiza automáticamente
+  comercio?: string; // Opcional: dónde se realizó la compra
+  categoria?: string; // Opcional: tipo de compra (Electrónica, Hogar, etc.)
+  estado: EstadoCuota;
+}
+
+/**
+ * Tipo para crear una nueva cuota (sin id, montoPorCuota, fechaProximaCuota y estado)
+ * cuotasPagadas es opcional para permitir agregar compras con progreso existente
+ * montoPorCuota se calcula automáticamente
+ */
+export type NuevaCuota = Omit<CuotaSinIntereses, 'id' | 'montoPorCuota' | 'fechaProximaCuota' | 'estado'> & {
+  cuotasPagadas?: number; // Opcional: por defecto será 0
+};
+
+/**
+ * Estadísticas de cuotas para una tarjeta
+ */
+export interface EstadisticasCuotasTarjeta {
+  tarjetaId: string;
+  cuotasActivas: number;
+  totalMensual: number; // Total a pagar este mes
+  totalPendiente: number; // Total que falta pagar
+  cuotas: CuotaSinIntereses[];
+}
+
+/**
+ * Proyección de cuotas para los próximos meses
+ */
+export interface ProyeccionCuotas {
+  mes: string; // "Enero 2026"
+  totalCuotas: number;
+  cuotasQueFinal: CuotaSinIntereses[]; // Cuotas que terminan este mes
+}
+
+/**
+ * Configuración de una moneda del usuario
+ */
+export interface ConfiguracionMoneda {
+  codigo: string; // 'GTQ', 'USD', etc.
+  simbolo: string; // 'Q', '$', etc.
+  nombre: string; // 'Quetzal', 'Dólar', etc.
+  tipoCambio: number; // 1.0 para moneda base, 7.80 para USD/GTQ, etc.
+  esMonedaBase: boolean; // Solo una moneda puede ser base
+}
+
+/**
+ * Tipo para crear/editar configuración de moneda
+ */
+export type NuevaConfiguracionMoneda = Omit<ConfiguracionMoneda, 'esMonedaBase'>;

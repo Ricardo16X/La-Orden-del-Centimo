@@ -1,14 +1,27 @@
+import { useState, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { SelectorCategoria } from './SelectorCategoria';
+import { SelectorMoneda } from './SelectorMoneda';
 import { useTema } from '../context/TemaContext';
+import { useMonedas } from '../context/MonedasContext';
 import { useFormGasto } from '../hooks';
 
 interface Props {
-  onAgregar: (monto: number, descripcion: string, categoria: string) => void;
+  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string) => void;
 }
 
 export const FormularioGasto = ({ onAgregar }: Props) => {
   const { tema } = useTema();
+  const { monedaBase } = useMonedas();
+
+  const [monedaSeleccionada, setMonedaSeleccionada] = useState<string>('');
+
+  // Actualizar moneda seleccionada cuando monedaBase cambie (carga inicial)
+  useEffect(() => {
+    if (monedaBase && !monedaSeleccionada) {
+      setMonedaSeleccionada(monedaBase.codigo);
+    }
+  }, [monedaBase]);
 
   const {
     monto,
@@ -19,12 +32,22 @@ export const FormularioGasto = ({ onAgregar }: Props) => {
     setCategoriaSeleccionada,
     handleSubmit,
     resetForm,
-  } = useFormGasto(onAgregar);
+  } = useFormGasto((monto, descripcion, categoria) => {
+    console.log('💰 FormularioGasto - Enviando:', {
+      monto,
+      descripcion,
+      categoria,
+      monedaSeleccionada,
+      monedaBase: monedaBase?.codigo,
+    });
+    onAgregar(monto, descripcion, categoria, monedaSeleccionada);
+  });
 
   const handleAgregar = () => {
     const success = handleSubmit();
     if (success) {
       resetForm();
+      setMonedaSeleccionada(monedaBase?.codigo || '');
     }
   };
 
@@ -56,7 +79,12 @@ export const FormularioGasto = ({ onAgregar }: Props) => {
         value={descripcion}
         onChangeText={setDescripcion}
       />
-      
+
+      <SelectorMoneda
+        monedaSeleccionada={monedaSeleccionada}
+        onSeleccionar={setMonedaSeleccionada}
+      />
+
       <SelectorCategoria
         categoriaSeleccionada={categoriaSeleccionada}
         onSeleccionar={setCategoriaSeleccionada}

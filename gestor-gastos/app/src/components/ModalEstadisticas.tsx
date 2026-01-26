@@ -2,7 +2,6 @@ import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'rea
 import { useTema } from '../context/TemaContext';
 import { useGastos } from '../context/GastosContext';
 import { useCategorias } from '../context/CategoriasContext';
-import { useNivel } from '../context/NivelContext';
 import { useEstadisticas } from '../hooks';
 import { GraficaPastel } from './GraficaPastel';
 import { GraficaLineas } from './GraficaLineas';
@@ -16,7 +15,6 @@ export const ModalEstadisticas = ({ visible, onClose }: Props) => {
   const { tema } = useTema();
   const { gastos, totalIngresos, totalGastado, balance } = useGastos();
   const { categorias } = useCategorias();
-  const { datosJugador } = useNivel();
   const { gastosPorCategoria } = useEstadisticas(gastos, categorias);
 
   // Preparar datos para gráfica de pastel
@@ -118,14 +116,6 @@ export const ModalEstadisticas = ({ visible, onClose }: Props) => {
                 </Text>
               </View>
 
-              <View style={[styles.estadistica, { borderBottomWidth: 0 }]}>
-                <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-                  Experiencia total:
-                </Text>
-                <Text style={[styles.estatValor, { color: tema.colores.primarioClaro }]}>
-                  {datosJugador.xp} XP
-                </Text>
-              </View>
             </View>
 
             {/* Gráfica de Tendencia */}

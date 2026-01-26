@@ -4,12 +4,12 @@ import { ModalBase } from './ModalBase';
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onAgregar: (monto: number, descripcion: string, categoria: string) => void;
+  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string) => void;
 }
 
 export const ModalAgregarIngreso = ({ visible, onClose, onAgregar }: Props) => {
-  const handleAgregar = (monto: number, descripcion: string, categoria: string) => {
-    onAgregar(monto, descripcion, categoria);
+  const handleAgregar = (monto: number, descripcion: string, categoria: string, moneda?: string) => {
+    onAgregar(monto, descripcion, categoria, moneda);
     onClose();
   };
 

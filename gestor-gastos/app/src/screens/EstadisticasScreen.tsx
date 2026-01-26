@@ -2,7 +2,6 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useTema } from '../context/TemaContext';
 import { useGastos } from '../context/GastosContext';
 import { useCategorias } from '../context/CategoriasContext';
-import { useNivel } from '../context/NivelContext';
 import { useEstadisticas } from '../hooks';
 import { GraficaPastel } from '../components/GraficaPastel';
 import { GraficaLineas } from '../components/GraficaLineas';
@@ -11,7 +10,6 @@ export const EstadisticasScreen = () => {
   const { tema } = useTema();
   const { gastos, totalIngresos, totalGastado, balance } = useGastos();
   const { categorias } = useCategorias();
-  const { datosJugador } = useNivel();
   const { gastosPorCategoria } = useEstadisticas(gastos, categorias);
 
   // Preparar datos para gráfica de pastel
@@ -101,14 +99,6 @@ export const EstadisticasScreen = () => {
             </Text>
           </View>
 
-          <View style={[styles.estadistica, { borderBottomWidth: 0 }]}>
-            <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-              Experiencia total:
-            </Text>
-            <Text style={[styles.estatValor, { color: tema.colores.primarioClaro }]}>
-              {`${datosJugador.xp} XP`}
-            </Text>
-          </View>
         </View>
 
         {/* Gráfica de Tendencia */}

@@ -1,76 +1,21 @@
-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useTema } from './src/context/TemaContext';
 import { useTarjetas } from './src/context/TarjetasContext';
-
-const COLORES_TARJETA = [
-  '#000', '#C0C0C0', '#FFD700',
-  '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b',
-  '#10b981', '#ef4444', '#6366f1', '#06b6d4',
-  '#84cc16', '#f97316', '#14b8a6', '#a855f7',
-];
+import { useCuotas } from './src/context/CuotasContext';
+import { ModalAgregarTarjeta } from './src/components/ModalAgregarTarjeta';
+import { ModalAgregarCuota } from './src/components/ModalAgregarCuota';
+import { VistaProyeccionCuotas } from './src/components/VistaProyeccionCuotas';
+import { SimuladorCuotas } from './src/components/SimuladorCuotas';
 
 export default function TarjetasScreen() {
   const { tema } = useTema();
-  const { tarjetas, agregarTarjeta, eliminarTarjeta, obtenerEstadoTarjeta } = useTarjetas();
-
-  const [nombre, setNombre] = useState('');
-  const [banco, setBanco] = useState('');
-  const [ultimosCuatro, setUltimosCuatro] = useState('');
-  const [diaCorte, setDiaCorte] = useState('');
-  const [diaPago, setDiaPago] = useState('');
-  const [colorSeleccionado, setColorSeleccionado] = useState('#3b82f6');
-
-  const resetFormulario = () => {
-    setNombre('');
-    setBanco('');
-    setUltimosCuatro('');
-    setDiaCorte('');
-    setDiaPago('');
-    setColorSeleccionado('#3b82f6');
-  };
-
-  const handleAgregar = () => {
-    if (!nombre.trim()) {
-      Alert.alert('Error', 'Por favor ingresa el nombre de la tarjeta');
-      return;
-    }
-
-    if (!banco.trim()) {
-      Alert.alert('Error', 'Por favor ingresa el banco');
-      return;
-    }
-
-    if (ultimosCuatro.length !== 4 || !/^\d+$/.test(ultimosCuatro)) {
-      Alert.alert('Error', 'Los últimos 4 dígitos deben ser exactamente 4 números');
-      return;
-    }
-
-    const corte = parseInt(diaCorte);
-    if (isNaN(corte) || corte < 1 || corte > 31) {
-      Alert.alert('Error', 'El día de corte debe estar entre 1 y 31');
-      return;
-    }
-
-    const pago = parseInt(diaPago);
-    if (isNaN(pago) || pago < 1 || pago > 31) {
-      Alert.alert('Error', 'El día de pago debe estar entre 1 y 31');
-      return;
-    }
-
-    agregarTarjeta({
-      nombre: nombre.trim(),
-      banco: banco.trim(),
-      ultimosCuatroDigitos: ultimosCuatro,
-      diaCorte: corte,
-      diaPago: pago,
-      color: colorSeleccionado,
-    });
-
-    resetFormulario();
-    Alert.alert('Éxito', 'Tarjeta agregada correctamente');
-  };
+  const { tarjetas, eliminarTarjeta, obtenerEstadoTarjeta } = useTarjetas();
+  const { obtenerEstadisticasTarjeta, eliminarCuota, registrarPagoCuota } = useCuotas();
+  const [modalTarjetaVisible, setModalTarjetaVisible] = useState(false);
+  const [modalCuotaVisible, setModalCuotaVisible] = useState(false);
+  const [tarjetaSeleccionada, setTarjetaSeleccionada] = useState<{ id: string; nombre: string } | null>(null);
 
   const handleEliminar = (id: string, nombreTarjeta: string) => {
     Alert.alert(
@@ -90,189 +35,230 @@ export default function TarjetasScreen() {
     );
   };
 
+  const handleAgregarCuota = (tarjetaId: string, nombreTarjeta: string) => {
+    setTarjetaSeleccionada({ id: tarjetaId, nombre: nombreTarjeta });
+    setModalCuotaVisible(true);
+  };
+
+  const handleEliminarCuota = (cuotaId: string, descripcion: string) => {
+    Alert.alert(
+      'Confirmar eliminación',
+      `¿Estás seguro de eliminar la cuota "${descripcion}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => {
+            eliminarCuota(cuotaId);
+            Alert.alert('Eliminada', 'Cuota eliminada correctamente');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRegistrarPago = (cuotaId: string, descripcion: string, cuotasPagadas: number, totalCuotas: number) => {
+    if (cuotasPagadas >= totalCuotas) {
+      Alert.alert('Info', 'Esta cuota ya está completamente pagada');
+      return;
+    }
+
+    Alert.alert(
+      'Registrar pago',
+      `¿Confirmar pago de la cuota ${cuotasPagadas + 1}/${totalCuotas} de "${descripcion}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Registrar',
+          onPress: () => {
+            registrarPagoCuota(cuotaId);
+            Alert.alert('Éxito', 'Pago registrado correctamente');
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={[styles.titulo, { color: tema.colores.primario }]}>💳 Tarjetas</Text>
+        <Text style={[styles.titulo, { color: tema.colores.primario }]}>💳 Mis Tarjetas</Text>
         <View style={{ width: 70 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Formulario */}
-            <View style={[styles.seccion, { borderColor: tema.colores.bordes }]}>
-              <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-                ➕ Nueva Tarjeta
-              </Text>
+      {/* Lista de Tarjetas */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {tarjetas.length === 0 ? (
+          // Estado vacío
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>💳</Text>
+            <Text style={[styles.emptyTitulo, { color: tema.colores.texto }]}>
+              No tienes tarjetas registradas
+            </Text>
+            <Text style={[styles.emptyDescripcion, { color: tema.colores.textoSecundario }]}>
+              Toca el botón ➕ para agregar tu primera tarjeta
+            </Text>
+          </View>
+        ) : (
+          // Lista de tarjetas
+          <View>
+            <Text style={[styles.descripcion, { color: tema.colores.textoSecundario }]}>
+              Gestiona tus tarjetas de crédito y mantén el control de fechas importantes
+            </Text>
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Nombre:</Text>
-              <TextInput
-                style={[styles.input, {
-                  backgroundColor: tema.colores.fondoSecundario,
-                  borderColor: tema.colores.bordes,
-                  color: tema.colores.texto,
-                }]}
-                placeholder="Ej: Tarjeta Principal"
-                placeholderTextColor={tema.colores.textoSecundario}
-                value={nombre}
-                onChangeText={setNombre}
-              />
+            {/* Proyección de cuotas */}
+            <VistaProyeccionCuotas variant="full-width" />
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Banco:</Text>
-              <TextInput
-                style={[styles.input, {
-                  backgroundColor: tema.colores.fondoSecundario,
-                  borderColor: tema.colores.bordes,
-                  color: tema.colores.texto,
-                }]}
-                placeholder="Ej: Banco Industrial"
-                placeholderTextColor={tema.colores.textoSecundario}
-                value={banco}
-                onChangeText={setBanco}
-              />
+            {/* Simulador de cuotas */}
+            <SimuladorCuotas variant="full-width" />
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>
-                Últimos 4 dígitos:
-              </Text>
-              <TextInput
-                style={[styles.input, {
-                  backgroundColor: tema.colores.fondoSecundario,
-                  borderColor: tema.colores.bordes,
-                  color: tema.colores.texto,
-                }]}
-                placeholder="1234"
-                placeholderTextColor={tema.colores.textoSecundario}
-                keyboardType="numeric"
-                maxLength={4}
-                value={ultimosCuatro}
-                onChangeText={setUltimosCuatro}
-              />
+            {tarjetas.map(tarjeta => {
+              const estado = obtenerEstadoTarjeta(tarjeta);
+              const estadisticasCuotas = obtenerEstadisticasTarjeta(tarjeta.id);
 
-              <View style={styles.row}>
-                <View style={styles.column}>
-                  <Text style={[styles.label, { color: tema.colores.texto }]}>
-                    Día de corte:
-                  </Text>
-                  <TextInput
-                    style={[styles.input, {
-                      backgroundColor: tema.colores.fondoSecundario,
-                      borderColor: tema.colores.bordes,
-                      color: tema.colores.texto,
-                    }]}
-                    placeholder="15"
-                    placeholderTextColor={tema.colores.textoSecundario}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    value={diaCorte}
-                    onChangeText={setDiaCorte}
-                  />
-                </View>
+              return (
+                <View
+                  key={tarjeta.id}
+                  style={[styles.tarjetaItem, {
+                    backgroundColor: tema.colores.fondoSecundario,
+                    borderColor: tema.colores.bordes,
+                  }]}
+                >
+                  <View style={[styles.tarjetaBarra, { backgroundColor: tarjeta.color }]} />
 
-                <View style={styles.column}>
-                  <Text style={[styles.label, { color: tema.colores.texto }]}>
-                    Día de pago:
-                  </Text>
-                  <TextInput
-                    style={[styles.input, {
-                      backgroundColor: tema.colores.fondoSecundario,
-                      borderColor: tema.colores.bordes,
-                      color: tema.colores.texto,
-                    }]}
-                    placeholder="20"
-                    placeholderTextColor={tema.colores.textoSecundario}
-                    keyboardType="numeric"
-                    maxLength={2}
-                    value={diaPago}
-                    onChangeText={setDiaPago}
-                  />
-                </View>
-              </View>
+                  <View style={styles.tarjetaContenido}>
+                    <View style={styles.tarjetaInfo}>
+                      <Text style={[styles.tarjetaNombre, { color: tema.colores.texto }]}>
+                        {tarjeta.nombre}
+                      </Text>
+                      <Text style={[styles.tarjetaBanco, { color: tema.colores.textoSecundario }]}>
+                        {tarjeta.banco} ••{tarjeta.ultimosCuatroDigitos}
+                      </Text>
+                      <Text style={[styles.tarjetaFechas, { color: tema.colores.textoSecundario }]}>
+                        Corte: {tarjeta.diaCorte} • Pago: {tarjeta.diaPago}
+                      </Text>
+                      <Text style={[styles.tarjetaEstado, { color: estado.color }]}>
+                        {estado.mensaje}
+                      </Text>
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Color:</Text>
-              <View style={styles.coloresContainer}>
-                {COLORES_TARJETA.map(color => (
-                  <TouchableOpacity
-                    key={color}
-                    onPress={() => setColorSeleccionado(color)}
-                    style={[
-                      styles.colorChip,
-                      {
-                        backgroundColor: color,
-                        borderColor: colorSeleccionado === color ? '#fff' : 'transparent',
-                        borderWidth: colorSeleccionado === color ? 3 : 0,
-                      }
-                    ]}
-                  >
-                    {colorSeleccionado === color && (
-                      <Text style={styles.colorCheck}>✓</Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <TouchableOpacity
-                onPress={handleAgregar}
-                style={[styles.botonAgregar, { backgroundColor: tema.colores.primario }]}
-              >
-                <Text style={styles.botonTexto}>➕ Agregar Tarjeta</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Lista de tarjetas */}
-            <View style={[styles.seccion, { borderColor: tema.colores.bordes }]}>
-              <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-                📋 Mis Tarjetas
-              </Text>
-
-              {tarjetas.length === 0 ? (
-                <Text style={[styles.vacio, { color: tema.colores.textoSecundario }]}>
-                  No tienes tarjetas registradas
-                </Text>
-              ) : (
-                tarjetas.map(tarjeta => {
-                  const estado = obtenerEstadoTarjeta(tarjeta);
-
-                  return (
-                    <View
-                      key={tarjeta.id}
-                      style={[styles.tarjetaItem, {
-                        backgroundColor: tema.colores.fondoSecundario,
-                        borderColor: tema.colores.bordes,
-                      }]}
-                    >
-                      <View style={[styles.tarjetaBarra, { backgroundColor: tarjeta.color }]} />
-
-                      <View style={styles.tarjetaContenido}>
-                        <View style={styles.tarjetaInfo}>
-                          <Text style={[styles.tarjetaNombre, { color: tema.colores.texto }]}>
-                            {tarjeta.nombre}
+                      {/* Resumen de cuotas */}
+                      {estadisticasCuotas.cuotasActivas > 0 && (
+                        <View style={[styles.cuotasResumen, { backgroundColor: tema.colores.fondo }]}>
+                          <Text style={[styles.cuotasTexto, { color: tema.colores.primario }]}>
+                            📦 {estadisticasCuotas.cuotasActivas} compra{estadisticasCuotas.cuotasActivas !== 1 ? 's' : ''} a cuotas
                           </Text>
-                          <Text style={[styles.tarjetaBanco, { color: tema.colores.textoSecundario }]}>
-                            {`${tarjeta.banco} •••• ${tarjeta.ultimosCuatroDigitos}`}
-                          </Text>
-                          <Text style={[styles.tarjetaFechas, { color: tema.colores.textoSecundario }]}>
-                            {`Corte: ${tarjeta.diaCorte} • Pago: ${tarjeta.diaPago}`}
-                          </Text>
-                          <Text style={[styles.tarjetaEstado, { color: estado.color }]}>
-                            {estado.mensaje}
+                          <Text style={[styles.cuotasMonto, { color: tema.colores.texto }]}>
+                            {tema.moneda}{estadisticasCuotas.totalMensual.toFixed(2)}/mes
                           </Text>
                         </View>
-
-                        <TouchableOpacity
-                          onPress={() => handleEliminar(tarjeta.id, tarjeta.nombre)}
-                          style={styles.botonEliminar}
-                        >
-                          <Text style={styles.botonEliminarTexto}>🗑️</Text>
-                        </TouchableOpacity>
-                      </View>
+                      )}
                     </View>
-                  );
-                })
-              )}
-            </View>
+
+                    <TouchableOpacity
+                      onPress={() => handleEliminar(tarjeta.id, tarjeta.nombre)}
+                      style={styles.botonEliminar}
+                    >
+                      <Text style={styles.botonEliminarTexto}>🗑️</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Botón para agregar cuotas */}
+                  <TouchableOpacity
+                    onPress={() => handleAgregarCuota(tarjeta.id, tarjeta.nombre)}
+                    style={[styles.botonAgregarCuota, { backgroundColor: tema.colores.fondo, borderColor: tema.colores.primario }]}
+                  >
+                    <Text style={[styles.botonAgregarCuotaTexto, { color: tema.colores.primario }]}>
+                      📦 Agregar compra a cuotas
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Lista de cuotas activas */}
+                  {estadisticasCuotas.cuotas.length > 0 && (
+                    <View style={[styles.cuotasLista, { borderTopColor: tema.colores.bordes }]}>
+                      <Text style={[styles.cuotasListaTitulo, { color: tema.colores.textoSecundario }]}>
+                        Compras a cuotas:
+                      </Text>
+                      {estadisticasCuotas.cuotas.map(cuota => (
+                        <View key={cuota.id} style={[styles.cuotaItem, { backgroundColor: tema.colores.fondo }]}>
+                          <View style={styles.cuotaInfo}>
+                            <Text style={[styles.cuotaDescripcion, { color: tema.colores.texto }]}>
+                              {cuota.descripcion}
+                            </Text>
+                            <Text style={[styles.cuotaDetalle, { color: tema.colores.textoSecundario }]}>
+                              {cuota.cuotasPagadas}/{cuota.cantidadCuotas} cuotas • {tema.moneda}{cuota.montoPorCuota}/mes
+                            </Text>
+                            <View style={styles.progresoBar}>
+                              <View
+                                style={[
+                                  styles.progresoFill,
+                                  {
+                                    width: `${(cuota.cuotasPagadas / cuota.cantidadCuotas) * 100}%`,
+                                    backgroundColor: tema.colores.primario
+                                  }
+                                ]}
+                              />
+                            </View>
+                            {/* Botón para registrar pago manual */}
+                            {cuota.cuotasPagadas < cuota.cantidadCuotas && (
+                              <TouchableOpacity
+                                onPress={() => handleRegistrarPago(cuota.id, cuota.descripcion, cuota.cuotasPagadas, cuota.cantidadCuotas)}
+                                style={[styles.botonRegistrarPago, { backgroundColor: tema.colores.primario }]}
+                              >
+                                <Text style={styles.botonRegistrarPagoTexto}>
+                                  ✓ Registrar cuota {cuota.cuotasPagadas + 1}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                          <TouchableOpacity
+                            onPress={() => handleEliminarCuota(cuota.id, cuota.descripcion)}
+                            style={styles.botonEliminarCuota}
+                          >
+                            <Text style={styles.botonEliminarCuotaTexto}>✕</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
+
+      {/* Botón Flotante */}
+      <TouchableOpacity
+        style={[styles.botonFlotante, { backgroundColor: tema.colores.primario }]}
+        onPress={() => setModalTarjetaVisible(true)}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.botonFlotanteTexto}>➕</Text>
+      </TouchableOpacity>
+
+      {/* Modal Agregar Tarjeta */}
+      <ModalAgregarTarjeta
+        visible={modalTarjetaVisible}
+        onClose={() => setModalTarjetaVisible(false)}
+      />
+
+      {/* Modal Agregar Cuota */}
+      {tarjetaSeleccionada && (
+        <ModalAgregarCuota
+          visible={modalCuotaVisible}
+          onClose={() => {
+            setModalCuotaVisible(false);
+            setTarjetaSeleccionada(null);
+          }}
+          tarjetaId={tarjetaSeleccionada.id}
+          nombreTarjeta={tarjetaSeleccionada.nombre}
+        />
+      )}
     </View>
   );
 }
@@ -283,93 +269,50 @@ const styles = StyleSheet.create({
     paddingTop: 50,
     paddingHorizontal: 20,
   },
-  botonVolver: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  seccion: {
-    borderRadius: 20,
-    padding: 20,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
   },
+  botonVolver: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
   titulo: {
     fontSize: 24,
     fontWeight: 'bold',
   },
-  cerrar: {
-    fontSize: 28,
-    fontWeight: 'bold',
+  scrollContent: {
+    paddingBottom: 100,
   },
-  seccion: {
-    borderWidth: 2,
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 15,
-  },
-  subtitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  label: {
+  descripcion: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 10,
-  },
-  input: {
-    borderWidth: 2,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  column: {
-    flex: 1,
-  },
-  coloresContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 15,
-  },
-  colorChip: {
-    width: 45,
-    height: 45,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  colorCheck: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  botonAgregar: {
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 15,
-  },
-  botonTexto: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  vacio: {
+    marginBottom: 20,
     textAlign: 'center',
-    fontSize: 14,
-    fontStyle: 'italic',
-    paddingVertical: 20,
   },
+  // Estado vacío
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+  emptyEmoji: {
+    fontSize: 80,
+    marginBottom: 20,
+  },
+  emptyTitulo: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  emptyDescripcion: {
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
+  // Tarjetas
   tarjetaItem: {
     borderRadius: 12,
     borderWidth: 2,
@@ -409,5 +352,116 @@ const styles = StyleSheet.create({
   },
   botonEliminarTexto: {
     fontSize: 24,
+  },
+  // Cuotas Resumen
+  cuotasResumen: {
+    marginTop: 8,
+    padding: 8,
+    borderRadius: 8,
+  },
+  cuotasTexto: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  cuotasMonto: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  // Botón Agregar Cuota
+  botonAgregarCuota: {
+    margin: 12,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+  },
+  botonAgregarCuotaTexto: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Lista de Cuotas
+  cuotasLista: {
+    borderTopWidth: 2,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  cuotasListaTitulo: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  cuotaItem: {
+    flexDirection: 'row',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  cuotaInfo: {
+    flex: 1,
+  },
+  cuotaDescripcion: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  cuotaDetalle: {
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  progresoBar: {
+    height: 6,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progresoFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  botonEliminarCuota: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  botonEliminarCuotaTexto: {
+    fontSize: 18,
+    color: '#ef4444',
+    fontWeight: 'bold',
+  },
+  botonRegistrarPago: {
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  botonRegistrarPagoTexto: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  // Botón Flotante
+  botonFlotante: {
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  botonFlotanteTexto: {
+    fontSize: 32,
+    color: '#fff',
   },
 });

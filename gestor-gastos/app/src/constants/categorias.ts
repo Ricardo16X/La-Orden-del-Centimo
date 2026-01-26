@@ -1,39 +1,17 @@
 import { Categoria } from '../types';
 
 export const CATEGORIAS_BASE: Omit<Categoria, 'nombre'>[] = [
-  { id: 'comida', emoji: '🍖', color: '#8b4513' },
-  { id: 'transporte', emoji: '🐴', color: '#5c4033' },
-  { id: 'equipo', emoji: '⚔️', color: '#708090' },
-  { id: 'pociones', emoji: '🧪', color: '#9370db' },
-  { id: 'vivienda', emoji: '🏠', color: '#cd853f' },
-  { id: 'entrenamiento', emoji: '🎯', color: '#228b22' },
-  { id: 'otros', emoji: '💼', color: '#696969' },
+  { id: 'comida', emoji: '🍽️', color: '#ff6b6b' },
+  { id: 'transporte', emoji: '🚘', color: '#4ecdc4' },
+  { id: 'equipo', emoji: '🛒', color: '#45b7d1' },
+  { id: 'pociones', emoji: '☕', color: '#96ceb4' },
+  { id: 'vivienda', emoji: '🏠', color: '#ffeaa7' },
+  { id: 'entrenamiento', emoji: '🏃', color: '#dfe6e9' },
+  { id: 'otros', emoji: '📦', color: '#b2bec3' },
 ];
 
-// Nombres tema Medieval (Skyrim)
-const NOMBRES_MEDIEVAL: Record<string, string> = {
-  comida: 'Comida y Bebida',
-  transporte: 'Transporte',
-  equipo: 'Equipo y Armamento',
-  pociones: 'Pociones y Alquimia',
-  vivienda: 'Vivienda',
-  entrenamiento: 'Entrenamiento',
-  otros: 'Comercio General',
-};
-
-// Nombres tema Kawaii
-const NOMBRES_KAWAII: Record<string, string> = {
-  comida: 'Comidita Rica',
-  transporte: 'Movilidad',
-  equipo: 'Ropa y Accesorios',
-  pociones: 'Bebidas y Cafecito',
-  vivienda: 'Casita',
-  entrenamiento: 'Ejercicio',
-  otros: 'Compras',
-};
-
-// Nombres tema Minimalista
-const NOMBRES_MINIMAL: Record<string, string> = {
+// Nombres profesionales de categorías
+const NOMBRES_CATEGORIAS: Record<string, string> = {
   comida: 'Alimentación',
   transporte: 'Transporte',
   equipo: 'Compras',
@@ -43,48 +21,23 @@ const NOMBRES_MINIMAL: Record<string, string> = {
   otros: 'Otros',
 };
 
-// Emojis Kawaii alternativos
-export const EMOJIS_KAWAII: Record<string, string> = {
-  comida: '🍰',
-  transporte: '🚗',
-  equipo: '👗',
-  pociones: '🧋',
-  vivienda: '🏡',
-  entrenamiento: '💪',
-  otros: '🛍️',
-};
-
-// Genera categorías según el tema
+// Genera categorías con nombres profesionales
 export const obtenerCategorias = (
-  temaId: string = 'medieval',
   categoriasNombres?: Record<string, string>
 ): Categoria[] => {
-  const emojis = temaId === 'kawaii' ? EMOJIS_KAWAII : {};
-
-  let nombresDefault;
-  if (temaId === 'kawaii') {
-    nombresDefault = NOMBRES_KAWAII;
-  } else if (temaId === 'minimal-light' || temaId === 'minimal-dark') {
-    nombresDefault = NOMBRES_MINIMAL;
-  } else {
-    nombresDefault = NOMBRES_MEDIEVAL;
-  }
-
-  const nombres = categoriasNombres || nombresDefault;
+  const nombres = categoriasNombres || NOMBRES_CATEGORIAS;
 
   return CATEGORIAS_BASE.map(cat => ({
     ...cat,
-    emoji: emojis[cat.id] || cat.emoji,
     nombre: nombres[cat.id] || cat.id,
   }));
 };
 
-// Esta función ahora tiene valores por defecto seguros
+// Obtiene una categoría específica
 export const obtenerCategoria = (
-  categoriaId: string, 
-  temaId: string = 'medieval', 
+  categoriaId: string,
   categoriasNombres?: Record<string, string>
 ): Categoria => {
-  const categorias = obtenerCategorias(temaId, categoriasNombres);
+  const categorias = obtenerCategorias(categoriasNombres);
   return categorias.find(cat => cat.id === categoriaId) || categorias[0];
 };

@@ -1,6 +1,6 @@
-import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity, Switch } from 'react-native';
+import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity, Switch, TextInput } from 'react-native';
+import { useState, useEffect } from 'react';
 import { useTema } from '../context/TemaContext';
-import { SelectorTema } from './SelectorTema';
 
 interface Props {
   visible: boolean;
@@ -8,7 +8,13 @@ interface Props {
 }
 
 export const ModalPersonalizacion = ({ visible, onClose }: Props) => {
-  const { tema, modoOscuroAutomatico, toggleModoOscuroAutomatico } = useTema();
+  const { tema, modoOscuroAutomatico, toggleModoOscuroAutomatico, cambiarMoneda } = useTema();
+  const [monedaInput, setMonedaInput] = useState(tema.moneda);
+
+  // Sincronizar el input local cuando cambie el tema
+  useEffect(() => {
+    setMonedaInput(tema.moneda);
+  }, [tema.moneda]);
 
   return (
     <Modal
@@ -21,7 +27,7 @@ export const ModalPersonalizacion = ({ visible, onClose }: Props) => {
         <View style={[styles.modal, { backgroundColor: tema.colores.fondo }]}>
           <View style={styles.header}>
             <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-              🎨 Personalización
+              Personalización
             </Text>
             <TouchableOpacity onPress={onClose}>
               <Text style={[styles.cerrar, { color: tema.colores.texto }]}>✕</Text>
@@ -37,7 +43,7 @@ export const ModalPersonalizacion = ({ visible, onClose }: Props) => {
               <View style={styles.opcionConSwitch}>
                 <View style={styles.opcionInfo}>
                   <Text style={[styles.subtitulo, { color: tema.colores.primario, marginBottom: 4 }]}>
-                    🌙 Modo Oscuro Automático
+                    Modo Oscuro Automático
                   </Text>
                   <Text style={[styles.descripcion, { color: tema.colores.textoSecundario }]}>
                     El tema se ajustará según la configuración de tu dispositivo
@@ -52,54 +58,60 @@ export const ModalPersonalizacion = ({ visible, onClose }: Props) => {
               </View>
             </View>
 
+            {/* Símbolo de Moneda */}
             <View style={[styles.seccion, {
               backgroundColor: tema.colores.fondoSecundario,
               borderColor: tema.colores.bordes,
             }]}>
               <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-                🌈 Tema de la App
+                Símbolo de Moneda
               </Text>
               <Text style={[styles.descripcion, { color: tema.colores.textoSecundario }]}>
-                {modoOscuroAutomatico
-                  ? 'El modo automático está activado. Desactívalo para elegir un tema manualmente.'
-                  : 'Elige el tema que más te guste. Cada tema tiene su propio compañero, colores y moneda.'}
+                Personaliza el símbolo que se muestra junto a los montos
               </Text>
-              <SelectorTema />
+
+              <View style={styles.monedaRow}>
+                <TextInput
+                  style={[
+                    styles.inputMoneda,
+                    {
+                      color: tema.colores.texto,
+                      borderColor: tema.colores.bordes,
+                      backgroundColor: tema.colores.fondo,
+                    }
+                  ]}
+                  value={monedaInput}
+                  onChangeText={setMonedaInput}
+                  onBlur={() => {
+                    const monedaLimpia = monedaInput.trim();
+                    if (monedaLimpia) {
+                      cambiarMoneda(monedaLimpia);
+                    } else {
+                      setMonedaInput(tema.moneda);
+                    }
+                  }}
+                  placeholder="$"
+                  placeholderTextColor={tema.colores.textoSecundario}
+                  maxLength={5}
+                />
+                <Text style={[styles.ejemploMoneda, { color: tema.colores.textoSecundario }]}>
+                  Ejemplo: {monedaInput}100.00
+                </Text>
+              </View>
             </View>
 
-            {/* Información del tema actual */}
+            {/* Información del tema */}
             <View style={[styles.seccion, {
               backgroundColor: tema.colores.fondoSecundario,
               borderColor: tema.colores.bordes,
             }]}>
               <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-                📝 Tema Actual: {tema.nombre}
+                Tema Actual
               </Text>
-
-              <View style={styles.infoItem}>
-                <Text style={[styles.infoLabel, { color: tema.colores.texto }]}>
-                  Compañero:
-                </Text>
-                <Text style={styles.infoValor}>
-                  {tema.companero.avatar} {tema.companero.nombre}
-                </Text>
-              </View>
-
-              <View style={styles.infoItem}>
-                <Text style={[styles.infoLabel, { color: tema.colores.texto }]}>
-                  Moneda:
-                </Text>
-                <Text style={[styles.infoValor, { color: tema.colores.texto }]}>
-                  {tema.moneda}
-                </Text>
-              </View>
-
-              <View style={styles.infoItem}>
-                <Text style={[styles.infoLabel, { color: tema.colores.texto }]}>
-                  Estilo:
-                </Text>
-                <Text style={[styles.infoValor, { color: tema.colores.texto }]}>
-                  {tema.id === 'medieval' ? 'RPG Medieval oscuro' : 'Kawaii japonés claro'}
+              <View style={styles.temaInfo}>
+                <Text style={[styles.temaEmoji]}>{tema.emoji}</Text>
+                <Text style={[styles.temaNombre, { color: tema.colores.texto }]}>
+                  {tema.nombre}
                 </Text>
               </View>
             </View>
@@ -162,17 +174,34 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
-  infoItem: {
+  monedaRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    gap: 12,
   },
-  infoLabel: {
-    fontSize: 14,
+  inputMoneda: {
+    fontSize: 16,
     fontWeight: '600',
+    borderWidth: 2,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    minWidth: 80,
+    textAlign: 'center',
   },
-  infoValor: {
+  ejemploMoneda: {
     fontSize: 14,
+  },
+  temaInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  temaEmoji: {
+    fontSize: 24,
+  },
+  temaNombre: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

@@ -24,42 +24,17 @@ export const CategoriasProvider = ({ children }: { children: ReactNode }) => {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [cargado, setCargado] = useState(false);
 
-  // Categorías predeterminadas basadas en el tema actual
+  // Categorías predeterminadas con nombres profesionales
   const obtenerCategoriasDefault = (): Categoria[] => {
-    // Nombres según el tema
-    let nombres;
-
-    if (tema.id === 'kawaii') {
-      nombres = {
-        comida: 'Comidita Rica',
-        transporte: 'Movilidad',
-        equipo: 'Ropa y Accesorios',
-        pociones: 'Bebidas y Cafecito',
-        vivienda: 'Casita',
-        entrenamiento: 'Ejercicio',
-        otros: 'Compras',
-      };
-    } else if (tema.id === 'minimal-light' || tema.id === 'minimal-dark') {
-      nombres = {
-        comida: 'Alimentación',
-        transporte: 'Transporte',
-        equipo: 'Compras',
-        pociones: 'Café y Bebidas',
-        vivienda: 'Hogar',
-        entrenamiento: 'Salud y Fitness',
-        otros: 'Otros',
-      };
-    } else {
-      nombres = {
-        comida: 'Comida y Bebida',
-        transporte: 'Transporte',
-        equipo: 'Equipo y Armamento',
-        pociones: 'Pociones y Alquimia',
-        vivienda: 'Vivienda',
-        entrenamiento: 'Entrenamiento',
-        otros: 'Comercio General',
-      };
-    }
+    const nombres = {
+      comida: 'Alimentación',
+      transporte: 'Transporte',
+      equipo: 'Compras',
+      pociones: 'Café y Bebidas',
+      vivienda: 'Hogar',
+      entrenamiento: 'Salud y Fitness',
+      otros: 'Otros',
+    };
 
     const categoriasBase = [
       { id: 'comida', nombre: nombres.comida, emoji: tema.categorias.comida, color: '#ff6b6b', esPersonalizada: false },

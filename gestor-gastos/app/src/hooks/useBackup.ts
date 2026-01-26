@@ -19,7 +19,6 @@ interface DatosBackup {
     tarjetas?: string;
     recordatorios?: string;
     tema?: string;
-    datosJugador?: string;
   };
 }
 
@@ -37,14 +36,13 @@ export const useBackup = () => {
       };
 
       // Cargar todos los datos desde AsyncStorage
-      const [gastos, categorias, presupuestos, tarjetas, recordatorios, tema, datosJugador] = await Promise.all([
+      const [gastos, categorias, presupuestos, tarjetas, recordatorios, tema] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.GASTOS),
         AsyncStorage.getItem(STORAGE_KEYS.CATEGORIAS),
         AsyncStorage.getItem(STORAGE_KEYS.PRESUPUESTOS),
         AsyncStorage.getItem(STORAGE_KEYS.TARJETAS),
         AsyncStorage.getItem(STORAGE_KEYS.RECORDATORIOS),
         AsyncStorage.getItem(STORAGE_KEYS.TEMA),
-        AsyncStorage.getItem(STORAGE_KEYS.DATOS_JUGADOR),
       ]);
 
       if (gastos) datos.datos.gastos = gastos;
@@ -53,7 +51,6 @@ export const useBackup = () => {
       if (tarjetas) datos.datos.tarjetas = tarjetas;
       if (recordatorios) datos.datos.recordatorios = recordatorios;
       if (tema) datos.datos.tema = tema;
-      if (datosJugador) datos.datos.datosJugador = datosJugador;
 
       // Convertir a JSON
       const jsonString = JSON.stringify(datos, null, 2);
@@ -152,9 +149,6 @@ export const useBackup = () => {
                   }
                   if (backup.datos.tema) {
                     promesas.push(AsyncStorage.setItem(STORAGE_KEYS.TEMA, backup.datos.tema));
-                  }
-                  if (backup.datos.datosJugador) {
-                    promesas.push(AsyncStorage.setItem(STORAGE_KEYS.DATOS_JUGADOR, backup.datos.datosJugador));
                   }
 
                   await Promise.all(promesas);

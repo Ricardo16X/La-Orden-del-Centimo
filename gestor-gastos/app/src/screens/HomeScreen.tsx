@@ -2,35 +2,27 @@ import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGastos } from '../context/GastosContext';
-import { useNivel } from '../context/NivelContext';
 import { useTema } from '../context/TemaContext';
-import { useCompaneroMensajes, useFiltrosGastos } from '../hooks';
-import { useDetectorLogros } from '../hooks/useDetectorLogros';
+import { useFiltrosGastos } from '../hooks';
 import { Balance } from '../components/Balance';
 import { ListaGastos } from '../components/ListaGastos';
-import { Companero } from '../components/Companero';
 import { BotonAgregar } from '../components/BotonAgregar';
 import { ModalAgregarGasto } from '../components/ModalAgregarGasto';
 import { ModalAgregarIngreso } from '../components/ModalAgregarIngreso';
 import { ModalEditarGasto } from '../components/ModalEditarGasto';
 import { ModalSeleccionarTipo } from '../components/ModalSeleccionarTipo';
-import { NotificacionNivel } from '../components/NotificacionNivel';
-import { NotificacionLogro } from '../components/NotificacionLogro';
 import { AlertasPresupuesto } from '../components/AlertasPresupuesto';
 import { ModalAlertasDiarias } from '../components/ModalAlertasDiarias';
 import { Filtros } from '../components/Filtros';
 import { ResumenMetas } from '../components/ResumenMetas';
 import { ResumenBalance } from '../components/ResumenBalance';
 import { useAlertasDiarias } from '../hooks/useAlertasDiarias';
-import { XP_POR_GASTO } from '../constants/niveles';
 import { Gasto } from '../types';
 
 export const HomeScreen = () => {
-  const { gastos, agregarGasto, editarGasto, eliminarGasto, totalGastado, totalIngresos, ultimoGastoAgregado } = useGastos();
-  const { datosJugador, ganarXP, subisteDeNivel } = useNivel();
+  const { gastos, agregarGasto, editarGasto, eliminarGasto, totalGastado, totalIngresos } = useGastos();
   const { tema } = useTema();
   const { modalVisible, descartarAlertas } = useAlertasDiarias();
-  const { ultimoLogroDesbloqueado } = useDetectorLogros();
 
   const [modalSeleccionarTipoVisible, setModalSeleccionarTipoVisible] = useState<boolean>(false);
   const [modalAgregarGastoVisible, setModalAgregarGastoVisible] = useState<boolean>(false);
@@ -53,18 +45,16 @@ export const HomeScreen = () => {
     totalFiltrados,
   } = useFiltrosGastos(gastos);
 
-  const { mensajeCompanero, mostrarCompanero, contadorMensajes } = useCompaneroMensajes(
-    tema.id,
-    ultimoGastoAgregado,
-    () => ganarXP(XP_POR_GASTO)
-  );
-
-  const handleAgregarGasto = (monto: number, descripcion: string, categoria: string) => {
-    agregarGasto({ monto, descripcion, categoria, tipo: 'gasto' });
+  const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string) => {
+    // VERSIÓN NUEVA CON SOPORTE MULTI-MONEDA
+    console.log('🏠🏠🏠 HomeScreen - handleAgregarGasto recibió:', { monto, descripcion, categoria, moneda });
+    const gastoData = { monto, descripcion, categoria, tipo: 'gasto' as const, moneda };
+    console.log('🏠🏠🏠 HomeScreen - enviando a agregarGasto:', gastoData);
+    agregarGasto(gastoData);
   };
 
-  const handleAgregarIngreso = (monto: number, descripcion: string, categoria: string) => {
-    agregarGasto({ monto, descripcion, categoria, tipo: 'ingreso' });
+  const handleAgregarIngreso = (monto: number, descripcion: string, categoria: string, moneda?: string) => {
+    agregarGasto({ monto, descripcion, categoria, tipo: 'ingreso', moneda });
   };
 
   const handleEditar = (id: string, monto: number, descripcion: string, categoria: string) => {
@@ -88,7 +78,7 @@ export const HomeScreen = () => {
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
       <View style={styles.headerContainer}>
         <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-          {tema.emoji} Mis Gastos
+          Mis Gastos
         </Text>
         <TouchableOpacity
           style={[styles.botonFiltro, {
@@ -104,16 +94,6 @@ export const HomeScreen = () => {
           </Text>
         </TouchableOpacity>
       </View>
-
-      <Companero
-        mensaje={mensajeCompanero}
-        visible={mostrarCompanero}
-        key={contadorMensajes}
-      />
-
-      <NotificacionNivel visible={subisteDeNivel} nivel={datosJugador.nivel} />
-
-      <NotificacionLogro logroDesbloqueado={ultimoLogroDesbloqueado} />
 
       <ResumenBalance />
 

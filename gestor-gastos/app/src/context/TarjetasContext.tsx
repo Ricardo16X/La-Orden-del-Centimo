@@ -15,6 +15,8 @@ interface TarjetasContextType {
   editarTarjeta: (id: string, tarjetaActualizada: Partial<Omit<TarjetaCredito, 'id'>>) => void;
   eliminarTarjeta: (id: string) => void;
   obtenerEstadoTarjeta: (tarjeta: TarjetaCredito) => InfoEstadoTarjeta;
+  obtenerTarjetaPorId: (id: string) => TarjetaCredito | undefined;
+  obtenerCategoriaTarjeta: (tarjetaId: string) => string;
 }
 
 const TarjetasContext = createContext<TarjetasContextType | undefined>(undefined);
@@ -77,6 +79,7 @@ export const TarjetasProvider = ({ children }: { children: ReactNode }) => {
    */
   const obtenerEstadoTarjeta = (tarjeta: TarjetaCredito): InfoEstadoTarjeta => {
     const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0); // Normalizar a medianoche
     const diaActual = hoy.getDate();
     const mesActual = hoy.getMonth();
     const añoActual = hoy.getFullYear();
@@ -86,17 +89,17 @@ export const TarjetasProvider = ({ children }: { children: ReactNode }) => {
     let fechaPago = new Date(añoActual, mesActual, tarjeta.diaPago);
 
     // Si la fecha de corte ya pasó este mes, usar la del próximo mes
-    if (diaActual > tarjeta.diaCorte) {
+    if (diaActual >= tarjeta.diaCorte) {
       fechaCorte = new Date(añoActual, mesActual + 1, tarjeta.diaCorte);
     }
 
     // Si la fecha de pago ya pasó este mes, usar la del próximo mes
-    if (diaActual > tarjeta.diaPago) {
+    if (diaActual >= tarjeta.diaPago) {
       fechaPago = new Date(añoActual, mesActual + 1, tarjeta.diaPago);
     }
 
     // Si el día de pago es antes del día de corte (pago del periodo anterior)
-    if (tarjeta.diaPago < tarjeta.diaCorte && diaActual <= tarjeta.diaPago) {
+    if (tarjeta.diaPago < tarjeta.diaCorte && diaActual < tarjeta.diaPago) {
       // Estamos en el periodo de pago del mes anterior
       fechaCorte = new Date(añoActual, mesActual + 1, tarjeta.diaCorte);
     }
@@ -139,6 +142,23 @@ export const TarjetasProvider = ({ children }: { children: ReactNode }) => {
     };
   };
 
+  /**
+   * Obtiene una tarjeta por su ID
+   */
+  const obtenerTarjetaPorId = (id: string): TarjetaCredito | undefined => {
+    return tarjetas.find(t => t.id === id);
+  };
+
+  /**
+   * Genera el nombre de categoría automática para una tarjeta
+   * Formato: "💳 Cuotas - [Nombre Tarjeta]"
+   */
+  const obtenerCategoriaTarjeta = (tarjetaId: string): string => {
+    const tarjeta = obtenerTarjetaPorId(tarjetaId);
+    if (!tarjeta) return '💳 Cuotas';
+    return `💳 Cuotas - ${tarjeta.nombre}`;
+  };
+
   return (
     <TarjetasContext.Provider
       value={{
@@ -147,6 +167,8 @@ export const TarjetasProvider = ({ children }: { children: ReactNode }) => {
         editarTarjeta,
         eliminarTarjeta,
         obtenerEstadoTarjeta,
+        obtenerTarjetaPorId,
+        obtenerCategoriaTarjeta,
       }}
     >
       {children}

@@ -3,22 +3,16 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTema } from '../src/context/TemaContext';
 import { DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
 import { View, Text, StyleSheet } from 'react-native';
-import { useNivel } from '../src/context/NivelContext';
 import { router } from 'expo-router';
 
 function CustomDrawerContent(props: any) {
   const { tema } = useTema();
-  const { datosJugador } = useNivel();
 
   return (
     <DrawerContentScrollView {...props} style={{ backgroundColor: tema.colores.fondo }}>
       {/* Header del Drawer */}
       <View style={[styles.drawerHeader, { backgroundColor: tema.colores.primario }]}>
-        <Text style={styles.appTitle}>{tema.emoji} Mis Gastos</Text>
-        <View style={styles.nivelContainer}>
-          <Text style={styles.nivelTexto}>Nivel {datosJugador.nivel}</Text>
-          <Text style={styles.xpTexto}>{datosJugador.xp} XP</Text>
-        </View>
+        <Text style={styles.appTitle}>La Orden del Céntimo</Text>
       </View>
 
       {/* Items del Drawer */}
@@ -73,7 +67,7 @@ export default function DrawerLayout() {
   const { tema } = useTema();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: tema.colores.fondo }}>
       <Drawer
         drawerContent={(props) => <CustomDrawerContent {...props} />}
         screenOptions={{
@@ -90,6 +84,9 @@ export default function DrawerLayout() {
           },
           drawerActiveTintColor: tema.colores.primario,
           drawerInactiveTintColor: tema.colores.texto,
+          sceneContainerStyle: {
+            backgroundColor: tema.colores.fondo,
+          },
         }}
       >
         <Drawer.Screen
@@ -135,24 +132,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   appTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 10,
-  },
-  nivelContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  nivelTexto: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  xpTexto: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
   },
   seccion: {
     borderTopWidth: 1,

@@ -2,7 +2,9 @@ import { FlatList, View, Text, TouchableOpacity, StyleSheet } from 'react-native
 import { Gasto } from '../types';
 import { useTema } from '../context/TemaContext';
 import { useCategorias } from '../context/CategoriasContext';
+import { useMonedas } from '../context/MonedasContext';
 import { formatearFechaCompacta } from '../utils/date';
+import { obtenerMonedaPorCodigo } from '../constants/monedas';
 
 interface Props {
   gastos: Gasto[];
@@ -13,6 +15,7 @@ interface Props {
 export const ListaGastos = ({ gastos, onEliminar, onEditar }: Props) => {
   const { tema } = useTema();
   const { categorias } = useCategorias();
+  const { monedaBase } = useMonedas();
 
   return (
     <FlatList
@@ -21,6 +24,12 @@ export const ListaGastos = ({ gastos, onEliminar, onEditar }: Props) => {
       renderItem={({ item }) => {
         // Buscar la categoría en el contexto (incluye personalizadas y predeterminadas)
         const categoria = categorias.find(cat => cat.id === item.categoria) || categorias[0];
+
+        // Obtener info de la moneda del gasto
+        const codigoMoneda = item.moneda || monedaBase?.codigo || 'GTQ';
+        const infoMoneda = obtenerMonedaPorCodigo(codigoMoneda);
+        const simboloMoneda = infoMoneda?.simbolo || tema.moneda;
+
         return (
           <TouchableOpacity
             style={[styles.item, {
@@ -50,7 +59,7 @@ export const ListaGastos = ({ gastos, onEliminar, onEditar }: Props) => {
                     : tema?.colores?.primarioClaro || '#ffd700'
                 }
               ]}>
-                {item.tipo === 'ingreso' ? '+' : '-'}{item.monto.toFixed(2)} 🪙
+                {item.tipo === 'ingreso' ? '+' : '-'}{simboloMoneda}{item.monto.toFixed(2)}
               </Text>
             </View>
           </TouchableOpacity>

@@ -7,6 +7,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Gasto, NuevoGasto, ActualizacionGasto } from '../types';
 import { cargarGastos, guardarGastos } from '../services/storage';
 import { generarId, getFechaActual } from '../utils';
+import { useMonedas } from './MonedasContext';
 
 interface GastosContextType {
   gastos: Gasto[];
@@ -25,6 +26,7 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
   const [gastos, setGastos] = useState<Gasto[]>([]);
   const [ultimoGastoAgregado, setUltimoGastoAgregado] = useState<Gasto | null>(null);
   const [cargado, setCargado] = useState(false);
+  const { monedaBase, obtenerMoneda } = useMonedas();
 
   useEffect(() => {
     cargarDatos();
@@ -43,11 +45,32 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const agregarGasto = (gasto: NuevoGasto) => {
+    console.log('📊 GastosContext - agregarGasto recibió:', gasto);
+
+    // Si no se especificó moneda, usar la moneda base
+    const codigoMoneda = gasto.moneda || monedaBase?.codigo || 'GTQ';
+    const moneda = obtenerMoneda(codigoMoneda);
+
+    // Calcular el tipo de cambio y monto en moneda base
+    const tipoCambio = moneda?.tipoCambio || 1.0;
+    const montoEnMonedaBase = gasto.monto * tipoCambio;
+
+    console.log('📊 Agregando gasto:', {
+      montoOriginal: gasto.monto,
+      codigoMoneda,
+      monedaEncontrada: moneda,
+      tipoCambio,
+      montoEnMonedaBase,
+    });
+
     const nuevoGasto: Gasto = {
       id: generarId(),
       fecha: getFechaActual(),
       tipo: 'gasto',
       ...gasto,
+      moneda: codigoMoneda,
+      tipoCambio,
+      montoEnMonedaBase,
     };
     setGastos(prev => {
       const nuevos = [nuevoGasto, ...prev];
@@ -74,11 +97,11 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
 
   const totalGastado = gastos
     .filter(g => g.tipo === 'gasto')
-    .reduce((sum, gasto) => sum + gasto.monto, 0);
+    .reduce((sum, gasto) => sum + (gasto.montoEnMonedaBase || gasto.monto), 0);
 
   const totalIngresos = gastos
     .filter(g => g.tipo === 'ingreso')
-    .reduce((sum, gasto) => sum + gasto.monto, 0);
+    .reduce((sum, gasto) => sum + (gasto.montoEnMonedaBase || gasto.monto), 0);
 
   const balance = totalIngresos - totalGastado;
 

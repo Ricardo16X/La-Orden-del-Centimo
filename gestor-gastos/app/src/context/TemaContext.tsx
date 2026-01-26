@@ -6,20 +6,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import { Tema } from '../types';
-import { obtenerTema, TEMAS } from '../constants/temas';
+import { TEMAS } from '../constants/temas';
 import {
-  cargarTema as cargarTemaStorage,
-  guardarTema as guardarTemaStorage,
   cargarModoOscuroAuto,
   guardarModoOscuroAuto,
 } from '../services/storage';
 
 interface TemaContextType {
   tema: Tema;
-  cambiarTema: (temaId: string) => void;
-  temasDisponibles: Tema[];
   modoOscuroAutomatico: boolean;
   toggleModoOscuroAutomatico: () => void;
+  cambiarMoneda: (simbolo: string) => void;
 }
 
 const TemaContext = createContext<TemaContextType | undefined>(undefined);
@@ -28,7 +25,7 @@ export const TemaProvider = ({ children }: { children: ReactNode }) => {
   const colorScheme = useColorScheme();
   const [tema, setTema] = useState<Tema>(TEMAS[0]);
   const [modoOscuroAutomatico, setModoOscuroAutomatico] = useState(false);
-  const [temaManual, setTemaManual] = useState<string | null>(null);
+  const [monedaGuardada, setMonedaGuardada] = useState<string | null>(null);
 
   useEffect(() => {
     cargarDatos();
@@ -39,51 +36,64 @@ export const TemaProvider = ({ children }: { children: ReactNode }) => {
     if (modoOscuroAutomatico) {
       aplicarTemaAutomatico();
     }
-  }, [colorScheme, modoOscuroAutomatico]);
+  }, [colorScheme, modoOscuroAutomatico, monedaGuardada]);
 
   const cargarDatos = async () => {
-    const [temaGuardado, modoAutoGuardado] = await Promise.all([
-      cargarTemaStorage(),
+    const AsyncStorage = await import('@react-native-async-storage/async-storage');
+    const [modoAutoGuardado, monedaCargada] = await Promise.all([
       cargarModoOscuroAuto(),
+      AsyncStorage.default.getItem('@moneda'),
     ]);
+
+    // Guardar la moneda en el estado para usarla en otros lugares
+    if (monedaCargada) {
+      setMonedaGuardada(monedaCargada);
+    }
 
     setModoOscuroAutomatico(modoAutoGuardado);
 
-    if (temaGuardado) {
-      setTemaManual(temaGuardado);
-      if (!modoAutoGuardado) {
-        setTema(obtenerTema(temaGuardado));
-      }
-    }
-
+    // Aplicar tema según configuración
     if (modoAutoGuardado) {
-      aplicarTemaAutomatico();
+      // Modo automático: aplicar según colorScheme del sistema
+      let temaSeleccionado: Tema;
+      if (colorScheme === 'dark') {
+        temaSeleccionado = TEMAS.find(t => t.id === 'dark') || TEMAS[0];
+      } else {
+        temaSeleccionado = TEMAS.find(t => t.id === 'light') || TEMAS[0];
+      }
+
+      // Aplicar moneda personalizada
+      if (monedaCargada) {
+        temaSeleccionado = { ...temaSeleccionado, moneda: monedaCargada };
+      }
+
+      setTema(temaSeleccionado);
+    } else {
+      // Primer inicio: usar tema por defecto con moneda personalizada si existe
+      let temaInicial = TEMAS[0];
+      if (monedaCargada) {
+        temaInicial = { ...temaInicial, moneda: monedaCargada };
+      }
+      setTema(temaInicial);
     }
   };
 
   const aplicarTemaAutomatico = () => {
-    // Si el modo oscuro está activado en el sistema, usar minimal-dark
-    // De lo contrario, usar minimal-light
+    // Si el modo oscuro está activado en el sistema, usar dark
+    // De lo contrario, usar light
+    let temaSeleccionado: Tema;
     if (colorScheme === 'dark') {
-      const temaOscuro = TEMAS.find(t => t.id === 'minimal-dark') || TEMAS[0];
-      setTema(temaOscuro);
+      temaSeleccionado = TEMAS.find(t => t.id === 'dark') || TEMAS[0];
     } else {
-      const temaClaro = TEMAS.find(t => t.id === 'minimal-light') || TEMAS[0];
-      setTema(temaClaro);
+      temaSeleccionado = TEMAS.find(t => t.id === 'light') || TEMAS[0];
     }
-  };
 
-  const cambiarTema = async (temaId: string) => {
-    const nuevoTema = obtenerTema(temaId);
-    setTema(nuevoTema);
-    setTemaManual(temaId);
-    await guardarTemaStorage(temaId);
-
-    // Si está en modo automático, desactivarlo al cambiar manualmente
-    if (modoOscuroAutomatico) {
-      setModoOscuroAutomatico(false);
-      await guardarModoOscuroAuto(false);
+    // Preservar la moneda guardada si existe
+    if (monedaGuardada) {
+      temaSeleccionado = { ...temaSeleccionado, moneda: monedaGuardada };
     }
+
+    setTema(temaSeleccionado);
   };
 
   const toggleModoOscuroAutomatico = async () => {
@@ -93,8 +103,32 @@ export const TemaProvider = ({ children }: { children: ReactNode }) => {
 
     if (nuevoEstado) {
       aplicarTemaAutomatico();
-    } else if (temaManual) {
-      setTema(obtenerTema(temaManual));
+    } else {
+      // Si se desactiva el modo automático, mantener el tema actual
+      // El usuario ya está viendo el tema correcto basado en su sistema
+    }
+  };
+
+  const cambiarMoneda = (simbolo: string) => {
+    // Actualizar el estado local de moneda guardada
+    setMonedaGuardada(simbolo);
+
+    // Actualizar el tema actual
+    setTema(prev => ({
+      ...prev,
+      moneda: simbolo,
+    }));
+
+    // Guardar en AsyncStorage
+    guardarMoneda(simbolo);
+  };
+
+  const guardarMoneda = async (simbolo: string) => {
+    try {
+      const AsyncStorage = await import('@react-native-async-storage/async-storage');
+      await AsyncStorage.default.setItem('@moneda', simbolo);
+    } catch (error) {
+      console.error('Error al guardar moneda:', error);
     }
   };
 
@@ -102,10 +136,9 @@ export const TemaProvider = ({ children }: { children: ReactNode }) => {
     <TemaContext.Provider
       value={{
         tema,
-        cambiarTema,
-        temasDisponibles: TEMAS,
         modoOscuroAutomatico,
         toggleModoOscuroAutomatico,
+        cambiarMoneda,
       }}
     >
       {children}

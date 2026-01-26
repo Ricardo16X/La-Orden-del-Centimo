@@ -2,29 +2,20 @@ import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { useGastos } from '../src/context/GastosContext';
-import { useNivel } from '../src/context/NivelContext';
 import { useTema } from '../src/context/TemaContext';
 import { useFiltrosGastos } from '../src/hooks';
 import { ListaGastos } from '../src/components/ListaGastos';
-import { Companero } from '../src/components/Companero';
 import { BotonAgregar } from '../src/components/BotonAgregar';
 import { ModalAgregarGasto } from '../src/components/ModalAgregarGasto';
 import { ModalAgregarIngreso } from '../src/components/ModalAgregarIngreso';
 import { ModalEditarGasto } from '../src/components/ModalEditarGasto';
 import { ModalSeleccionarTipo } from '../src/components/ModalSeleccionarTipo';
-import { NotificacionNivel } from '../src/components/NotificacionNivel';
-import { NotificacionLogro } from '../src/components/NotificacionLogro';
 import { Filtros } from '../src/components/Filtros';
-import { useCompaneroMensajes } from '../src/hooks';
-import { useDetectorLogros } from '../src/hooks/useDetectorLogros';
-import { XP_POR_GASTO } from '../src/constants/niveles';
 import { Gasto } from '../src/types';
 
 export default function HomeScreen() {
-  const { gastos, agregarGasto, editarGasto, eliminarGasto, ultimoGastoAgregado } = useGastos();
-  const { datosJugador, ganarXP, subisteDeNivel } = useNivel();
+  const { gastos, agregarGasto, editarGasto, eliminarGasto } = useGastos();
   const { tema } = useTema();
-  const { ultimoLogroDesbloqueado } = useDetectorLogros();
 
   const [modalSeleccionarTipoVisible, setModalSeleccionarTipoVisible] = useState<boolean>(false);
   const [modalAgregarGastoVisible, setModalAgregarGastoVisible] = useState<boolean>(false);
@@ -47,18 +38,13 @@ export default function HomeScreen() {
     totalFiltrados,
   } = useFiltrosGastos(gastos);
 
-  const { mensajeCompanero, mostrarCompanero, contadorMensajes } = useCompaneroMensajes(
-    tema.id,
-    ultimoGastoAgregado,
-    () => ganarXP(XP_POR_GASTO)
-  );
-
-  const handleAgregarGasto = (monto: number, descripcion: string, categoria: string) => {
-    agregarGasto({ monto, descripcion, categoria, tipo: 'gasto' });
+  const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string) => {
+    console.log('🏠🏠🏠 CORRECTO - drawer/index recibió:', { monto, descripcion, categoria, moneda });
+    agregarGasto({ monto, descripcion, categoria, tipo: 'gasto', moneda });
   };
 
-  const handleAgregarIngreso = (monto: number, descripcion: string, categoria: string) => {
-    agregarGasto({ monto, descripcion, categoria, tipo: 'ingreso' });
+  const handleAgregarIngreso = (monto: number, descripcion: string, categoria: string, moneda?: string) => {
+    agregarGasto({ monto, descripcion, categoria, tipo: 'ingreso', moneda });
   };
 
   const handleEditar = (id: string, monto: number, descripcion: string, categoria: string) => {
@@ -96,16 +82,6 @@ export default function HomeScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-
-      <Companero
-        mensaje={mensajeCompanero}
-        visible={mostrarCompanero}
-        key={contadorMensajes}
-      />
-
-      <NotificacionNivel visible={subisteDeNivel} nivel={datosJugador.nivel} />
-
-      <NotificacionLogro logroDesbloqueado={ultimoLogroDesbloqueado} />
 
       {mostrarFiltros && (
         <Filtros

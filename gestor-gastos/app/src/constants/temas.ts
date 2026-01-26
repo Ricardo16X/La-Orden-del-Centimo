@@ -1,71 +1,14 @@
 /**
  * Configuración de temas de la aplicación
+ * Solo modo claro y oscuro
  */
 
 import { Tema } from '../types';
 
 export const TEMAS: Tema[] = [
   {
-    id: 'medieval',
-    nombre: 'Reino Medieval',
-    emoji: '⚔️',
-    colores: {
-      fondo: '#2c2416',
-      fondoSecundario: '#3d2f1f',
-      primario: '#d4af37',
-      primarioClaro: '#ffd700',
-      acento: '#8b4513',
-      bordes: '#9d8463',
-      texto: '#f5deb3',
-      textoSecundario: '#d4af37',
-    },
-    companero: {
-      avatar: '🐉',
-      nombre: 'Dragón del Tesoro',
-    },
-    moneda: 'Monedas de Oro',
-    categorias: {
-      comida: '🍖',
-      transporte: '🐴',
-      equipo: '⚔️',
-      pociones: '🧪',
-      vivienda: '🏰',
-      entrenamiento: '🎯',
-      otros: '📦',
-    },
-  },
-  {
-    id: 'kawaii',
-    nombre: 'Mundo Kawaii',
-    emoji: '🌸',
-    colores: {
-      fondo: '#fff0f5',
-      fondoSecundario: '#ffe4e1',
-      primario: '#ff69b4',
-      primarioClaro: '#ffb6c1',
-      acento: '#ff1493',
-      bordes: '#ff85b3',
-      texto: '#6d3673',
-      textoSecundario: '#9d4b9d',
-    },
-    companero: {
-      avatar: '🐱',
-      nombre: 'Michi Ahorrador',
-    },
-    moneda: 'Estrellitas',
-    categorias: {
-      comida: '🍥',
-      transporte: '🚗',
-      equipo: '👗',
-      pociones: '🧋',
-      vivienda: '🏡',
-      entrenamiento: '💪',
-      otros: '🛍️',
-    },
-  },
-  {
-    id: 'minimal-light',
-    nombre: 'Minimalista Día',
+    id: 'light',
+    nombre: 'Claro',
     emoji: '☀️',
     colores: {
       fondo: '#ffffff',
@@ -77,11 +20,7 @@ export const TEMAS: Tema[] = [
       texto: '#1a1a1a',
       textoSecundario: '#6c757d',
     },
-    companero: {
-      avatar: '📊',
-      nombre: 'Asistente Financiero',
-    },
-    moneda: 'USD',
+    moneda: '$',
     categorias: {
       comida: '🍽️',
       transporte: '🚘',
@@ -93,8 +32,8 @@ export const TEMAS: Tema[] = [
     },
   },
   {
-    id: 'minimal-dark',
-    nombre: 'Minimalista Noche',
+    id: 'dark',
+    nombre: 'Oscuro',
     emoji: '🌙',
     colores: {
       fondo: '#0d1117',
@@ -106,11 +45,7 @@ export const TEMAS: Tema[] = [
       texto: '#f0f6fc',
       textoSecundario: '#8d96a0',
     },
-    companero: {
-      avatar: '📊',
-      nombre: 'Asistente Financiero',
-    },
-    moneda: 'USD',
+    moneda: '$',
     categorias: {
       comida: '🍽️',
       transporte: '🚘',

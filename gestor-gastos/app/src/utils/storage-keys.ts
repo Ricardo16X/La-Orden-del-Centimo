@@ -5,10 +5,7 @@
 
 export const STORAGE_KEYS = {
   GASTOS: 'gastos',
-  XP_TOTAL: 'xp_total',
   TEMA: 'tema_seleccionado',
-  ULTIMA_RACHA: 'ultima_racha',
-  DATOS_JUGADOR: 'datos_jugador',
   CATEGORIAS: 'categorias_personalizadas',
   PRESUPUESTOS: 'presupuestos',
   TARJETAS: 'tarjetas_credito',
@@ -17,6 +14,8 @@ export const STORAGE_KEYS = {
   RECORDATORIOS: 'recordatorios',
   MODO_OSCURO_AUTO: 'modo_oscuro_automatico',
   METAS: 'metas_ahorro',
+  CUOTAS: 'cuotas_sin_intereses',
+  MONEDAS: 'configuracion_monedas',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

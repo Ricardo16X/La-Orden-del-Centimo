@@ -3,12 +3,17 @@ import { useTema } from '../src/context/TemaContext';
 import { ResumenBalance } from '../src/components/ResumenBalance';
 import { AlertasPresupuesto } from '../src/components/AlertasPresupuesto';
 import { ResumenMetas } from '../src/components/ResumenMetas';
+import { ResumenTarjetas } from '../src/components/ResumenTarjetas';
 import { ModalAlertasDiarias } from '../src/components/ModalAlertasDiarias';
 import { useAlertasDiarias } from '../src/hooks/useAlertasDiarias';
+import { useGeneradorCuotas } from '../src/hooks/useGeneradorCuotas';
 
 export default function ResumenScreen() {
   const { tema } = useTema();
   const { modalVisible, descartarAlertas } = useAlertasDiarias();
+
+  // Hook que auto-genera gastos de cuotas cuando llega la fecha de corte
+  useGeneradorCuotas();
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
@@ -17,6 +22,8 @@ export default function ResumenScreen() {
       </Text>
 
       <ResumenBalance />
+
+      <ResumenTarjetas />
 
       <AlertasPresupuesto />
 
