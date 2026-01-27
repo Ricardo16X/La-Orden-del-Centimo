@@ -21,14 +21,15 @@ export const BalanceProvider = ({ children }: { children: ReactNode }) => {
   const { metas } = useMetas();
 
   // Calcular balance automáticamente
+  // Usa montoEnMonedaBase para considerar conversiones de moneda
   const balance = useMemo((): Balance => {
     const totalIngresos = gastos
       .filter(g => g.tipo === 'ingreso')
-      .reduce((sum, g) => sum + g.monto, 0);
+      .reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0);
 
     const totalGastos = gastos
       .filter(g => g.tipo === 'gasto')
-      .reduce((sum, g) => sum + g.monto, 0);
+      .reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0);
 
     // Solo contar dinero en metas activas (en progreso o completadas)
     const totalReservado = metas
@@ -68,11 +69,11 @@ export const BalanceProvider = ({ children }: { children: ReactNode }) => {
 
     const ingresosAnterior = gastosDelMesAnterior
       .filter(g => g.tipo === 'ingreso')
-      .reduce((sum, g) => sum + g.monto, 0);
+      .reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0);
 
     const gastosAnterior = gastosDelMesAnterior
       .filter(g => g.tipo === 'gasto')
-      .reduce((sum, g) => sum + g.monto, 0);
+      .reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0);
 
     const balanceAnterior = ingresosAnterior - gastosAnterior;
 

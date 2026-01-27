@@ -5,6 +5,7 @@ import { useTema } from './src/context/TemaContext';
 import { useMetas } from './src/context/MetasContext';
 import { useBalance } from './src/context/BalanceContext';
 import { formatearTiempoRestante, formatearAhorroRequerido } from './src/utils/date';
+import { useMonedas } from './src/context/MonedasContext';
 
 const ICONOS_DISPONIBLES = ['🎯', '🏖️', '🚗', '🏠', '💍', '🎓', '💻', '🎮', '📱', '✈️'];
 const COLORES_DISPONIBLES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -19,7 +20,7 @@ export default function MetasScreen() {
   const [descripcion, setDescripcion] = useState('');
   const [montoObjetivo, setMontoObjetivo] = useState('');
   const [duracionMeta, setDuracionMeta] = useState('1');
-  const [unidadTiempo, setUnidadTiempo] = useState<'dias' | 'meses' | 'anos'>('meses');
+  const [unidadTiempo, setUnidadTiempo] = useState<'dias' | 'meses' | 'años'>('meses');
   const [iconoSeleccionado, setIconoSeleccionado] = useState(ICONOS_DISPONIBLES[0]);
   const [colorSeleccionado, setColorSeleccionado] = useState(COLORES_DISPONIBLES[0]);
 
@@ -28,6 +29,8 @@ export default function MetasScreen() {
   const [metaSeleccionada, setMetaSeleccionada] = useState<string | null>(null);
   const [montoAportar, setMontoAportar] = useState('');
   const [esRetiro, setEsRetiro] = useState(false);
+  // constante de moneda base
+  const { monedaBase } = useMonedas();
 
   const limpiarFormulario = () => {
     setNombre('');
@@ -67,7 +70,7 @@ export default function MetasScreen() {
       case 'meses':
         fechaLimite.setMonth(ahora.getMonth() + duracion);
         break;
-      case 'anos':
+      case 'años':
         fechaLimite.setFullYear(ahora.getFullYear() + duracion);
         break;
     }
@@ -112,7 +115,7 @@ export default function MetasScreen() {
     if (!esRetiro && monto > balance.balanceDisponible) {
       Alert.alert(
         'Balance insuficiente',
-        `No tienes suficiente balance disponible.\n\nDisponible: $${balance.balanceDisponible.toFixed(2)}\nRequerido: $${monto.toFixed(2)}`
+        `No tienes suficiente balance disponible.\n\nDisponible: ${monedaBase?.simbolo}${balance.balanceDisponible.toFixed(2)}\nRequerido: ${monedaBase?.simbolo}${monto.toFixed(2)}`
       );
       return;
     }
@@ -152,7 +155,7 @@ export default function MetasScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={[styles.titulo, { color: tema.colores.primario }]}>🎯 Metas de Ahorro</Text>
+        <Text style={[styles.titulo, { color: tema.colores.primario }]}>Metas de Ahorro</Text>
         <View style={{ width: 70 }} />
       </View>
 
@@ -212,10 +215,10 @@ export default function MetasScreen() {
                       {/* Monto y progreso */}
                       <View style={styles.montoContainer}>
                         <Text style={[styles.montoActual, { color: meta.color }]}>
-                          ${meta.montoActual.toFixed(2)}
+                          {monedaBase?.simbolo}{meta.montoActual.toFixed(2)}
                         </Text>
                         <Text style={[styles.montoObjetivo, { color: tema.colores.textoSecundario }]}>
-                          de ${meta.montoObjetivo.toFixed(2)}
+                          de {monedaBase?.simbolo}{meta.montoObjetivo.toFixed(2)}
                         </Text>
                       </View>
 
@@ -250,7 +253,7 @@ export default function MetasScreen() {
                             Ahorro requerido
                           </Text>
                           <Text style={[styles.estadisticaValor, { color: tema.colores.texto }]}>
-                            {formatearAhorroRequerido(
+                            {monedaBase?.simbolo}{formatearAhorroRequerido(
                               estadisticas.diasRestantes,
                               estadisticas.ahorroRequeridoDiario,
                               estadisticas.ahorroRequeridoMensual
@@ -369,7 +372,7 @@ export default function MetasScreen() {
                   onChangeText={setDuracionMeta}
                 />
                 <View style={styles.unidadesContainer}>
-                  {(['dias', 'meses', 'anos'] as const).map(unidad => (
+                  {(['dias', 'meses', 'años'] as const).map(unidad => (
                     <TouchableOpacity
                       key={unidad}
                       style={[
@@ -551,7 +554,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   titulo: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   botonNuevo: {

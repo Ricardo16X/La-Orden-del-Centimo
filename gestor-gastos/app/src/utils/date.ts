@@ -138,14 +138,14 @@ export const formatearTiempoRestante = (dias: number): string => {
 export const formatearAhorroRequerido = (diasRestantes: number, ahorroRequeridoDiario: number, ahorroRequeridoMensual: number): string => {
   // Validar que los valores no sean undefined o null
   if (diasRestantes == null || ahorroRequeridoDiario == null || ahorroRequeridoMensual == null) {
-    return '$0.00/día';
+    return '0.00/día';
   }
 
   if (diasRestantes < 60) {
-    return `$${ahorroRequeridoDiario.toFixed(2)}/día`;
+    return `${ahorroRequeridoDiario.toFixed(2)}/día`;
   }
 
-  return `$${ahorroRequeridoMensual.toFixed(2)}/mes`;
+  return `${ahorroRequeridoMensual.toFixed(2)}/mes`;
 };
 
 /**

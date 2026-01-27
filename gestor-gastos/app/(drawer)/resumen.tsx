@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTema } from '../src/context/TemaContext';
 import { ResumenBalance } from '../src/components/ResumenBalance';
+import { ResumenPorMoneda } from '../src/components/ResumenPorMoneda';
 import { AlertasPresupuesto } from '../src/components/AlertasPresupuesto';
 import { ResumenMetas } from '../src/components/ResumenMetas';
 import { ResumenTarjetas } from '../src/components/ResumenTarjetas';
@@ -22,6 +23,8 @@ export default function ResumenScreen() {
       </Text>
 
       <ResumenBalance />
+
+      <ResumenPorMoneda />
 
       <ResumenTarjetas />
 

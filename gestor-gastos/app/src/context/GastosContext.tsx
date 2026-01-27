@@ -45,8 +45,6 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const agregarGasto = (gasto: NuevoGasto) => {
-    console.log('📊 GastosContext - agregarGasto recibió:', gasto);
-
     // Si no se especificó moneda, usar la moneda base
     const codigoMoneda = gasto.moneda || monedaBase?.codigo || 'GTQ';
     const moneda = obtenerMoneda(codigoMoneda);
@@ -54,14 +52,6 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
     // Calcular el tipo de cambio y monto en moneda base
     const tipoCambio = moneda?.tipoCambio || 1.0;
     const montoEnMonedaBase = gasto.monto * tipoCambio;
-
-    console.log('📊 Agregando gasto:', {
-      montoOriginal: gasto.monto,
-      codigoMoneda,
-      monedaEncontrada: moneda,
-      tipoCambio,
-      montoEnMonedaBase,
-    });
 
     const nuevoGasto: Gasto = {
       id: generarId(),

@@ -46,11 +46,7 @@ export const HomeScreen = () => {
   } = useFiltrosGastos(gastos);
 
   const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string) => {
-    // VERSIÓN NUEVA CON SOPORTE MULTI-MONEDA
-    console.log('🏠🏠🏠 HomeScreen - handleAgregarGasto recibió:', { monto, descripcion, categoria, moneda });
-    const gastoData = { monto, descripcion, categoria, tipo: 'gasto' as const, moneda };
-    console.log('🏠🏠🏠 HomeScreen - enviando a agregarGasto:', gastoData);
-    agregarGasto(gastoData);
+    agregarGasto({ monto, descripcion, categoria, tipo: 'gasto', moneda });
   };
 
   const handleAgregarIngreso = (monto: number, descripcion: string, categoria: string, moneda?: string) => {

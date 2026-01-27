@@ -2,12 +2,15 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useBalance } from '../context/BalanceContext';
+import { useMonedas } from '../context/MonedasContext';
 
 export const ResumenBalance = () => {
   const { tema } = useTema();
   const { resumen } = useBalance();
+  const { monedaBase } = useMonedas();
   const { balance, tendencia, cambioMensual } = resumen;
   const [mostrarDesglose, setMostrarDesglose] = useState(false);
+  const simbolo = monedaBase?.simbolo || '';
 
   // Iconos y colores según tendencia
   const getTendenciaInfo = () => {
@@ -53,7 +56,7 @@ export const ResumenBalance = () => {
             <Text style={[styles.balanceValor, {
               color: balance.balanceDisponible >= 0 ? '#10b981' : '#ef4444'
             }]}>
-              ${balance.balanceDisponible.toFixed(2)}
+              {simbolo}{balance.balanceDisponible.toFixed(2)}
             </Text>
           </View>
 
@@ -64,7 +67,7 @@ export const ResumenBalance = () => {
               🎯 En Metas
             </Text>
             <Text style={[styles.balanceValor, { color: '#3b82f6' }]}>
-              ${balance.totalReservado.toFixed(2)}
+              {simbolo}{balance.totalReservado.toFixed(2)}
             </Text>
           </View>
         </View>
@@ -91,7 +94,7 @@ export const ResumenBalance = () => {
               Total Ingresos
             </Text>
             <Text style={[styles.desgloseValor, { color: '#10b981' }]}>
-              +${balance.totalIngresos.toFixed(2)}
+              +{simbolo}{balance.totalIngresos.toFixed(2)}
             </Text>
           </View>
 
@@ -100,7 +103,7 @@ export const ResumenBalance = () => {
               Total Gastos
             </Text>
             <Text style={[styles.desgloseValor, { color: '#ef4444' }]}>
-              -${balance.totalGastos.toFixed(2)}
+              -{simbolo}{balance.totalGastos.toFixed(2)}
             </Text>
           </View>
 
@@ -114,7 +117,7 @@ export const ResumenBalance = () => {
               color: balance.balanceTotal >= 0 ? '#10b981' : '#ef4444',
               fontWeight: 'bold',
             }]}>
-              ${balance.balanceTotal.toFixed(2)}
+              {simbolo}{balance.balanceTotal.toFixed(2)}
             </Text>
           </View>
         </View>

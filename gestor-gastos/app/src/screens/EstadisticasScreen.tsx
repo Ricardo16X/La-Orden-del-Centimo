@@ -54,53 +54,6 @@ export const EstadisticasScreen = () => {
       </Text>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Estadísticas Generales */}
-        <View style={[styles.seccion, {
-          backgroundColor: tema.colores.fondoSecundario,
-          borderColor: tema.colores.bordes,
-        }]}>
-          <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-            💰 Resumen General
-          </Text>
-
-          <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
-            <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-              Total Ingresos:
-            </Text>
-            <Text style={[styles.estatValor, { color: '#4ade80' }]}>
-              {`+${totalIngresos.toFixed(2)} ${tema.moneda}`}
-            </Text>
-          </View>
-
-          <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
-            <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-              Total Gastos:
-            </Text>
-            <Text style={[styles.estatValor, { color: tema.colores.acento }]}>
-              {`-${totalGastado.toFixed(2)} ${tema.moneda}`}
-            </Text>
-          </View>
-
-          <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
-            <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-              Balance:
-            </Text>
-            <Text style={[styles.estatValor, { color: balance >= 0 ? '#4ade80' : '#ef4444' }]}>
-              {`${balance >= 0 ? '+' : ''}${balance.toFixed(2)} ${tema.moneda}`}
-            </Text>
-          </View>
-
-          <View style={[styles.estadistica, { borderBottomColor: tema.colores.bordes }]}>
-            <Text style={[styles.estatLabel, { color: tema.colores.texto }]}>
-              Transacciones:
-            </Text>
-            <Text style={[styles.estatValor, { color: tema.colores.primarioClaro }]}>
-              {gastos.length}
-            </Text>
-          </View>
-
-        </View>
-
         {/* Gráfica de Tendencia */}
         {gastos.length > 0 && (
           <View style={[styles.seccion, {
@@ -121,7 +74,7 @@ export const EstadisticasScreen = () => {
             borderColor: tema.colores.bordes,
           }]}>
             <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-              🍰 Distribución por Categoría
+              Distribución por Categoría
             </Text>
             <GraficaPastel datos={datosPastel} />
           </View>

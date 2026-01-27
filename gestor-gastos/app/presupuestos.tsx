@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useTema } from './src/context/TemaContext';
 import { useCategorias } from './src/context/CategoriasContext';
 import { usePresupuestos } from './src/context/PresupuestosContext';
+import { useMonedas } from './src/context/MonedasContext';
 
 const PERIODOS = [
   { id: 'semanal', nombre: 'Semanal', emoji: '📅' },
@@ -15,6 +16,7 @@ export default function PresupuestosScreen() {
   const { tema } = useTema();
   const { categorias } = useCategorias();
   const { presupuestos, agregarPresupuesto, editarPresupuesto, eliminarPresupuesto } = usePresupuestos();
+  const { monedaBase } = useMonedas();
 
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
   const [monto, setMonto] = useState('');
@@ -113,7 +115,7 @@ export default function PresupuestosScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={[styles.titulo, { color: tema.colores.primario }]}>💰 Presupuestos</Text>
+        <Text style={[styles.titulo, { color: tema.colores.primario }]}>Presupuestos</Text>
         <View style={{ width: 70 }} />
       </View>
 
@@ -247,7 +249,7 @@ export default function PresupuestosScreen() {
                         {obtenerNombreCategoria(p.categoriaId)}
                       </Text>
                       <Text style={[styles.presupuestoDetalle, { color: tema.colores.textoSecundario }]}>
-                        {PERIODOS.find(per => per.id === p.periodo)?.nombre} • ${p.monto.toFixed(2)}
+                        {PERIODOS.find(per => per.id === p.periodo)?.nombre} • {monedaBase?.simbolo}{p.monto.toFixed(2)}
                       </Text>
                       <Text style={[styles.presupuestoDetalle, { color: tema.colores.textoSecundario }]}>
                         Alerta al {p.alertaEn}%
@@ -289,19 +291,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   seccion: {
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-  },
-  subtitulo: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  cerrar: {
-    fontSize: 28,
-    fontWeight: 'bold',
-  },
-  seccion: {
     borderWidth: 2,
     borderRadius: 15,
     padding: 15,
@@ -311,6 +300,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
+  },
+  cerrar: {
+    fontSize: 28,
+    fontWeight: 'bold',
   },
   label: {
     fontSize: 14,
@@ -378,7 +371,7 @@ const styles = StyleSheet.create({
   },
   botonTexto: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   vacio: {

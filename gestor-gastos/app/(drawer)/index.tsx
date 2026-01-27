@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGastos } from '../src/context/GastosContext';
 import { useTema } from '../src/context/TemaContext';
 import { useFiltrosGastos } from '../src/hooks';
@@ -10,12 +10,15 @@ import { ModalAgregarGasto } from '../src/components/ModalAgregarGasto';
 import { ModalAgregarIngreso } from '../src/components/ModalAgregarIngreso';
 import { ModalEditarGasto } from '../src/components/ModalEditarGasto';
 import { ModalSeleccionarTipo } from '../src/components/ModalSeleccionarTipo';
+import { ModalAlertasDiarias } from '../src/components/ModalAlertasDiarias';
 import { Filtros } from '../src/components/Filtros';
+import { useAlertasDiarias } from '../src/hooks/useAlertasDiarias';
 import { Gasto } from '../src/types';
 
 export default function HomeScreen() {
   const { gastos, agregarGasto, editarGasto, eliminarGasto } = useGastos();
   const { tema } = useTema();
+  const { modalVisible, descartarAlertas } = useAlertasDiarias();
 
   const [modalSeleccionarTipoVisible, setModalSeleccionarTipoVisible] = useState<boolean>(false);
   const [modalAgregarGastoVisible, setModalAgregarGastoVisible] = useState<boolean>(false);
@@ -24,7 +27,6 @@ export default function HomeScreen() {
   const [gastoAEditar, setGastoAEditar] = useState<Gasto | null>(null);
   const [mostrarFiltros, setMostrarFiltros] = useState<boolean>(false);
 
-  // Hook de filtros
   const {
     gastosFiltrados,
     textoBusqueda,
@@ -39,7 +41,6 @@ export default function HomeScreen() {
   } = useFiltrosGastos(gastos);
 
   const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string) => {
-    console.log('🏠🏠🏠 CORRECTO - drawer/index recibió:', { monto, descripcion, categoria, moneda });
     agregarGasto({ monto, descripcion, categoria, tipo: 'gasto', moneda });
   };
 
@@ -66,8 +67,10 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      {/* Botón de filtros en esquina superior derecha */}
-      <View style={styles.filtroContainer}>
+      <View style={styles.headerContainer}>
+        <Text style={[styles.titulo, { color: tema.colores.primario }]}>
+          Mis Gastos
+        </Text>
         <TouchableOpacity
           style={[styles.botonFiltro, {
             backgroundColor: mostrarFiltros ? tema.colores.primario : tema.colores.fondoSecundario,
@@ -78,7 +81,7 @@ export default function HomeScreen() {
           <Text style={[styles.botonFiltroTexto, {
             color: mostrarFiltros ? '#fff' : tema.colores.texto
           }]}>
-            🔍 {mostrarFiltros ? 'Ocultar' : 'Filtros'}
+            {mostrarFiltros ? 'Ocultar' : 'Filtros'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -131,6 +134,11 @@ export default function HomeScreen() {
         onEliminar={eliminarGasto}
       />
 
+      <ModalAlertasDiarias
+        visible={modalVisible}
+        onClose={descartarAlertas}
+      />
+
       <StatusBar style="auto" />
     </View>
   );
@@ -142,9 +150,16 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingHorizontal: 20,
   },
-  filtroContainer: {
-    alignItems: 'flex-end',
-    marginBottom: 10,
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  titulo: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    flex: 1,
   },
   botonFiltro: {
     paddingHorizontal: 12,

@@ -138,7 +138,7 @@ export const ModalEstadisticas = ({ visible, onClose }: Props) => {
                 borderColor: tema.colores.bordes,
               }]}>
                 <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-                  🍰 Distribución por Categoría
+                  Distribución por Categoría
                 </Text>
                 <GraficaPastel datos={datosPastel} />
               </View>

@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CuotaSinIntereses, NuevaCuota, EstadisticasCuotasTarjeta, ProyeccionCuotas } from '../types';
 import { STORAGE_KEYS } from '../utils/storage-keys';
 import { generarId } from '../utils';
+import { useTarjetas } from './TarjetasContext';
 
 interface CuotasContextType {
   cuotas: CuotaSinIntereses[];
@@ -27,6 +28,7 @@ const CuotasContext = createContext<CuotasContextType | undefined>(undefined);
 export const CuotasProvider = ({ children }: { children: ReactNode }) => {
   const [cuotas, setCuotas] = useState<CuotaSinIntereses[]>([]);
   const [cargado, setCargado] = useState(false);
+  const { obtenerTarjetaPorId } = useTarjetas();
 
   useEffect(() => {
     cargarCuotas();
@@ -61,14 +63,47 @@ export const CuotasProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Calcula la fecha de la próxima cuota basándose en el día de corte de la tarjeta
-   * Para la Fase 1, simplificamos asumiendo que es el próximo mes desde la fecha de compra
+   * Lógica:
+   * - Si la compra se hizo DESPUÉS del día de corte (diaCompra > diaCorte),
+   *   la primera cuota será en el día de corte del MES SIGUIENTE
+   * - Si la compra se hizo EN o ANTES del día de corte (diaCompra <= diaCorte),
+   *   la primera cuota será en el día de corte del MES ACTUAL
+   *
+   * Ejemplo: Compra el 12 de Feb con corte día 10 → Primera cuota: 10 de Marzo
+   * Ejemplo: Compra el 5 de Feb con corte día 10 → Primera cuota: 10 de Feb
    */
   const calcularProximaFechaCuota = (tarjetaId: string, fechaCompra: string): string => {
-    const fecha = new Date(fechaCompra);
-    // Por ahora, la próxima cuota es un mes después de la compra
-    // En Fase 2 esto se integrará con la fecha de corte de la tarjeta
-    fecha.setMonth(fecha.getMonth() + 1);
-    return fecha.toISOString();
+    const fechaCompraDate = new Date(fechaCompra);
+    const diaCompra = fechaCompraDate.getDate();
+    const mesCompra = fechaCompraDate.getMonth();
+    const añoCompra = fechaCompraDate.getFullYear();
+
+    // Obtener el día de corte de la tarjeta
+    const tarjeta = obtenerTarjetaPorId(tarjetaId);
+    const diaCorte = tarjeta?.diaCorte || 1; // Por defecto día 1 si no existe la tarjeta
+
+    let mesCuota = mesCompra;
+    let añoCuota = añoCompra;
+
+    // Si la compra fue después del día de corte, la cuota va al mes siguiente
+    if (diaCompra > diaCorte) {
+      mesCuota += 1;
+      // Manejar cambio de año
+      if (mesCuota > 11) {
+        mesCuota = 0;
+        añoCuota += 1;
+      }
+    }
+
+    // Crear la fecha de la primera cuota
+    // Manejar meses con menos días (ej: día 31 en febrero)
+    const ultimoDiaDelMes = new Date(añoCuota, mesCuota + 1, 0).getDate();
+    const diaCuotaFinal = Math.min(diaCorte, ultimoDiaDelMes);
+
+    const fechaCuota = new Date(añoCuota, mesCuota, diaCuotaFinal);
+    fechaCuota.setHours(12, 0, 0, 0); // Mediodía para evitar problemas de timezone
+
+    return fechaCuota.toISOString();
   };
 
   const agregarCuota = (cuota: NuevaCuota) => {
@@ -112,6 +147,7 @@ export const CuotasProvider = ({ children }: { children: ReactNode }) => {
   /**
    * Registra el pago de una cuota mensual
    * Incrementa el contador de cuotas pagadas y actualiza la próxima fecha
+   * Mantiene el día de corte de la tarjeta al avanzar al siguiente mes
    */
   const registrarPagoCuota = (id: string) => {
     setCuotas(prev =>
@@ -121,9 +157,21 @@ export const CuotasProvider = ({ children }: { children: ReactNode }) => {
         const nuevasCuotasPagadas = c.cuotasPagadas + 1;
         const estaCompleta = nuevasCuotasPagadas >= c.cantidadCuotas;
 
-        // Calcular próxima fecha (un mes adelante)
-        const proximaFecha = new Date(c.fechaProximaCuota);
-        proximaFecha.setMonth(proximaFecha.getMonth() + 1);
+        // Obtener el día de corte de la tarjeta para mantener consistencia
+        const tarjeta = obtenerTarjetaPorId(c.tarjetaId);
+        const diaCorte = tarjeta?.diaCorte || new Date(c.fechaProximaCuota).getDate();
+
+        // Calcular próxima fecha manteniendo el día de corte
+        const fechaActual = new Date(c.fechaProximaCuota);
+        const siguienteMes = fechaActual.getMonth() + 1;
+        const siguienteAño = siguienteMes > 11 ? fechaActual.getFullYear() + 1 : fechaActual.getFullYear();
+        const mesNormalizado = siguienteMes > 11 ? 0 : siguienteMes;
+
+        // Manejar meses con menos días
+        const ultimoDiaDelMes = new Date(siguienteAño, mesNormalizado + 1, 0).getDate();
+        const diaCuotaFinal = Math.min(diaCorte, ultimoDiaDelMes);
+
+        const proximaFecha = new Date(siguienteAño, mesNormalizado, diaCuotaFinal, 12, 0, 0, 0);
 
         return {
           ...c,

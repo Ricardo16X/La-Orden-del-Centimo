@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   estadoBuenoTitulo: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 6,
   },
