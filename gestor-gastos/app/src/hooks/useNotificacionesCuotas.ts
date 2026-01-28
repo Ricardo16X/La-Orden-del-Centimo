@@ -1,22 +1,50 @@
 /**
  * Hook para manejar notificaciones específicas de cuotas
  * Programa notificaciones antes de las fechas de corte de tarjetas
+ *
+ * NOTA: Las notificaciones se programan solo una vez al día para evitar
+ * reprogramación excesiva al entrar/salir de pantallas.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCuotas } from '../context/CuotasContext';
 import { useTarjetas } from '../context/TarjetasContext';
 
 const CHANNEL_ID_CUOTAS = 'cuotas-recordatorios';
+const STORAGE_KEY_ULTIMA_PROGRAMACION = 'CUOTAS_ULTIMA_PROGRAMACION';
 
 export const useNotificacionesCuotas = () => {
   const { cuotas } = useCuotas();
   const { tarjetas } = useTarjetas();
+  const yaProgramado = useRef(false);
 
   useEffect(() => {
-    configurarCanalNotificaciones();
-    programarNotificacionesCuotas();
+    // Solo programar una vez por sesión
+    if (yaProgramado.current) return;
+
+    const verificarYProgramar = async () => {
+      // Verificar si ya se programaron notificaciones hoy
+      const ultimaProgramacion = await AsyncStorage.getItem(STORAGE_KEY_ULTIMA_PROGRAMACION);
+      const hoy = new Date().toDateString();
+
+      if (ultimaProgramacion === hoy) {
+        yaProgramado.current = true;
+        return;
+      }
+
+      await configurarCanalNotificaciones();
+      await programarNotificacionesCuotas();
+
+      // Marcar como programado para hoy
+      await AsyncStorage.setItem(STORAGE_KEY_ULTIMA_PROGRAMACION, hoy);
+      yaProgramado.current = true;
+    };
+
+    if (cuotas.length > 0 && tarjetas.length > 0) {
+      verificarYProgramar();
+    }
   }, [cuotas, tarjetas]);
 
   const configurarCanalNotificaciones = async () => {
@@ -83,20 +111,18 @@ export const useNotificacionesCuotas = () => {
     fechaProxima.setDate(fechaProxima.getDate() - diasAntes);
     fechaProxima.setHours(9, 0, 0, 0); // 9:00 AM
 
-    // Solo programar si la fecha es futura
-    if (fechaProxima <= new Date()) return;
+    const ahora = new Date();
+
+    // Solo programar si la fecha es futura (mínimo 60 segundos en el futuro)
+    const segundosHastaNotificacion = Math.floor((fechaProxima.getTime() - ahora.getTime()) / 1000);
+    if (segundosHastaNotificacion < 60) return;
 
     const cuotaNumero = cuota.cuotasPagadas + 1;
-    const mensajeDias = diasAntes === 0
-      ? 'hoy'
-      : diasAntes === 1
-        ? 'mañana'
-        : `en ${diasAntes} días`;
 
     await Notifications.scheduleNotificationAsync({
       content: {
         title: `💳 ${titulo}`,
-        body: `Cuota ${cuotaNumero}/${cuota.cantidadCuotas} de "${cuota.descripcion}" (${nombreTarjeta}) vence ${mensajeDias}. Monto: Q${cuota.montoPorCuota.toFixed(2)}`,
+        body: `Cuota ${cuotaNumero}/${cuota.cantidadCuotas} de "${cuota.descripcion}" (${nombreTarjeta}). Monto: Q${cuota.montoPorCuota.toFixed(2)}`,
         data: {
           type: 'cuota',
           cuotaId: cuota.id,
@@ -106,7 +132,8 @@ export const useNotificacionesCuotas = () => {
         priority: Notifications.AndroidNotificationPriority.HIGH,
       },
       trigger: {
-        date: fechaProxima,
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: fechaProxima.getTime(),
         channelId: CHANNEL_ID_CUOTAS,
       },
     });

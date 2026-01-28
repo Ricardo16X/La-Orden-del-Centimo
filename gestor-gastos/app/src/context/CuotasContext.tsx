@@ -63,53 +63,72 @@ export const CuotasProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Calcula la fecha de la próxima cuota basándose en el día de corte de la tarjeta
-   * Lógica:
-   * - Si la compra se hizo DESPUÉS del día de corte (diaCompra > diaCorte),
-   *   la primera cuota será en el día de corte del MES SIGUIENTE
-   * - Si la compra se hizo EN o ANTES del día de corte (diaCompra <= diaCorte),
-   *   la primera cuota será en el día de corte del MES ACTUAL
    *
-   * Ejemplo: Compra el 12 de Feb con corte día 10 → Primera cuota: 10 de Marzo
-   * Ejemplo: Compra el 5 de Feb con corte día 10 → Primera cuota: 10 de Feb
+   * LÓGICA (Guatemala):
+   * - El día de corte es INCLUSIVO: compras del día de corte aún entran al ciclo actual
+   * - El nuevo ciclo empieza el DÍA SIGUIENTE al corte
+   * - La primera cuota aparece en el próximo corte DESPUÉS de que la compra entre al sistema
+   *
+   * Escenarios:
+   * 1. Hoy es 12 de enero, corte día 20:
+   *    - La compra entra al ciclo de enero (aún no corta)
+   *    - Primera cuota: 20 de enero
+   *
+   * 2. Hoy es 22 de enero, corte día 20:
+   *    - El corte de enero ya pasó (nuevo ciclo empezó el 21)
+   *    - La compra entra al ciclo de febrero
+   *    - Primera cuota: 20 de febrero
    */
-  const calcularProximaFechaCuota = (tarjetaId: string, fechaCompra: string): string => {
-    const fechaCompraDate = new Date(fechaCompra);
-    const diaCompra = fechaCompraDate.getDate();
-    const mesCompra = fechaCompraDate.getMonth();
-    const añoCompra = fechaCompraDate.getFullYear();
+  const calcularProximaFechaCuota = (tarjetaId: string, _fechaCompra: string): string => {
+    const hoy = new Date();
+    const diaActual = hoy.getDate();
+    const mesActual = hoy.getMonth();
+    const añoActual = hoy.getFullYear();
 
     // Obtener el día de corte de la tarjeta
     const tarjeta = obtenerTarjetaPorId(tarjetaId);
-    const diaCorte = tarjeta?.diaCorte || 1; // Por defecto día 1 si no existe la tarjeta
+    const diaCorte = tarjeta?.diaCorte || 1;
 
-    let mesCuota = mesCompra;
-    let añoCuota = añoCompra;
+    let mesCuota = mesActual;
+    let añoCuota = añoActual;
 
-    // Si la compra fue después del día de corte, la cuota va al mes siguiente
-    if (diaCompra > diaCorte) {
+    // Si el día de corte ya pasó este mes, la cuota va al mes siguiente
+    // El día de corte es INCLUSIVO, así que usamos > (no >=)
+    if (diaActual > diaCorte) {
       mesCuota += 1;
-      // Manejar cambio de año
       if (mesCuota > 11) {
         mesCuota = 0;
         añoCuota += 1;
       }
     }
 
-    // Crear la fecha de la primera cuota
     // Manejar meses con menos días (ej: día 31 en febrero)
     const ultimoDiaDelMes = new Date(añoCuota, mesCuota + 1, 0).getDate();
     const diaCuotaFinal = Math.min(diaCorte, ultimoDiaDelMes);
 
     const fechaCuota = new Date(añoCuota, mesCuota, diaCuotaFinal);
-    fechaCuota.setHours(12, 0, 0, 0); // Mediodía para evitar problemas de timezone
+    fechaCuota.setHours(12, 0, 0, 0);
 
     return fechaCuota.toISOString();
   };
 
+  /**
+   * Agrega una nueva cuota
+   *
+   * Si se especifican cuotas ya pagadas, ajusta la fecha de próxima cuota
+   * considerando que esas cuotas ya pasaron.
+   */
   const agregarCuota = (cuota: NuevaCuota) => {
     const montoPorCuota = Number((cuota.montoTotal / cuota.cantidadCuotas).toFixed(2));
-    const fechaProximaCuota = calcularProximaFechaCuota(cuota.tarjetaId, cuota.fechaCompra);
-    const cuotasPagadas = cuota.cuotasPagadas ?? 0; // Usar el valor proporcionado o 0 por defecto
+    const cuotasPagadas = cuota.cuotasPagadas ?? 0;
+
+    // Calcular la fecha base de la primera cuota (considerando el día de corte)
+    const fechaBaseCuota = calcularProximaFechaCuota(cuota.tarjetaId, cuota.fechaCompra);
+
+    // La fecha de próxima cuota es la base (para cuotas sin pagos previos)
+    // Si ya hay cuotas pagadas, la próxima cuota es inmediata desde la base
+    // porque estamos registrando una compra existente
+    const fechaProximaCuota = fechaBaseCuota;
 
     const nuevaCuota: CuotaSinIntereses = {
       id: generarId(),
@@ -225,23 +244,21 @@ export const CuotasProvider = ({ children }: { children: ReactNode }) => {
   /**
    * Genera proyección de cuotas para los próximos N meses
    * Muestra cuánto se pagará cada mes y qué compras finalizan
+   *
+   * LÓGICA:
+   * - Usa `fechaProximaCuota` de cada cuota como punto de inicio
+   * - Esta fecha ya considera el día de corte de la tarjeta
+   * - Calcula cuántos meses desde esa fecha hasta cada mes de proyección
    */
   const obtenerProyeccionCuotas = (mesesAdelante: number = 6): ProyeccionCuotas[] => {
     const proyecciones: ProyeccionCuotas[] = [];
     const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
     const cuotasActivas = cuotas.filter(c => c.estado === 'activa');
 
     // Generar proyección para cada mes
     for (let i = 0; i < mesesAdelante; i++) {
-      const fechaMes = new Date(hoy);
-      fechaMes.setMonth(hoy.getMonth() + i);
-      fechaMes.setDate(1); // Primer día del mes
-      fechaMes.setHours(0, 0, 0, 0);
-
-      const ultimoDiaMes = new Date(fechaMes);
-      ultimoDiaMes.setMonth(fechaMes.getMonth() + 1);
-      ultimoDiaMes.setDate(0); // Último día del mes
-      ultimoDiaMes.setHours(23, 59, 59, 999);
+      const fechaMes = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
 
       // Nombre del mes
       const nombreMes = fechaMes.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
@@ -252,24 +269,37 @@ export const CuotasProvider = ({ children }: { children: ReactNode }) => {
 
       // Calcular cuotas activas en este mes
       cuotasActivas.forEach(cuota => {
-        // Calcular cuántas cuotas quedan por pagar
         const cuotasPendientes = cuota.cantidadCuotas - cuota.cuotasPagadas;
+        if (cuotasPendientes <= 0) return;
 
-        if (cuotasPendientes > 0) {
-          // Verificar si esta cuota todavía estará activa en este mes
-          // Calculamos en qué mes se pagará la última cuota
-          const fechaProxima = new Date(cuota.fechaProximaCuota);
-          const mesesHastaPrimeraCuota = i;
-          const cuotasQuePagaraEnFuturo = cuotasPendientes;
+        // Obtener la fecha de la primera cuota pendiente
+        const fechaPrimeraCuota = new Date(cuota.fechaProximaCuota);
+        fechaPrimeraCuota.setHours(0, 0, 0, 0);
 
-          // Si esta cuota seguirá activa en este mes
-          if (mesesHastaPrimeraCuota < cuotasQuePagaraEnFuturo) {
-            totalMes += cuota.montoPorCuota;
+        // Calcular en qué "índice de mes" cae la primera cuota
+        // Ejemplo: si hoy es enero y la primera cuota es en febrero, índice = 1
+        const mesPrimeraCuota = fechaPrimeraCuota.getMonth();
+        const añoPrimeraCuota = fechaPrimeraCuota.getFullYear();
+        const mesActual = hoy.getMonth();
+        const añoActual = hoy.getFullYear();
 
-            // Verificar si esta es la última cuota que se pagará en este mes
-            if (mesesHastaPrimeraCuota === cuotasQuePagaraEnFuturo - 1) {
-              cuotasQueFinalizan.push(cuota);
-            }
+        // Calcular cuántos meses hay desde hoy hasta la primera cuota
+        const mesesHastaPrimeraCuota = (añoPrimeraCuota - añoActual) * 12 + (mesPrimeraCuota - mesActual);
+
+        // Calcular el índice de cuota para el mes de proyección actual (i)
+        // Si i = 0 (mes actual) y mesesHastaPrimeraCuota = 0, es la primera cuota
+        // Si i = 1 y mesesHastaPrimeraCuota = 0, es la segunda cuota
+        const indiceCuotaEnEsteMes = i - mesesHastaPrimeraCuota;
+
+        // Verificar si esta cuota debe pagarse en el mes de proyección actual
+        // indiceCuotaEnEsteMes >= 0: la primera cuota ya debió haberse cobrado o se cobra este mes
+        // indiceCuotaEnEsteMes < cuotasPendientes: aún quedan cuotas por pagar
+        if (indiceCuotaEnEsteMes >= 0 && indiceCuotaEnEsteMes < cuotasPendientes) {
+          totalMes += cuota.montoPorCuota;
+
+          // Verificar si esta es la última cuota
+          if (indiceCuotaEnEsteMes === cuotasPendientes - 1) {
+            cuotasQueFinalizan.push(cuota);
           }
         }
       });
