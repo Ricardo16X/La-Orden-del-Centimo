@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useCategorias } from '../context/CategoriasContext';
 import { usePresupuestos } from '../context/PresupuestosContext';
+import { useMonedas } from '../context/MonedasContext';
 
 interface Props {
   visible: boolean;
@@ -18,18 +19,37 @@ const PERIODOS = [
 export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
   const { tema } = useTema();
   const { categorias } = useCategorias();
-  const { presupuestos, agregarPresupuesto, editarPresupuesto, eliminarPresupuesto } = usePresupuestos();
+  const { presupuestos, agregarPresupuesto, editarPresupuesto, eliminarPresupuesto, obtenerEstadisticasPresupuesto } = usePresupuestos();
+  const { monedas, monedaBase } = useMonedas();
 
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('');
   const [monto, setMonto] = useState('');
   const [periodo, setPeriodo] = useState<'semanal' | 'mensual' | 'anual'>('mensual');
   const [alertaEn, setAlertaEn] = useState('80');
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [monedaSeleccionada, setMonedaSeleccionada] = useState(monedaBase?.codigo || '');
+
+  const obtenerSimboloMoneda = (monedaCodigo: string): string => {
+    const moneda = monedas.find(m => m.codigo === monedaCodigo);
+    return moneda?.simbolo || monedaBase?.simbolo || '$';
+  };
 
   const resetFormulario = () => {
     setCategoriaSeleccionada('');
     setMonto('');
     setPeriodo('mensual');
     setAlertaEn('80');
+    setEditandoId(null);
+    setMonedaSeleccionada(monedaBase?.codigo || '');
+  };
+
+  const handleEditar = (presupuesto: typeof presupuestos[0]) => {
+    setEditandoId(presupuesto.id);
+    setCategoriaSeleccionada(presupuesto.categoriaId);
+    setMonto(presupuesto.monto.toString());
+    setPeriodo(presupuesto.periodo);
+    setAlertaEn(presupuesto.alertaEn.toString());
+    setMonedaSeleccionada(presupuesto.monedaId || monedaBase?.codigo || '');
   };
 
   const handleAgregar = () => {
@@ -47,6 +67,20 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
     const alertaNum = parseFloat(alertaEn);
     if (isNaN(alertaNum) || alertaNum < 0 || alertaNum > 100) {
       Alert.alert('Error', 'El porcentaje de alerta debe estar entre 0 y 100');
+      return;
+    }
+
+    // Si estamos editando, actualizar directamente
+    if (editandoId) {
+      editarPresupuesto(editandoId, {
+        categoriaId: categoriaSeleccionada,
+        monto: montoNum,
+        periodo,
+        alertaEn: alertaNum,
+        monedaId: monedaSeleccionada,
+      });
+      resetFormulario();
+      Alert.alert('Éxito', 'Presupuesto actualizado correctamente');
       return;
     }
 
@@ -82,6 +116,7 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
       monto: montoNum,
       periodo,
       alertaEn: alertaNum,
+      monedaId: monedaSeleccionada,
     });
 
     resetFormulario();
@@ -133,12 +168,46 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
             </TouchableOpacity>
           </View>
 
+          {/* Resumen de estado de presupuestos */}
+          {presupuestos.length > 0 && (() => {
+            const stats = presupuestos.map(p => obtenerEstadisticasPresupuesto(p.categoriaId, p.periodo));
+            const excedidos = stats.filter(s => s?.excedido).length;
+            const enAlerta = stats.filter(s => s?.debeAlertar).length;
+            const ok = presupuestos.length - excedidos - enAlerta;
+
+            return (
+              <View style={styles.resumenEstado}>
+                <View style={[styles.estadoItem, { backgroundColor: '#10b98120' }]}>
+                  <Text style={[styles.estadoNumero, { color: '#10b981' }]}>{ok}</Text>
+                  <Text style={[styles.estadoLabel, { color: '#10b981' }]}>OK</Text>
+                </View>
+                <View style={[styles.estadoItem, { backgroundColor: '#f59e0b20' }]}>
+                  <Text style={[styles.estadoNumero, { color: '#f59e0b' }]}>{enAlerta}</Text>
+                  <Text style={[styles.estadoLabel, { color: '#f59e0b' }]}>Alerta</Text>
+                </View>
+                <View style={[styles.estadoItem, { backgroundColor: '#ef444420' }]}>
+                  <Text style={[styles.estadoNumero, { color: '#ef4444' }]}>{excedidos}</Text>
+                  <Text style={[styles.estadoLabel, { color: '#ef4444' }]}>Excedido</Text>
+                </View>
+              </View>
+            );
+          })()}
+
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {/* Formulario para agregar nuevo presupuesto */}
-            <View style={[styles.seccion, { borderColor: tema.colores.bordes }]}>
-              <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-                ➕ Nuevo Presupuesto
-              </Text>
+            {/* Formulario para agregar/editar presupuesto */}
+            <View style={[styles.seccion, { borderColor: editandoId ? tema.colores.primario : tema.colores.bordes }]}>
+              <View style={styles.subtituloContainer}>
+                <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
+                  {editandoId ? '✏️ Editar Presupuesto' : '➕ Nuevo Presupuesto'}
+                </Text>
+                {editandoId && (
+                  <TouchableOpacity onPress={resetFormulario}>
+                    <Text style={[styles.cancelarEdicion, { color: tema.colores.textoSecundario }]}>
+                      Cancelar
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
 
               {/* Selector de categoría */}
               <Text style={[styles.label, { color: tema.colores.texto }]}>Categoría:</Text>
@@ -196,6 +265,33 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
                 ))}
               </View>
 
+              {/* Selector de moneda */}
+              <Text style={[styles.label, { color: tema.colores.texto }]}>Moneda:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monedasScroll}>
+                {monedas.map(moneda => (
+                  <TouchableOpacity
+                    key={moneda.codigo}
+                    onPress={() => setMonedaSeleccionada(moneda.codigo)}
+                    style={[
+                      styles.monedaChip,
+                      {
+                        backgroundColor: monedaSeleccionada === moneda.codigo
+                          ? tema.colores.primario
+                          : tema.colores.fondoSecundario,
+                        borderColor: tema.colores.bordes,
+                      }
+                    ]}
+                  >
+                    <Text style={[
+                      styles.monedaTexto,
+                      { color: monedaSeleccionada === moneda.codigo ? '#fff' : tema.colores.texto }
+                    ]}>
+                      {moneda.simbolo} {moneda.codigo}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
               {/* Monto */}
               <Text style={[styles.label, { color: tema.colores.texto }]}>Monto del presupuesto:</Text>
               <TextInput
@@ -230,12 +326,14 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
                 Te avisaremos cuando alcances este porcentaje del presupuesto
               </Text>
 
-              {/* Botón agregar */}
+              {/* Botón agregar/actualizar */}
               <TouchableOpacity
                 onPress={handleAgregar}
                 style={[styles.botonAgregar, { backgroundColor: tema.colores.primario }]}
               >
-                <Text style={styles.botonTexto}>➕ Agregar Presupuesto</Text>
+                <Text style={styles.botonTexto}>
+                  {editandoId ? '✓ Guardar Cambios' : '➕ Agregar Presupuesto'}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -250,33 +348,81 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
                   No tienes presupuestos configurados
                 </Text>
               ) : (
-                presupuestos.map(p => (
-                  <View
-                    key={p.id}
-                    style={[styles.presupuestoItem, {
-                      backgroundColor: tema.colores.fondoSecundario,
-                      borderColor: tema.colores.bordes,
-                    }]}
-                  >
-                    <View style={styles.presupuestoInfo}>
-                      <Text style={[styles.presupuestoCategoria, { color: tema.colores.texto }]}>
-                        {obtenerNombreCategoria(p.categoriaId)}
-                      </Text>
-                      <Text style={[styles.presupuestoDetalle, { color: tema.colores.textoSecundario }]}>
-                        {PERIODOS.find(per => per.id === p.periodo)?.nombre} • ${p.monto.toFixed(2)}
-                      </Text>
-                      <Text style={[styles.presupuestoDetalle, { color: tema.colores.textoSecundario }]}>
-                        Alerta al {p.alertaEn}%
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      onPress={() => handleEliminar(p.id)}
-                      style={styles.botonEliminar}
-                    >
-                      <Text style={styles.botonEliminarTexto}>🗑️</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))
+                // Ordenar por criticidad: excedidos > en alerta > OK
+                [...presupuestos]
+                  .map(p => ({
+                    ...p,
+                    stats: obtenerEstadisticasPresupuesto(p.categoriaId, p.periodo),
+                  }))
+                  .sort((a, b) => {
+                    const prioridadA = a.stats?.excedido ? 2 : a.stats?.debeAlertar ? 1 : 0;
+                    const prioridadB = b.stats?.excedido ? 2 : b.stats?.debeAlertar ? 1 : 0;
+                    return prioridadB - prioridadA;
+                  })
+                  .map(p => {
+                    const stats = p.stats;
+                    const porcentaje = stats ? Math.min(stats.porcentaje, 100) : 0;
+                    const colorEstado = stats?.excedido ? '#ef4444' : stats?.debeAlertar ? '#f59e0b' : '#10b981';
+
+                    return (
+                      <View
+                        key={p.id}
+                        style={[styles.presupuestoItem, {
+                          backgroundColor: tema.colores.fondoSecundario,
+                          borderColor: colorEstado,
+                          borderLeftWidth: 4,
+                        }]}
+                      >
+                        <View style={styles.presupuestoInfo}>
+                          <View style={styles.presupuestoHeader}>
+                            <Text style={[styles.presupuestoCategoria, { color: tema.colores.texto }]}>
+                              {obtenerNombreCategoria(p.categoriaId)}
+                            </Text>
+                            {stats && (
+                              <Text style={[styles.porcentajeBadge, { color: colorEstado }]}>
+                                {Math.round(porcentaje)}%
+                              </Text>
+                            )}
+                          </View>
+
+                          {/* Barra de progreso mini */}
+                          {stats && (
+                            <View style={styles.miniBarraContainer}>
+                              <View
+                                style={[styles.miniBarraProgreso, {
+                                  width: `${porcentaje}%`,
+                                  backgroundColor: colorEstado,
+                                }]}
+                              />
+                            </View>
+                          )}
+
+                          <View style={styles.presupuestoDetalles}>
+                            <Text style={[styles.presupuestoDetalle, { color: tema.colores.textoSecundario }]}>
+                              {PERIODOS.find(per => per.id === p.periodo)?.nombre}
+                            </Text>
+                            <Text style={[styles.presupuestoMonto, { color: tema.colores.texto }]}>
+                              {stats ? `${obtenerSimboloMoneda(p.monedaId)}${stats.gastado.toFixed(0)}` : '—'} / {obtenerSimboloMoneda(p.monedaId)}{p.monto.toFixed(0)}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.botonesAccion}>
+                          <TouchableOpacity
+                            onPress={() => handleEditar(p)}
+                            style={styles.botonAccion}
+                          >
+                            <Text style={styles.botonAccionTexto}>✏️</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleEliminar(p.id)}
+                            style={styles.botonAccion}
+                          >
+                            <Text style={styles.botonAccionTexto}>🗑️</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })
               )}
             </View>
           </ScrollView>
@@ -317,16 +463,45 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
   },
+  resumenEstado: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    gap: 10,
+  },
+  estadoItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  estadoNumero: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  estadoLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
   seccion: {
     borderWidth: 2,
     borderRadius: 15,
     padding: 15,
     marginBottom: 15,
   },
+  subtituloContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
   subtitulo: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 15,
+  },
+  cancelarEdicion: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   label: {
     fontSize: 14,
@@ -356,6 +531,20 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginRight: 10,
     borderWidth: 2,
+  },
+  monedasScroll: {
+    marginBottom: 10,
+  },
+  monedaChip: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 2,
+  },
+  monedaTexto: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   categoriaEmoji: {
     fontSize: 20,
@@ -415,14 +604,53 @@ const styles = StyleSheet.create({
   presupuestoInfo: {
     flex: 1,
   },
+  presupuestoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
   presupuestoCategoria: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    marginBottom: 5,
+    flex: 1,
+  },
+  porcentajeBadge: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  miniBarraContainer: {
+    height: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.1)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  miniBarraProgreso: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  presupuestoDetalles: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  presupuestoMonto: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   presupuestoDetalle: {
     fontSize: 12,
-    marginBottom: 2,
+  },
+  botonesAccion: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  botonAccion: {
+    padding: 8,
+  },
+  botonAccionTexto: {
+    fontSize: 22,
   },
   botonEliminar: {
     padding: 10,

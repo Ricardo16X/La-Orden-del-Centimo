@@ -6,11 +6,12 @@ import { validarGasto, sanitizarMonto } from '../utils';
  * Hook personalizado para manejar el formulario de gastos
  */
 export const useFormGasto = (
-  onSubmit: (monto: number, descripcion: string, categoria: string) => void,
+  onSubmit: (monto: number, descripcion: string, categoria: string, nota: string) => void,
   initialCategoria: string = 'comida'
 ) => {
   const [monto, setMonto] = useState<string>('');
   const [descripcion, setDescripcion] = useState<string>('');
+  const [nota, setNota] = useState<string>('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>(initialCategoria);
 
   const handleSubmit = () => {
@@ -22,13 +23,14 @@ export const useFormGasto = (
     }
 
     const montoSanitizado = sanitizarMonto(monto);
-    onSubmit(montoSanitizado, descripcion.trim(), categoriaSeleccionada);
+    onSubmit(montoSanitizado, descripcion.trim(), categoriaSeleccionada, nota.trim());
     return true;
   };
 
   const resetForm = () => {
     setMonto('');
     setDescripcion('');
+    setNota('');
     setCategoriaSeleccionada(initialCategoria);
   };
 
@@ -37,6 +39,8 @@ export const useFormGasto = (
     setMonto,
     descripcion,
     setDescripcion,
+    nota,
+    setNota,
     categoriaSeleccionada,
     setCategoriaSeleccionada,
     handleSubmit,

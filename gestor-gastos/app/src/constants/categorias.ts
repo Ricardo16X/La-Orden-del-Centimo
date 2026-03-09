@@ -7,6 +7,8 @@ export const CATEGORIAS_BASE: Omit<Categoria, 'nombre'>[] = [
   { id: 'pociones', emoji: '☕', color: '#96ceb4' },
   { id: 'vivienda', emoji: '🏠', color: '#ffeaa7' },
   { id: 'entrenamiento', emoji: '🏃', color: '#dfe6e9' },
+  { id: 'ahorro_metas', emoji: '🎯', color: '#10b981' },
+  { id: 'transferencia', emoji: '💱', color: '#6366f1' },
   { id: 'otros', emoji: '📦', color: '#b2bec3' },
 ];
 
@@ -18,6 +20,8 @@ const NOMBRES_CATEGORIAS: Record<string, string> = {
   pociones: 'Café y Bebidas',
   vivienda: 'Hogar',
   entrenamiento: 'Salud y Fitness',
+  ahorro_metas: 'Ahorro - Metas',
+  transferencia: 'Transferencia',
   otros: 'Otros',
 };
 

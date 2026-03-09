@@ -49,6 +49,14 @@ export const ListaGastos = ({ gastos, onEliminar, onEditar }: Props) => {
               <Text style={[styles.fecha, { color: tema?.colores?.textoSecundario || '#c9b08a' }]}>
                 {formatearFechaCompacta(item.fecha)}
               </Text>
+              {item.nota ? (
+                <Text
+                  style={[styles.nota, { color: tema?.colores?.textoSecundario || '#c9b08a' }]}
+                  numberOfLines={1}
+                >
+                  📝 {item.nota}
+                </Text>
+              ) : null}
             </View>
             <View style={styles.actions}>
               <Text style={[
@@ -97,6 +105,11 @@ const styles = StyleSheet.create({
   fecha: {
     fontSize: 12,
     marginTop: 4,
+  },
+  nota: {
+    fontSize: 11,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
   actions: {
     flexDirection: 'row',

@@ -10,7 +10,7 @@ interface Props {
   visible: boolean;
   gasto: Gasto | null;
   onClose: () => void;
-  onEditar: (id: string, monto: number, descripcion: string, categoria: string) => void;
+  onEditar: (id: string, monto: number, descripcion: string, categoria: string, nota: string) => void;
   onEliminar: (id: string) => void;
 }
 
@@ -18,12 +18,14 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
   const { tema } = useTema();
   const [monto, setMonto] = useState<string>('');
   const [descripcion, setDescripcion] = useState<string>('');
+  const [nota, setNota] = useState<string>('');
   const [categoriaSeleccionada, setCategoriaSeleccionada] = useState<string>('comida');
 
   useEffect(() => {
     if (gasto) {
       setMonto(gasto.monto.toString());
       setDescripcion(gasto.descripcion);
+      setNota(gasto.nota || '');
       setCategoriaSeleccionada(gasto.categoria);
     }
   }, [gasto]);
@@ -34,7 +36,7 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
       return;
     }
 
-    onEditar(gasto.id, parseFloat(monto), descripcion, categoriaSeleccionada);
+    onEditar(gasto.id, parseFloat(monto), descripcion, categoriaSeleccionada, nota.trim());
     onClose();
   };
 
@@ -101,6 +103,23 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
           onChangeText={setDescripcion}
         />
 
+        <Text style={[styles.label, { color: tema.colores.primario }]}>Nota (opcional)</Text>
+        <TextInput
+          style={[styles.input, styles.inputNota, {
+            borderColor: tema.colores.bordes,
+            backgroundColor: tema.colores.fondo,
+            color: tema.colores.texto,
+          }]}
+          placeholder="Agrega contexto adicional"
+          placeholderTextColor={tema.colores.textoSecundario}
+          value={nota}
+          onChangeText={setNota}
+          multiline
+          numberOfLines={2}
+          maxLength={200}
+          textAlignVertical="top"
+        />
+
         <SelectorCategoria
           categoriaSeleccionada={categoriaSeleccionada}
           onSeleccionar={setCategoriaSeleccionada}
@@ -148,6 +167,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 10,
     fontSize: 16,
+  },
+  inputNota: {
+    minHeight: 50,
+    fontSize: 14,
   },
   fecha: {
     fontSize: 14,

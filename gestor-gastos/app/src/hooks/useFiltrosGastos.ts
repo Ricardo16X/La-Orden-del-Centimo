@@ -5,22 +5,60 @@
 import { useState, useMemo } from 'react';
 import { Gasto } from '../types';
 
-export type PeriodoFiltro = 'hoy' | 'semana' | 'mes' | 'año' | 'todos';
+const NOMBRES_MES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
 
 export const useFiltrosGastos = (gastos: Gasto[]) => {
+  const hoy = new Date();
   const [textoBusqueda, setTextoBusqueda] = useState('');
-  const [periodo, setPeriodo] = useState<PeriodoFiltro>('todos');
+  const [mesAnio, setMesAnio] = useState({ mes: hoy.getMonth(), anio: hoy.getFullYear() });
   const [categoriaFiltro, setCategoriaFiltro] = useState<string | null>(null);
   const [tipoFiltro, setTipoFiltro] = useState<'todos' | 'gasto' | 'ingreso'>('todos');
 
+  const esMesActual =
+    mesAnio.mes === hoy.getMonth() && mesAnio.anio === hoy.getFullYear();
+
+  const irMesAnterior = () => {
+    setMesAnio(prev =>
+      prev.mes === 0
+        ? { mes: 11, anio: prev.anio - 1 }
+        : { mes: prev.mes - 1, anio: prev.anio }
+    );
+  };
+
+  const irMesSiguiente = () => {
+    if (esMesActual) return;
+    setMesAnio(prev =>
+      prev.mes === 11
+        ? { mes: 0, anio: prev.anio + 1 }
+        : { mes: prev.mes + 1, anio: prev.anio }
+    );
+  };
+
+  const irMesActual = () => {
+    setMesAnio({ mes: hoy.getMonth(), anio: hoy.getFullYear() });
+  };
+
+  const etiquetaMes = `${NOMBRES_MES[mesAnio.mes]} ${mesAnio.anio}`;
+
   const gastosFiltrados = useMemo(() => {
-    let resultado = [...gastos];
+    // Excluir transferencias entre monedas de la lista principal
+    let resultado = gastos.filter(g => !g.esTransferencia);
+
+    // Filtrar por mes/año seleccionado
+    resultado = resultado.filter(g => {
+      const f = new Date(g.fecha);
+      return f.getMonth() === mesAnio.mes && f.getFullYear() === mesAnio.anio;
+    });
 
     // Filtrar por texto de búsqueda
     if (textoBusqueda.trim()) {
       const busqueda = textoBusqueda.toLowerCase();
       resultado = resultado.filter(
-        g => g.descripcion.toLowerCase().includes(busqueda)
+        g => g.descripcion.toLowerCase().includes(busqueda) ||
+          (g.nota && g.nota.toLowerCase().includes(busqueda))
       );
     }
 
@@ -34,65 +72,28 @@ export const useFiltrosGastos = (gastos: Gasto[]) => {
       resultado = resultado.filter(g => g.tipo === tipoFiltro);
     }
 
-    // Filtrar por periodo
-    if (periodo !== 'todos') {
-      const ahora = new Date();
-      const añoActual = ahora.getFullYear();
-      const mesActual = ahora.getMonth();
-      const diaActual = ahora.getDate();
-
-      resultado = resultado.filter(g => {
-        const fechaGasto = new Date(g.fecha);
-        const añoGasto = fechaGasto.getFullYear();
-        const mesGasto = fechaGasto.getMonth();
-        const diaGasto = fechaGasto.getDate();
-
-        switch (periodo) {
-          case 'hoy':
-            return (
-              diaGasto === diaActual &&
-              mesGasto === mesActual &&
-              añoGasto === añoActual
-            );
-
-          case 'semana': {
-            // Calcular el inicio de la semana (domingo = 0)
-            const haceUnaSemana = new Date(ahora);
-            haceUnaSemana.setDate(diaActual - 7);
-            return fechaGasto >= haceUnaSemana && fechaGasto <= ahora;
-          }
-
-          case 'mes':
-            return mesGasto === mesActual && añoGasto === añoActual;
-
-          case 'año':
-            return añoGasto === añoActual;
-
-          default:
-            return true;
-        }
-      });
-    }
-
     // Ordenar por fecha más reciente
     return resultado.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-  }, [gastos, textoBusqueda, periodo, categoriaFiltro, tipoFiltro]);
+  }, [gastos, textoBusqueda, mesAnio, categoriaFiltro, tipoFiltro]);
 
   const limpiarFiltros = () => {
     setTextoBusqueda('');
-    setPeriodo('todos');
     setCategoriaFiltro(null);
     setTipoFiltro('todos');
   };
 
-  const hayFiltrosActivos = !!(textoBusqueda || periodo !== 'todos' || categoriaFiltro !== null || tipoFiltro !== 'todos');
+  const hayFiltrosActivos = !!(textoBusqueda || categoriaFiltro !== null || tipoFiltro !== 'todos');
 
   return {
     gastosFiltrados,
     textoBusqueda,
     setTextoBusqueda,
-    periodo,
-    setPeriodo,
+    mesAnio,
+    etiquetaMes,
+    esMesActual,
+    irMesAnterior,
+    irMesSiguiente,
+    irMesActual,
     categoriaFiltro,
     setCategoriaFiltro,
     tipoFiltro,

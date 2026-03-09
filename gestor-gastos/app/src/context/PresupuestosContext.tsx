@@ -89,22 +89,42 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
 
     if (!presupuesto) return null;
 
-    // Calcular fechas según el período
+    // Calcular fechas según el período (usando períodos de calendario)
     const ahora = new Date();
     let fechaInicio = new Date();
+    let fechaFin = new Date();
 
     if (periodo === 'semanal') {
-      fechaInicio.setDate(ahora.getDate() - 7);
+      // Inicio de la semana actual (lunes)
+      const diaSemana = ahora.getDay();
+      const diasDesdelunes = diaSemana === 0 ? 6 : diaSemana - 1;
+      fechaInicio = new Date(ahora);
+      fechaInicio.setDate(ahora.getDate() - diasDesdelunes);
+      fechaInicio.setHours(0, 0, 0, 0);
+      // Fin de semana (domingo)
+      fechaFin = new Date(fechaInicio);
+      fechaFin.setDate(fechaInicio.getDate() + 6);
+      fechaFin.setHours(23, 59, 59, 999);
     } else if (periodo === 'mensual') {
-      fechaInicio.setMonth(ahora.getMonth() - 1);
+      // Inicio del mes actual
+      fechaInicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1, 0, 0, 0, 0);
+      // Fin del mes actual
+      fechaFin = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0, 23, 59, 59, 999);
     } else if (periodo === 'anual') {
-      fechaInicio.setFullYear(ahora.getFullYear() - 1);
+      // Inicio del año actual
+      fechaInicio = new Date(ahora.getFullYear(), 0, 1, 0, 0, 0, 0);
+      // Fin del año actual
+      fechaFin = new Date(ahora.getFullYear(), 11, 31, 23, 59, 59, 999);
     }
 
-    // Calcular total gastado en la categoría en el período
+    // Calcular días restantes del período
+    const diasRestantes = Math.max(0, Math.ceil((fechaFin.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24)));
+
+    // Calcular total gastado en la categoría en el período (filtrando por moneda)
     const gastado = gastos
       .filter(g => {
-        if (g.tipo !== 'gasto' || g.categoria !== categoriaId) return false;
+        // Filtrar por tipo, categoría y moneda del presupuesto
+        if (g.tipo !== 'gasto' || g.categoria !== categoriaId || g.moneda !== presupuesto.monedaId) return false;
 
         // Parsear la fecha del gasto (formato ISO)
         const fechaGasto = new Date(g.fecha);
@@ -124,6 +144,7 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
       porcentaje,
       excedido,
       debeAlertar,
+      diasRestantes,
     };
   };
 

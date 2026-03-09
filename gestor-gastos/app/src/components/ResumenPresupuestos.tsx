@@ -2,11 +2,18 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useTema } from '../context/TemaContext';
 import { usePresupuestos } from '../context/PresupuestosContext';
 import { useCategorias } from '../context/CategoriasContext';
+import { useMonedas } from '../context/MonedasContext';
 
 export const ResumenPresupuestos = () => {
   const { tema } = useTema();
   const { presupuestos, obtenerEstadisticasPresupuesto } = usePresupuestos();
   const { categorias } = useCategorias();
+  const { monedas, monedaBase } = useMonedas();
+
+  const obtenerSimboloMoneda = (monedaCodigo: string): string => {
+    const moneda = monedas.find(m => m.codigo === monedaCodigo);
+    return moneda?.simbolo || monedaBase?.simbolo || '$';
+  };
 
   if (presupuestos.length === 0) {
     return (
@@ -53,7 +60,7 @@ export const ResumenPresupuestos = () => {
                 <Text style={[styles.periodoTexto, { color: tema.colores.textoSecundario }]}>
                   {presupuesto.periodo === 'semanal' ? '📅 Semanal' :
                    presupuesto.periodo === 'mensual' ? '🗓️ Mensual' :
-                   '📆 Anual'}
+                   '📆 Anual'} • {stats.diasRestantes === 0 ? 'Último día' : `${stats.diasRestantes} días restantes`}
                 </Text>
               </View>
               <Text style={[styles.porcentajeTexto, { color }]}>
@@ -75,7 +82,7 @@ export const ResumenPresupuestos = () => {
 
             <View style={styles.montosContainer}>
               <Text style={[styles.montoTexto, { color: tema.colores.textoSecundario }]}>
-                {`${stats.gastado.toFixed(2)} / ${stats.presupuesto.toFixed(2)} ${tema.moneda}`}
+                {`${obtenerSimboloMoneda(presupuesto.monedaId)}${stats.gastado.toFixed(2)} / ${obtenerSimboloMoneda(presupuesto.monedaId)}${stats.presupuesto.toFixed(2)}`}
               </Text>
               {stats.excedido && (
                 <Text style={[styles.excedidoTexto, { color: '#e74c3c' }]}>

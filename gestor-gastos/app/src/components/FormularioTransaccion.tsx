@@ -9,7 +9,7 @@ import { TipoTransaccion } from '../types';
 
 interface Props {
   tipo: TipoTransaccion;
-  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string) => void;
+  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string) => void;
 }
 
 const CONFIG = {
@@ -43,12 +43,14 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
     setMonto,
     descripcion,
     setDescripcion,
+    nota,
+    setNota,
     categoriaSeleccionada,
     setCategoriaSeleccionada,
     handleSubmit,
     resetForm,
-  } = useFormGasto((monto, descripcion, categoria) => {
-    onAgregar(monto, descripcion, categoria, monedaSeleccionada);
+  } = useFormGasto((monto, descripcion, categoria, nota) => {
+    onAgregar(monto, descripcion, categoria, monedaSeleccionada, nota);
   });
 
   const handleAgregar = () => {
@@ -88,6 +90,21 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
         placeholderTextColor={tema.colores.textoSecundario}
         value={descripcion}
         onChangeText={setDescripcion}
+      />
+      <TextInput
+        style={[styles.input, styles.inputNota, {
+          borderColor: tema.colores.bordes,
+          backgroundColor: tema.colores.fondo,
+          color: tema.colores.texto,
+        }]}
+        placeholder="Agrega una nota (opcional)"
+        placeholderTextColor={tema.colores.textoSecundario}
+        value={nota}
+        onChangeText={setNota}
+        multiline
+        numberOfLines={2}
+        maxLength={200}
+        textAlignVertical="top"
       />
 
       <SelectorMoneda
@@ -129,6 +146,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 10,
     fontSize: 16,
+  },
+  inputNota: {
+    minHeight: 50,
+    fontSize: 14,
   },
   boton: {
     padding: 15,

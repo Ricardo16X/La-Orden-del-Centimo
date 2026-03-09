@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Meta, NuevaMeta, EstadisticasMeta, EstadoMeta } from '../types';
 import { STORAGE_KEYS } from '../utils/storage-keys';
 import { generarId } from '../utils';
+import { useGastos } from './GastosContext';
 
 interface MetasContextType {
   metas: Meta[];
@@ -25,6 +26,7 @@ const MetasContext = createContext<MetasContextType | undefined>(undefined);
 export const MetasProvider = ({ children }: { children: ReactNode }) => {
   const [metas, setMetas] = useState<Meta[]>([]);
   const [cargado, setCargado] = useState(false);
+  const { agregarGasto } = useGastos();
 
   useEffect(() => {
     cargarMetas();
@@ -94,6 +96,15 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
       return { exito: false, mensaje: 'Meta no encontrada' };
     }
 
+    // Crear gasto por el aporte a la meta
+    agregarGasto({
+      monto,
+      descripcion: `Aporte a meta: ${meta.nombre}`,
+      categoria: 'ahorro_metas',
+      tipo: 'gasto',
+      moneda: meta.monedaId,
+    });
+
     setMetas(prev =>
       prev.map(m => {
         if (m.id !== id) return m;
@@ -125,6 +136,15 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
     if (monto > meta.montoActual) {
       return { exito: false, mensaje: 'No puedes retirar más de lo que has aportado' };
     }
+
+    // Crear ingreso por el retiro de la meta
+    agregarGasto({
+      monto,
+      descripcion: `Retiro de meta: ${meta.nombre}`,
+      categoria: 'ahorro_metas',
+      tipo: 'ingreso',
+      moneda: meta.monedaId,
+    });
 
     setMetas(prev =>
       prev.map(m => {

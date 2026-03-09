@@ -58,6 +58,20 @@ function CustomDrawerContent(props: any) {
           labelStyle={{ color: tema.colores.texto }}
           style={{ backgroundColor: tema.colores.fondo }}
         />
+        <DrawerItem
+          label="Gastos Recurrentes"
+          icon={() => <Text style={styles.iconoTexto}>🔁</Text>}
+          onPress={() => router.push('/gastosRecurrentes')}
+          labelStyle={{ color: tema.colores.texto }}
+          style={{ backgroundColor: tema.colores.fondo }}
+        />
+        <DrawerItem
+          label="Transferencias"
+          icon={() => <Text style={styles.iconoTexto}>💱</Text>}
+          onPress={() => router.push('/transferencias')}
+          labelStyle={{ color: tema.colores.texto }}
+          style={{ backgroundColor: tema.colores.fondo }}
+        />
       </View>
     </DrawerContentScrollView>
   );

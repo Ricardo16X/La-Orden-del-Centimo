@@ -17,6 +17,11 @@ export interface Gasto {
   moneda?: string; // Código de moneda (GTQ, USD, etc.). Si no existe, se asume moneda base
   tipoCambio?: number; // Tipo de cambio usado al momento de registrar
   montoEnMonedaBase?: number; // Monto convertido a la moneda base del usuario
+  // Campos para transferencias entre monedas
+  esTransferencia?: boolean; // true si es parte de una transferencia
+  transferenciaId?: string; // ID compartido por el par de gastos de una transferencia
+  // Nota opcional con contexto adicional
+  nota?: string;
 }
 
 /**
@@ -89,6 +94,7 @@ export interface Presupuesto {
   monto: number;
   periodo: 'semanal' | 'mensual' | 'anual';
   alertaEn: number; // Porcentaje para alertar (ej: 80 = alerta al 80%)
+  monedaId: string; // ID de la moneda para este presupuesto
 }
 
 /**
@@ -106,6 +112,7 @@ export interface EstadisticasPresupuesto {
   porcentaje: number;
   excedido: boolean;
   debeAlertar: boolean;
+  diasRestantes: number;
 }
 
 /**
@@ -169,6 +176,33 @@ export interface Recordatorio {
 export type NuevoRecordatorio = Omit<Recordatorio, 'id'>;
 
 /**
+ * Frecuencia de un gasto recurrente
+ */
+export type FrecuenciaGastoRecurrente = 'diario' | 'semanal' | 'mensual';
+
+/**
+ * Interfaz para un gasto recurrente (suscripción o gasto fijo)
+ */
+export interface GastoRecurrente {
+  id: string;
+  descripcion: string;
+  monto: number;
+  categoriaId: string;
+  moneda: string;
+  frecuencia: FrecuenciaGastoRecurrente;
+  diaSemana?: number; // 1-7 (1=Domingo, 7=Sábado) - Solo para frecuencia semanal
+  diaMes?: number; // 1-31 - Solo para frecuencia mensual
+  proximaFecha: string; // ISO format - próxima fecha para generar el gasto
+  activo: boolean;
+  fechaCreacion: string; // ISO format
+}
+
+/**
+ * Tipo para crear un nuevo gasto recurrente (sin id ni fechaCreacion)
+ */
+export type NuevoGastoRecurrente = Omit<GastoRecurrente, 'id' | 'fechaCreacion'>;
+
+/**
  * Estado de una meta de ahorro
  */
 export type EstadoMeta = 'en_progreso' | 'completada' | 'vencida';
@@ -182,6 +216,7 @@ export interface Meta {
   descripcion: string;
   montoObjetivo: number;
   montoActual: number;
+  monedaId: string; // ID de la moneda para esta meta
   fechaInicio: string; // ISO format
   fechaLimite: string; // ISO format
   icono: string; // Emoji

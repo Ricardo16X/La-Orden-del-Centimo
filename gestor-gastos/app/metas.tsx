@@ -29,8 +29,16 @@ export default function MetasScreen() {
   const [metaSeleccionada, setMetaSeleccionada] = useState<string | null>(null);
   const [montoAportar, setMontoAportar] = useState('');
   const [esRetiro, setEsRetiro] = useState(false);
-  // constante de moneda base
-  const { monedaBase } = useMonedas();
+
+  // Monedas
+  const { monedas, monedaBase } = useMonedas();
+  const [monedaSeleccionada, setMonedaSeleccionada] = useState<string>('');
+
+  // Función para obtener símbolo de moneda por código
+  const obtenerSimboloMoneda = (monedaCodigo: string): string => {
+    const moneda = monedas.find(m => m.codigo === monedaCodigo);
+    return moneda?.simbolo || monedaBase?.simbolo || '$';
+  };
 
   const limpiarFormulario = () => {
     setNombre('');
@@ -40,6 +48,7 @@ export default function MetasScreen() {
     setUnidadTiempo('meses');
     setIconoSeleccionado(ICONOS_DISPONIBLES[0]);
     setColorSeleccionado(COLORES_DISPONIBLES[0]);
+    setMonedaSeleccionada(monedaBase?.codigo || '');
   };
 
   const handleAgregar = () => {
@@ -79,6 +88,7 @@ export default function MetasScreen() {
       nombre: nombre.trim(),
       descripcion: descripcion.trim(),
       montoObjetivo: monto,
+      monedaId: monedaSeleccionada || monedaBase?.codigo || '',
       fechaInicio: ahora.toISOString(),
       fechaLimite: fechaLimite.toISOString(),
       icono: iconoSeleccionado,
@@ -112,7 +122,11 @@ export default function MetasScreen() {
       return;
     }
 
-    if (!esRetiro && monto > balance.balanceDisponible) {
+    // Nota: La validación de balance solo aplica si la meta está en moneda base
+    const metaActual = metas.find(m => m.id === metaSeleccionada);
+    const esMonedaBase = metaActual?.monedaId === monedaBase?.codigo;
+
+    if (!esRetiro && esMonedaBase && monto > balance.balanceDisponible) {
       Alert.alert(
         'Balance insuficiente',
         `No tienes suficiente balance disponible.\n\nDisponible: ${monedaBase?.simbolo}${balance.balanceDisponible.toFixed(2)}\nRequerido: ${monedaBase?.simbolo}${monto.toFixed(2)}`
@@ -155,7 +169,6 @@ export default function MetasScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={[styles.titulo, { color: tema.colores.primario }]}>Metas de Ahorro</Text>
         <View style={{ width: 70 }} />
       </View>
 
@@ -215,10 +228,10 @@ export default function MetasScreen() {
                       {/* Monto y progreso */}
                       <View style={styles.montoContainer}>
                         <Text style={[styles.montoActual, { color: meta.color }]}>
-                          {monedaBase?.simbolo}{meta.montoActual.toFixed(2)}
+                          {obtenerSimboloMoneda(meta.monedaId)}{meta.montoActual.toFixed(2)}
                         </Text>
                         <Text style={[styles.montoObjetivo, { color: tema.colores.textoSecundario }]}>
-                          de {monedaBase?.simbolo}{meta.montoObjetivo.toFixed(2)}
+                          de {obtenerSimboloMoneda(meta.monedaId)}{meta.montoObjetivo.toFixed(2)}
                         </Text>
                       </View>
 
@@ -253,7 +266,7 @@ export default function MetasScreen() {
                             Ahorro requerido
                           </Text>
                           <Text style={[styles.estadisticaValor, { color: tema.colores.texto }]}>
-                            {monedaBase?.simbolo}{formatearAhorroRequerido(
+                            {obtenerSimboloMoneda(meta.monedaId)}{formatearAhorroRequerido(
                               estadisticas.diasRestantes,
                               estadisticas.ahorroRequeridoDiario,
                               estadisticas.ahorroRequeridoMensual
@@ -356,6 +369,46 @@ export default function MetasScreen() {
                 value={montoObjetivo}
                 onChangeText={setMontoObjetivo}
               />
+
+              <Text style={[styles.label, { color: tema.colores.texto }]}>Moneda</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monedasScroll}>
+                {monedas.map(moneda => (
+                  <TouchableOpacity
+                    key={moneda.codigo}
+                    style={[
+                      styles.monedaBoton,
+                      {
+                        backgroundColor: (monedaSeleccionada || monedaBase?.codigo) === moneda.codigo
+                          ? tema.colores.primario
+                          : tema.colores.fondo,
+                        borderColor: tema.colores.bordes,
+                      },
+                    ]}
+                    onPress={() => setMonedaSeleccionada(moneda.codigo)}
+                  >
+                    <Text style={[
+                      styles.monedaSimbolo,
+                      {
+                        color: (monedaSeleccionada || monedaBase?.codigo) === moneda.codigo
+                          ? '#fff'
+                          : tema.colores.texto,
+                      },
+                    ]}>
+                      {moneda.simbolo}
+                    </Text>
+                    <Text style={[
+                      styles.monedaCodigo,
+                      {
+                        color: (monedaSeleccionada || monedaBase?.codigo) === moneda.codigo
+                          ? '#fff'
+                          : tema.colores.textoSecundario,
+                      },
+                    ]}>
+                      {moneda.codigo}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
 
               <Text style={[styles.label, { color: tema.colores.texto }]}>Duración</Text>
               <View style={styles.duracionContainer}>
@@ -479,15 +532,18 @@ export default function MetasScreen() {
                 {esRetiro ? '↩️ Retirar de Meta' : '💰 Aportar a Meta'}
               </Text>
 
-              {!esRetiro && (
+              {!esRetiro && metaSeleccionada && (
                 <Text style={[styles.infoBalance, { color: tema.colores.textoSecundario }]}>
-                  Balance disponible: ${balance.balanceDisponible.toFixed(2)}
+                  {metas.find(m => m.id === metaSeleccionada)?.monedaId === monedaBase?.codigo
+                    ? `Balance disponible: ${monedaBase?.simbolo}${balance.balanceDisponible.toFixed(2)}`
+                    : `Moneda: ${obtenerSimboloMoneda(metas.find(m => m.id === metaSeleccionada)?.monedaId || '')}`
+                  }
                 </Text>
               )}
 
               {esRetiro && metaSeleccionada && (
                 <Text style={[styles.infoBalance, { color: tema.colores.textoSecundario }]}>
-                  Aportado: ${metas.find(m => m.id === metaSeleccionada)?.montoActual.toFixed(2)}
+                  Aportado: {obtenerSimboloMoneda(metas.find(m => m.id === metaSeleccionada)?.monedaId || '')}{metas.find(m => m.id === metaSeleccionada)?.montoActual.toFixed(2)}
                 </Text>
               )}
 
@@ -775,6 +831,26 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 25,
     marginRight: 10,
+  },
+  monedasScroll: {
+    maxHeight: 60,
+  },
+  monedaBoton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 2,
+    marginRight: 10,
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  monedaSimbolo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  monedaCodigo: {
+    fontSize: 11,
+    marginTop: 2,
   },
   botonesFormulario: {
     flexDirection: 'row',

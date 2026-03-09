@@ -19,11 +19,14 @@ import { MetasProvider } from './src/context/MetasContext';
 import { BalanceProvider } from './src/context/BalanceContext';
 import { CuotasProvider } from './src/context/CuotasContext';
 import { MonedasProvider } from './src/context/MonedasContext';
+import { GastosRecurrentesProvider } from './src/context/GastosRecurrentesContext';
+import { useGeneradorGastosRecurrentes } from './src/hooks/useGeneradorGastosRecurrentes';
 
 SplashScreen.preventAutoHideAsync();
 
 function NavigationContent() {
   const { tema } = useTema();
+  useGeneradorGastosRecurrentes();
 
   return (
     <View style={{ flex: 1, backgroundColor: tema.colores.fondo }}>
@@ -40,6 +43,8 @@ function NavigationContent() {
         <Stack.Screen name="tarjetas" />
         <Stack.Screen name="recordatorios" />
         <Stack.Screen name="metas" />
+        <Stack.Screen name="gastosRecurrentes" />
+        <Stack.Screen name="transferencias" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
@@ -55,6 +60,7 @@ export default function RootLayout() {
       <MonedasProvider>
         <CategoriasProvider>
           <GastosProvider>
+            <GastosRecurrentesProvider>
             <PresupuestosProvider>
               <TarjetasProvider>
                 <CuotasProvider>
@@ -68,6 +74,7 @@ export default function RootLayout() {
                 </CuotasProvider>
               </TarjetasProvider>
             </PresupuestosProvider>
+            </GastosRecurrentesProvider>
           </GastosProvider>
         </CategoriasProvider>
       </MonedasProvider>

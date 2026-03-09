@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Gasto, Categoria, Recordatorio } from '../types';
+import { Gasto, Categoria, Recordatorio, GastoRecurrente } from '../types';
 import { STORAGE_KEYS } from '../utils/storage-keys';
 
 /**
@@ -133,6 +133,30 @@ export const guardarModoOscuroAuto = async (activo: boolean): Promise<void> => {
     await AsyncStorage.setItem(STORAGE_KEYS.MODO_OSCURO_AUTO, activo.toString());
   } catch (error) {
     console.error('Error guardando modo oscuro auto:', error);
+  }
+};
+
+/**
+ * Carga los gastos recurrentes desde AsyncStorage
+ */
+export const cargarGastosRecurrentes = async (): Promise<GastoRecurrente[]> => {
+  try {
+    const datos = await AsyncStorage.getItem(STORAGE_KEYS.GASTOS_RECURRENTES);
+    return datos ? JSON.parse(datos) : [];
+  } catch (error) {
+    console.error('Error cargando gastos recurrentes:', error);
+    return [];
+  }
+};
+
+/**
+ * Guarda los gastos recurrentes en AsyncStorage
+ */
+export const guardarGastosRecurrentes = async (gastosRecurrentes: GastoRecurrente[]): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.GASTOS_RECURRENTES, JSON.stringify(gastosRecurrentes));
+  } catch (error) {
+    console.error('Error guardando gastos recurrentes:', error);
   }
 };
 

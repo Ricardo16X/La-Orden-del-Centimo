@@ -7,6 +7,7 @@ import React, { createContext, useContext, useMemo, ReactNode } from 'react';
 import { Balance, ResumenBalance } from '../types';
 import { useGastos } from './GastosContext';
 import { useMetas } from './MetasContext';
+import { useMonedas } from './MonedasContext';
 
 interface BalanceContextType {
   balance: Balance;
@@ -19,6 +20,7 @@ const BalanceContext = createContext<BalanceContextType | undefined>(undefined);
 export const BalanceProvider = ({ children }: { children: ReactNode }) => {
   const { gastos } = useGastos();
   const { metas } = useMetas();
+  const { obtenerMoneda } = useMonedas();
 
   // Calcular balance automáticamente
   // Usa montoEnMonedaBase para considerar conversiones de moneda
@@ -32,9 +34,14 @@ export const BalanceProvider = ({ children }: { children: ReactNode }) => {
       .reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0);
 
     // Solo contar dinero en metas activas (en progreso o completadas)
+    // Convertir a moneda base usando el tipo de cambio de cada meta
     const totalReservado = metas
       .filter(m => m.estado === 'en_progreso' || m.estado === 'completada')
-      .reduce((sum, m) => sum + m.montoActual, 0);
+      .reduce((sum, m) => {
+        const moneda = obtenerMoneda(m.monedaId);
+        const tipoCambio = moneda?.tipoCambio || 1.0;
+        return sum + (m.montoActual * tipoCambio);
+      }, 0);
 
     const balanceTotal = totalIngresos - totalGastos;
     const balanceDisponible = balanceTotal - totalReservado;
@@ -46,7 +53,7 @@ export const BalanceProvider = ({ children }: { children: ReactNode }) => {
       balanceTotal,
       balanceDisponible,
     };
-  }, [gastos, metas]);
+  }, [gastos, metas, obtenerMoneda]);
 
   // Calcular resumen con tendencia
   const resumen = useMemo((): ResumenBalance => {

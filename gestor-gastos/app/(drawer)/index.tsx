@@ -31,8 +31,11 @@ export default function HomeScreen() {
     gastosFiltrados,
     textoBusqueda,
     setTextoBusqueda,
-    periodo,
-    setPeriodo,
+    etiquetaMes,
+    esMesActual,
+    irMesAnterior,
+    irMesSiguiente,
+    irMesActual,
     tipoFiltro,
     setTipoFiltro,
     limpiarFiltros,
@@ -40,16 +43,16 @@ export default function HomeScreen() {
     totalFiltrados,
   } = useFiltrosGastos(gastos);
 
-  const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string) => {
-    agregarGasto({ monto, descripcion, categoria, tipo: 'gasto', moneda });
+  const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string) => {
+    agregarGasto({ monto, descripcion, categoria, tipo: 'gasto', moneda, nota: nota || undefined });
   };
 
-  const handleAgregarIngreso = (monto: number, descripcion: string, categoria: string, moneda?: string) => {
-    agregarGasto({ monto, descripcion, categoria, tipo: 'ingreso', moneda });
+  const handleAgregarIngreso = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string) => {
+    agregarGasto({ monto, descripcion, categoria, tipo: 'ingreso', moneda, nota: nota || undefined });
   };
 
-  const handleEditar = (id: string, monto: number, descripcion: string, categoria: string) => {
-    editarGasto(id, { monto, descripcion, categoria });
+  const handleEditar = (id: string, monto: number, descripcion: string, categoria: string, nota: string) => {
+    editarGasto(id, { monto, descripcion, categoria, nota: nota || undefined });
   };
 
   const handleAbrirEditar = (gasto: Gasto) => {
@@ -68,9 +71,6 @@ export default function HomeScreen() {
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
       <View style={styles.headerContainer}>
-        <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-          Mis Gastos
-        </Text>
         <TouchableOpacity
           style={[styles.botonFiltro, {
             backgroundColor: mostrarFiltros ? tema.colores.primario : tema.colores.fondoSecundario,
@@ -86,12 +86,30 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Navegador de mes */}
+      <View style={[styles.navMes, { backgroundColor: tema.colores.fondoSecundario, borderColor: tema.colores.bordes }]}>
+        <TouchableOpacity onPress={irMesAnterior} style={styles.navMesBoton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Text style={[styles.navMesFlecha, { color: tema.colores.primario }]}>‹</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={irMesActual} disabled={esMesActual}>
+          <Text style={[styles.navMesEtiqueta, { color: tema.colores.texto }]}>
+            {etiquetaMes}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={irMesSiguiente}
+          style={styles.navMesBoton}
+          disabled={esMesActual}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={[styles.navMesFlecha, { color: esMesActual ? tema.colores.bordes : tema.colores.primario }]}>›</Text>
+        </TouchableOpacity>
+      </View>
+
       {mostrarFiltros && (
         <Filtros
           textoBusqueda={textoBusqueda}
           onBusquedaChange={setTextoBusqueda}
-          periodo={periodo}
-          onPeriodoChange={setPeriodo}
           tipoFiltro={tipoFiltro}
           onTipoChange={setTipoFiltro}
           hayFiltrosActivos={hayFiltrosActivos}
@@ -170,5 +188,27 @@ const styles = StyleSheet.create({
   botonFiltroTexto: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  navMes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 10,
+    borderWidth: 2,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  navMesBoton: {
+    padding: 4,
+  },
+  navMesFlecha: {
+    fontSize: 26,
+    fontWeight: 'bold',
+    lineHeight: 28,
+  },
+  navMesEtiqueta: {
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

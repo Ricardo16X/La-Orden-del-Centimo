@@ -33,6 +33,7 @@ export const CategoriasProvider = ({ children }: { children: ReactNode }) => {
       pociones: 'Café y Bebidas',
       vivienda: 'Hogar',
       entrenamiento: 'Salud y Fitness',
+      ahorro_metas: 'Ahorro - Metas',
       otros: 'Otros',
     };
 
@@ -43,6 +44,7 @@ export const CategoriasProvider = ({ children }: { children: ReactNode }) => {
       { id: 'pociones', nombre: nombres.pociones, emoji: tema.categorias.pociones, color: '#96ceb4', esPersonalizada: false },
       { id: 'vivienda', nombre: nombres.vivienda, emoji: tema.categorias.vivienda, color: '#ffeaa7', esPersonalizada: false },
       { id: 'entrenamiento', nombre: nombres.entrenamiento, emoji: tema.categorias.entrenamiento, color: '#dfe6e9', esPersonalizada: false },
+      { id: 'ahorro_metas', nombre: nombres.ahorro_metas, emoji: '🎯', color: '#10b981', esPersonalizada: false },
       { id: 'otros', nombre: nombres.otros, emoji: tema.categorias.otros, color: '#b2bec3', esPersonalizada: false },
     ];
 

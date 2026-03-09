@@ -1,12 +1,9 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTema } from '../context/TemaContext';
-import { PeriodoFiltro } from '../hooks/useFiltrosGastos';
 
 interface Props {
   textoBusqueda: string;
   onBusquedaChange: (texto: string) => void;
-  periodo: PeriodoFiltro;
-  onPeriodoChange: (periodo: PeriodoFiltro) => void;
   tipoFiltro: 'todos' | 'gasto' | 'ingreso';
   onTipoChange: (tipo: 'todos' | 'gasto' | 'ingreso') => void;
   hayFiltrosActivos: boolean;
@@ -17,8 +14,6 @@ interface Props {
 export const Filtros = ({
   textoBusqueda,
   onBusquedaChange,
-  periodo,
-  onPeriodoChange,
   tipoFiltro,
   onTipoChange,
   hayFiltrosActivos,
@@ -26,14 +21,6 @@ export const Filtros = ({
   totalFiltrados,
 }: Props) => {
   const { tema } = useTema();
-
-  const periodos: Array<{ label: string; value: PeriodoFiltro }> = [
-    { label: 'Todos', value: 'todos' },
-    { label: 'Hoy', value: 'hoy' },
-    { label: 'Semana', value: 'semana' },
-    { label: 'Mes', value: 'mes' },
-    { label: 'Año', value: 'año' },
-  ];
 
   const tipos: Array<{ label: string; value: 'todos' | 'gasto' | 'ingreso' }> = [
     { label: 'Todos', value: 'todos' },
@@ -53,42 +40,11 @@ export const Filtros = ({
           borderColor: tema.colores.bordes,
           color: tema.colores.texto,
         }]}
-        placeholder="Buscar por descripción..."
+        placeholder="Buscar por descripción o nota..."
         placeholderTextColor={tema.colores.textoSecundario}
         value={textoBusqueda}
         onChangeText={onBusquedaChange}
       />
-
-      {/* Filtro de Periodo */}
-      <Text style={[styles.label, { color: tema.colores.texto }]}>Periodo:</Text>
-      <View style={styles.botones}>
-        {periodos.map(p => (
-          <TouchableOpacity
-            key={p.value}
-            style={[
-              styles.boton,
-              {
-                backgroundColor: periodo === p.value
-                  ? tema.colores.primario
-                  : tema.colores.fondo,
-                borderColor: tema.colores.bordes,
-              }
-            ]}
-            onPress={() => onPeriodoChange(p.value)}
-          >
-            <Text style={[
-              styles.botonTexto,
-              {
-                color: periodo === p.value
-                  ? '#fff'
-                  : tema.colores.texto
-              }
-            ]}>
-              {p.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
 
       {/* Filtro de Tipo */}
       <Text style={[styles.label, { color: tema.colores.texto }]}>Tipo:</Text>

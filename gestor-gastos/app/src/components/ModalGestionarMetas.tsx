@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useMetas } from '../context/MetasContext';
 import { useBalance } from '../context/BalanceContext';
+import { useMonedas } from '../context/MonedasContext';
 import { formatearTiempoRestante, formatearAhorroRequerido } from '../utils/date';
 
 interface Props {
@@ -33,6 +34,15 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
   const [montoAportar, setMontoAportar] = useState('');
   const [esRetiro, setEsRetiro] = useState(false);
 
+  // Monedas
+  const { monedas, monedaBase } = useMonedas();
+  const [monedaSeleccionada, setMonedaSeleccionada] = useState<string>('');
+
+  const obtenerSimboloMoneda = (monedaCodigo: string): string => {
+    const moneda = monedas.find(m => m.codigo === monedaCodigo);
+    return moneda?.simbolo || monedaBase?.simbolo || '$';
+  };
+
   const limpiarFormulario = () => {
     setNombre('');
     setDescripcion('');
@@ -41,6 +51,7 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
     setUnidadTiempo('meses');
     setIconoSeleccionado(ICONOS_DISPONIBLES[0]);
     setColorSeleccionado(COLORES_DISPONIBLES[0]);
+    setMonedaSeleccionada(monedaBase?.codigo || '');
   };
 
   const handleAgregar = () => {
@@ -81,6 +92,7 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
       nombre: nombre.trim(),
       descripcion: descripcion.trim(),
       montoObjetivo: monto,
+      monedaId: monedaSeleccionada || monedaBase?.codigo || '',
       fechaInicio: ahora.toISOString(),
       fechaLimite: fechaLimite.toISOString(),
       icono: iconoSeleccionado,
@@ -114,10 +126,14 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
       return;
     }
 
-    if (!esRetiro && monto > balance.balanceDisponible) {
+    // Validación de balance solo aplica si la meta está en moneda base
+    const metaActual = metas.find(m => m.id === metaSeleccionada);
+    const esMetaEnMonedaBase = metaActual?.monedaId === monedaBase?.codigo;
+
+    if (!esRetiro && esMetaEnMonedaBase && monto > balance.balanceDisponible) {
       Alert.alert(
         'Balance insuficiente',
-        `No tienes suficiente balance disponible.\n\nDisponible: $${balance.balanceDisponible.toFixed(2)}\nRequerido: $${monto.toFixed(2)}`
+        `No tienes suficiente balance disponible.\n\nDisponible: ${monedaBase?.simbolo}${balance.balanceDisponible.toFixed(2)}\nRequerido: ${monedaBase?.simbolo}${monto.toFixed(2)}`
       );
       return;
     }
@@ -217,7 +233,7 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
 
                           <View style={styles.metaStats}>
                             <Text style={[styles.statsTexto, { color: tema.colores.texto }]}>
-                              ${meta.montoActual.toFixed(2)} / ${meta.montoObjetivo.toFixed(2)}
+                              {obtenerSimboloMoneda(meta.monedaId)}{meta.montoActual.toFixed(2)} / {obtenerSimboloMoneda(meta.monedaId)}{meta.montoObjetivo.toFixed(2)}
                             </Text>
                             <Text style={[styles.porcentaje, { color: meta.color }]}>
                               {Math.round(stats.porcentajeCompletado)}%
@@ -327,7 +343,7 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
                     onChangeText={setDescripcion}
                   />
 
-                  <Text style={[styles.label, { color: tema.colores.texto }]}>Monto objetivo ($)</Text>
+                  <Text style={[styles.label, { color: tema.colores.texto }]}>Monto objetivo</Text>
                   <TextInput
                     style={[styles.input, {
                       backgroundColor: tema.colores.fondoSecundario,
@@ -340,6 +356,37 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
                     onChangeText={setMontoObjetivo}
                     keyboardType="numeric"
                   />
+
+                  <Text style={[styles.label, { color: tema.colores.texto }]}>Moneda</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monedasScroll}>
+                    {monedas.map(moneda => (
+                      <TouchableOpacity
+                        key={moneda.codigo}
+                        style={[styles.monedaBoton, {
+                          backgroundColor: (monedaSeleccionada || monedaBase?.codigo) === moneda.codigo
+                            ? tema.colores.primario
+                            : tema.colores.fondoSecundario,
+                          borderColor: tema.colores.bordes,
+                        }]}
+                        onPress={() => setMonedaSeleccionada(moneda.codigo)}
+                      >
+                        <Text style={[styles.monedaSimbolo, {
+                          color: (monedaSeleccionada || monedaBase?.codigo) === moneda.codigo
+                            ? '#fff'
+                            : tema.colores.texto,
+                        }]}>
+                          {moneda.simbolo}
+                        </Text>
+                        <Text style={[styles.monedaCodigo, {
+                          color: (monedaSeleccionada || monedaBase?.codigo) === moneda.codigo
+                            ? '#fff'
+                            : tema.colores.textoSecundario,
+                        }]}>
+                          {moneda.codigo}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
 
                   <Text style={[styles.label, { color: tema.colores.texto }]}>Tiempo para lograrlo</Text>
 
@@ -482,15 +529,18 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
               {esRetiro ? '↩️ Retirar de Meta' : '💰 Aportar a Meta'}
             </Text>
 
-          {!esRetiro && (
+          {!esRetiro && metaSeleccionada && (
             <Text style={[styles.infoBalance, { color: tema.colores.textoSecundario }]}>
-              Balance disponible: ${balance.balanceDisponible.toFixed(2)}
+              {metas.find(m => m.id === metaSeleccionada)?.monedaId === monedaBase?.codigo
+                ? `Balance disponible: ${monedaBase?.simbolo}${balance.balanceDisponible.toFixed(2)}`
+                : `Moneda: ${obtenerSimboloMoneda(metas.find(m => m.id === metaSeleccionada)?.monedaId || '')}`
+              }
             </Text>
           )}
 
           {esRetiro && metaSeleccionada && (
             <Text style={[styles.infoBalance, { color: tema.colores.textoSecundario }]}>
-              Aportado: ${metas.find(m => m.id === metaSeleccionada)?.montoActual.toFixed(2)}
+              Aportado: {obtenerSimboloMoneda(metas.find(m => m.id === metaSeleccionada)?.monedaId || '')}{metas.find(m => m.id === metaSeleccionada)?.montoActual.toFixed(2)}
             </Text>
           )}
 
@@ -748,6 +798,26 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 10,
+  },
+  monedasScroll: {
+    maxHeight: 60,
+  },
+  monedaBoton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 2,
+    marginRight: 10,
+    alignItems: 'center',
+    minWidth: 70,
+  },
+  monedaSimbolo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  monedaCodigo: {
+    fontSize: 11,
+    marginTop: 2,
   },
   botonesFormulario: {
     flexDirection: 'row',

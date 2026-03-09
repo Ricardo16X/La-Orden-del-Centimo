@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
   METAS: 'metas_ahorro',
   CUOTAS: 'cuotas_sin_intereses',
   MONEDAS: 'configuracion_monedas',
+  GASTOS_RECURRENTES: 'gastos_recurrentes',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

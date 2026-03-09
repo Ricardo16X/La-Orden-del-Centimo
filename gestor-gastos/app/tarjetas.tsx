@@ -87,7 +87,6 @@ export default function TarjetasScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
         </TouchableOpacity>
-        <Text style={[styles.titulo, { color: tema.colores.primario }]}>Mis Tarjetas</Text>
         <View style={{ width: 70 }} />
       </View>
 

@@ -1,11 +1,18 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTema } from '../context/TemaContext';
 import { useMetas } from '../context/MetasContext';
+import { useMonedas } from '../context/MonedasContext';
 import { formatearTiempoRestante, formatearAhorroRequerido } from '../utils/date';
 
 export const ResumenMetas = () => {
   const { tema } = useTema();
   const { metas, obtenerEstadisticasMeta } = useMetas();
+  const { monedas, monedaBase } = useMonedas();
+
+  const obtenerSimboloMoneda = (monedaCodigo: string): string => {
+    const moneda = monedas.find(m => m.codigo === monedaCodigo);
+    return moneda?.simbolo || monedaBase?.simbolo || '$';
+  };
 
   // Filtrar solo metas en progreso
   const metasActivas = metas.filter(m => m.estado === 'en_progreso');
@@ -34,7 +41,7 @@ export const ResumenMetas = () => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.carruselContainer}
       >
-        {metasOrdenadas.map(({ id, nombre, icono, color, montoActual, montoObjetivo, stats }) => {
+        {metasOrdenadas.map(({ id, nombre, icono, color, montoActual, montoObjetivo, monedaId, stats }) => {
           if (!stats) return null;
 
           return (
@@ -57,7 +64,7 @@ export const ResumenMetas = () => {
               </Text>
 
               <Text style={[styles.monto, { color: tema.colores.textoSecundario }]}>
-                ${montoActual.toFixed(0)} / ${montoObjetivo.toFixed(0)}
+                {obtenerSimboloMoneda(monedaId)}{montoActual.toFixed(0)} / {obtenerSimboloMoneda(monedaId)}{montoObjetivo.toFixed(0)}
               </Text>
 
               <View style={styles.barraContainer}>
