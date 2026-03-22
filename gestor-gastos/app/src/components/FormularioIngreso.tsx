@@ -1,7 +1,7 @@
 import { FormularioTransaccion } from './FormularioTransaccion';
 
 interface Props {
-  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string) => void;
+  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string) => void;
 }
 
 export const FormularioIngreso = ({ onAgregar }: Props) => {

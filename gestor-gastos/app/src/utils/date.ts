@@ -86,8 +86,9 @@ export const getInicioDia = (fecha?: Date): number => {
  * Genera un ID único basado en timestamp
  * @returns ID único como string
  */
+let _idCounter = 0;
 export const generarId = (): string => {
-  return Date.now().toString();
+  return `${Date.now()}_${_idCounter++}`;
 };
 
 /**

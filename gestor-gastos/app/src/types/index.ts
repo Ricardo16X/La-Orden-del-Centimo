@@ -27,7 +27,7 @@ export interface Gasto {
 /**
  * Tipo para crear un nuevo gasto (sin id ni fecha, tipo opcional por defecto 'gasto')
  */
-export type NuevoGasto = Omit<Gasto, 'id' | 'fecha' | 'tipo'> & { tipo?: TipoTransaccion };
+export type NuevoGasto = Omit<Gasto, 'id' | 'fecha' | 'tipo'> & { tipo?: TipoTransaccion; fecha?: string };
 
 /**
  * Tipo para actualizar un gasto (campos opcionales)

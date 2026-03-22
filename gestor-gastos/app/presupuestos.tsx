@@ -5,6 +5,7 @@ import { useTema } from './src/context/TemaContext';
 import { useCategorias } from './src/context/CategoriasContext';
 import { usePresupuestos } from './src/context/PresupuestosContext';
 import { useMonedas } from './src/context/MonedasContext';
+import { ModalSugerenciaPresupuesto } from './src/components/ModalSugerenciaPresupuesto';
 
 const PERIODOS = [
   { id: 'semanal', nombre: 'Semanal', emoji: '📅' },
@@ -24,6 +25,7 @@ export default function PresupuestosScreen() {
   const [alertaEn, setAlertaEn] = useState('80');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [monedaSeleccionada, setMonedaSeleccionada] = useState(monedaBase?.codigo || '');
+  const [modalSugerenciaVisible, setModalSugerenciaVisible] = useState(false);
 
   const obtenerSimboloMoneda = (monedaCodigo: string): string => {
     const moneda = monedas.find(m => m.codigo === monedaCodigo);
@@ -148,7 +150,12 @@ export default function PresupuestosScreen() {
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
         </TouchableOpacity>
-        <View style={{ width: 70 }} />
+        <TouchableOpacity
+          onPress={() => setModalSugerenciaVisible(true)}
+          style={[styles.botonSugerir, { backgroundColor: tema.colores.primario }]}
+        >
+          <Text style={styles.botonSugerirTexto}>✨ Sugerir</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -384,6 +391,11 @@ export default function PresupuestosScreen() {
               )}
             </View>
       </ScrollView>
+
+      <ModalSugerenciaPresupuesto
+        visible={modalSugerenciaVisible}
+        onClose={() => setModalSugerenciaVisible(false)}
+      />
     </View>
   );
 }
@@ -397,6 +409,16 @@ const styles = StyleSheet.create({
   botonVolver: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  botonSugerir: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  botonSugerirTexto: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
   header: {
     flexDirection: 'row',

@@ -107,9 +107,12 @@ export const useNotificacionesCuotas = () => {
     diasAntes: number,
     titulo: string
   ) => {
-    const fechaProxima = new Date(cuota.fechaProximaCuota);
+    // Parsear solo la parte de fecha como hora local para evitar el desfase UTC
+    const fechaStr = cuota.fechaProximaCuota.split('T')[0]; // "2026-03-15"
+    const [year, month, day] = fechaStr.split('-').map(Number);
+    const fechaProxima = new Date(year, month - 1, day); // medianoche local
     fechaProxima.setDate(fechaProxima.getDate() - diasAntes);
-    fechaProxima.setHours(9, 0, 0, 0); // 9:00 AM
+    fechaProxima.setHours(9, 0, 0, 0); // 9:00 AM local
 
     const ahora = new Date();
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { SelectorCategoria } from './SelectorCategoria';
 import { SelectorMoneda } from './SelectorMoneda';
+import { SelectorFecha } from './SelectorFecha';
 import { useTema } from '../context/TemaContext';
 import { useMonedas } from '../context/MonedasContext';
 import { useFormGasto } from '../hooks';
@@ -9,7 +10,7 @@ import { TipoTransaccion } from '../types';
 
 interface Props {
   tipo: TipoTransaccion;
-  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string) => void;
+  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string) => void;
 }
 
 const CONFIG = {
@@ -45,12 +46,14 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
     setDescripcion,
     nota,
     setNota,
+    fecha,
+    setFecha,
     categoriaSeleccionada,
     setCategoriaSeleccionada,
     handleSubmit,
     resetForm,
-  } = useFormGasto((monto, descripcion, categoria, nota) => {
-    onAgregar(monto, descripcion, categoria, monedaSeleccionada, nota);
+  } = useFormGasto((monto, descripcion, categoria, nota, fecha) => {
+    onAgregar(monto, descripcion, categoria, monedaSeleccionada, nota, fecha);
   });
 
   const handleAgregar = () => {
@@ -106,6 +109,8 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
         maxLength={200}
         textAlignVertical="top"
       />
+
+      <SelectorFecha fecha={fecha} onChange={setFecha} />
 
       <SelectorMoneda
         monedaSeleccionada={monedaSeleccionada}

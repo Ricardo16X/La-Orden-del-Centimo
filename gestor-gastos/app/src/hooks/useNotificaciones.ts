@@ -82,17 +82,15 @@ export const useNotificaciones = () => {
     }
 
     try {
-      // Parsear la hora
       const [horas, minutos] = recordatorio.hora.split(':').map(Number);
 
-      // Configurar el trigger según la frecuencia
-      const trigger = obtenerTrigger(
-        recordatorio.frecuencia,
-        horas,
-        minutos,
-        recordatorio.diaSemana,
-        recordatorio.diaMes
-      );
+      // Los recordatorios mensuales se programan como 12 triggers DATE individuales
+      // para evitar el desfase de TIME_INTERVAL que no respeta el calendario
+      if (recordatorio.frecuencia === 'mensual') {
+        return await programarNotificacionMensual(recordatorio.titulo, recordatorio.mensaje, horas, minutos, recordatorio.diaMes || 1);
+      }
+
+      const trigger = obtenerTrigger(recordatorio.frecuencia, horas, minutos, recordatorio.diaSemana);
 
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -110,9 +108,58 @@ export const useNotificaciones = () => {
     }
   };
 
+  // Programa 12 notificaciones DATE individuales (una por mes) para recordatorios mensuales.
+  // Los IDs se almacenan unidos por "|" en un único string.
+  const programarNotificacionMensual = async (
+    titulo: string,
+    mensaje: string,
+    horas: number,
+    minutos: number,
+    diaDelMes: number
+  ): Promise<string | null> => {
+    const ahora = new Date();
+    const ids: string[] = [];
+
+    for (let i = 0; i < 12; i++) {
+      // Obtener año/mes objetivo sin desbordamiento
+      const ref = new Date(ahora.getFullYear(), ahora.getMonth() + i, 1);
+      const targetYear = ref.getFullYear();
+      const targetMonth = ref.getMonth();
+
+      // Ajustar al último día si el mes no tiene suficientes días (ej: 31 en Febrero)
+      const ultimoDia = new Date(targetYear, targetMonth + 1, 0).getDate();
+      const diaReal = Math.min(diaDelMes, ultimoDia);
+
+      const fecha = new Date(targetYear, targetMonth, diaReal, horas, minutos, 0, 0);
+
+      // Saltar fechas pasadas o muy próximas
+      if (fecha.getTime() - ahora.getTime() < 60000) continue;
+
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: titulo,
+          body: mensaje,
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: fecha.getTime(),
+        },
+      });
+
+      ids.push(id);
+    }
+
+    return ids.length > 0 ? ids.join('|') : null;
+  };
+
   const cancelarNotificacion = async (notificationId: string) => {
     try {
-      await Notifications.cancelScheduledNotificationAsync(notificationId);
+      // Los recordatorios mensuales guardan múltiples IDs separados por "|"
+      const ids = notificationId.split('|');
+      for (const id of ids) {
+        await Notifications.cancelScheduledNotificationAsync(id);
+      }
     } catch (error) {
       console.error('Error cancelando notificación:', error);
     }
@@ -136,14 +183,14 @@ export const useNotificaciones = () => {
 };
 
 /**
- * Obtiene el trigger de notificación según la frecuencia
+ * Obtiene el trigger de notificación para frecuencias diaria y semanal.
+ * El caso mensual se maneja por separado con triggers DATE individuales.
  */
 function obtenerTrigger(
   frecuencia: FrecuenciaRecordatorio,
   horas: number,
   minutos: number,
   diaSemana?: number,
-  diaMes?: number
 ): Notifications.NotificationTriggerInput {
   switch (frecuencia) {
     case 'diario':
@@ -160,31 +207,6 @@ function obtenerTrigger(
         weekday: diaSemana || 2, // Por defecto Lunes (1=Dom, 2=Lun, ..., 7=Sáb)
         hour: horas,
         minute: minutos,
-        repeats: true,
-      };
-
-    case 'mensual':
-      // Calcular cuántos segundos faltan hasta el próximo día del mes a la hora especificada
-      const ahora = new Date();
-      const proximaNotificacion = new Date();
-      const diaDelMes = diaMes || 1;
-
-      proximaNotificacion.setDate(diaDelMes);
-      proximaNotificacion.setHours(horas, minutos, 0, 0);
-
-      // Si ya pasó este mes, programar para el próximo mes
-      if (proximaNotificacion <= ahora) {
-        proximaNotificacion.setMonth(proximaNotificacion.getMonth() + 1);
-      }
-
-      const segundosHastaNotificacion = Math.floor(
-        (proximaNotificacion.getTime() - ahora.getTime()) / 1000
-      );
-
-      // Usar intervalo de 30 días como aproximación mensual
-      return {
-        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds: Math.max(segundosHastaNotificacion, 60), // Mínimo 60 segundos
         repeats: true,
       };
 
