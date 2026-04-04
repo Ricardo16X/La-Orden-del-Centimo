@@ -76,7 +76,9 @@ export const useNotificaciones = () => {
   };
 
   const programarNotificacion = async (recordatorio: Recordatorio): Promise<string | null> => {
-    if (!permisoConcedido) {
+    // Verificar permisos directamente (evita race condition con estado de React)
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') {
       const concedido = await solicitarPermisos();
       if (!concedido) return null;
     }
@@ -88,6 +90,12 @@ export const useNotificaciones = () => {
       // para evitar el desfase de TIME_INTERVAL que no respeta el calendario
       if (recordatorio.frecuencia === 'mensual') {
         return await programarNotificacionMensual(recordatorio.titulo, recordatorio.mensaje, horas, minutos, recordatorio.diaMes || 1);
+      }
+
+      // Los recordatorios semanales se programan como 26 triggers DATE individuales
+      // para evitar que WEEKLY no respete el día correcto en Android
+      if (recordatorio.frecuencia === 'semanal') {
+        return await programarNotificacionSemanal(recordatorio.titulo, recordatorio.mensaje, horas, minutos, recordatorio.diaSemana || 2);
       }
 
       const trigger = obtenerTrigger(recordatorio.frecuencia, horas, minutos, recordatorio.diaSemana);
@@ -134,6 +142,59 @@ export const useNotificaciones = () => {
 
       // Saltar fechas pasadas o muy próximas
       if (fecha.getTime() - ahora.getTime() < 60000) continue;
+
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: titulo,
+          body: mensaje,
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: fecha.getTime(),
+        },
+      });
+
+      ids.push(id);
+    }
+
+    return ids.length > 0 ? ids.join('|') : null;
+  };
+
+  // Programa 26 notificaciones DATE individuales (una por semana) para recordatorios semanales.
+  // Los IDs se almacenan unidos por "|" en un único string.
+  const programarNotificacionSemanal = async (
+    titulo: string,
+    mensaje: string,
+    horas: number,
+    minutos: number,
+    diaSemana: number, // Expo: 1=Dom, 2=Lun, ..., 7=Sáb
+  ): Promise<string | null> => {
+    const ahora = new Date();
+    const ids: string[] = [];
+
+    // Convertir convención Expo (1=Dom) a JS getDay() (0=Dom)
+    const jsDia = (diaSemana - 1) % 7;
+
+    // Calcular días hasta el próximo día objetivo
+    const diasHasta = (jsDia - ahora.getDay() + 7) % 7;
+    const primerFecha = new Date(
+      ahora.getFullYear(),
+      ahora.getMonth(),
+      ahora.getDate() + diasHasta,
+      horas,
+      minutos,
+      0, 0,
+    );
+
+    // Si cae hoy pero la hora ya pasó, avanzar 7 días
+    if (primerFecha.getTime() - ahora.getTime() < 60000) {
+      primerFecha.setDate(primerFecha.getDate() + 7);
+    }
+
+    for (let i = 0; i < 26; i++) {
+      const fecha = new Date(primerFecha.getTime());
+      fecha.setDate(fecha.getDate() + i * 7);
 
       const id = await Notifications.scheduleNotificationAsync({
         content: {

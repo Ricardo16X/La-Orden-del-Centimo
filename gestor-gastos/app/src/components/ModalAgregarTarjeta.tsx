@@ -1,11 +1,13 @@
 import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useTarjetas } from '../context/TarjetasContext';
+import { TarjetaCredito } from '../types';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
+  tarjetaEditar?: TarjetaCredito; // when provided, modal is in edit mode
 }
 
 const COLORES_TARJETA = [
@@ -15,9 +17,10 @@ const COLORES_TARJETA = [
   '#84cc16', '#f97316', '#14b8a6', '#a855f7',
 ];
 
-export const ModalAgregarTarjeta = ({ visible, onClose }: Props) => {
+export const ModalAgregarTarjeta = ({ visible, onClose, tarjetaEditar }: Props) => {
   const { tema } = useTema();
-  const { agregarTarjeta } = useTarjetas();
+  const { agregarTarjeta, editarTarjeta } = useTarjetas();
+  const modoEdicion = !!tarjetaEditar;
 
   const [nombre, setNombre] = useState('');
   const [banco, setBanco] = useState('');
@@ -25,6 +28,7 @@ export const ModalAgregarTarjeta = ({ visible, onClose }: Props) => {
   const [diaCorte, setDiaCorte] = useState('');
   const [diaPago, setDiaPago] = useState('');
   const [colorSeleccionado, setColorSeleccionado] = useState('#3b82f6');
+  const [limiteCredito, setLimiteCredito] = useState('');
 
   const resetFormulario = () => {
     setNombre('');
@@ -33,49 +37,70 @@ export const ModalAgregarTarjeta = ({ visible, onClose }: Props) => {
     setDiaCorte('');
     setDiaPago('');
     setColorSeleccionado('#3b82f6');
+    setLimiteCredito('');
   };
+
+  useEffect(() => {
+    if (visible && tarjetaEditar) {
+      setNombre(tarjetaEditar.nombre);
+      setBanco(tarjetaEditar.banco);
+      setUltimosCuatro(tarjetaEditar.ultimosCuatroDigitos);
+      setDiaCorte(tarjetaEditar.diaCorte.toString());
+      setDiaPago(tarjetaEditar.diaPago.toString());
+      setColorSeleccionado(tarjetaEditar.color);
+      setLimiteCredito(tarjetaEditar.limiteCredito?.toString() ?? '');
+    } else if (visible && !tarjetaEditar) {
+      resetFormulario();
+    }
+  }, [visible, tarjetaEditar]);
 
   const handleAgregar = () => {
     if (!nombre.trim()) {
       Alert.alert('Error', 'Por favor ingresa el nombre de la tarjeta');
       return;
     }
-
     if (!banco.trim()) {
       Alert.alert('Error', 'Por favor ingresa el banco');
       return;
     }
-
     if (ultimosCuatro.length !== 4 || !/^\d+$/.test(ultimosCuatro)) {
       Alert.alert('Error', 'Los últimos 4 dígitos deben ser exactamente 4 números');
       return;
     }
-
     const corte = parseInt(diaCorte);
     if (isNaN(corte) || corte < 1 || corte > 31) {
       Alert.alert('Error', 'El día de corte debe estar entre 1 y 31');
       return;
     }
-
     const pago = parseInt(diaPago);
     if (isNaN(pago) || pago < 1 || pago > 31) {
       Alert.alert('Error', 'El día de pago debe estar entre 1 y 31');
       return;
     }
+    const limite = limiteCredito.trim() ? parseFloat(limiteCredito) : undefined;
+    if (limite !== undefined && (isNaN(limite) || limite <= 0)) {
+      Alert.alert('Error', 'El límite de crédito debe ser un número mayor a 0');
+      return;
+    }
 
-    agregarTarjeta({
+    const datos = {
       nombre: nombre.trim(),
       banco: banco.trim(),
       ultimosCuatroDigitos: ultimosCuatro,
       diaCorte: corte,
       diaPago: pago,
       color: colorSeleccionado,
-    });
+      ...(limite !== undefined && { limiteCredito: limite }),
+    };
 
-    resetFormulario();
-    Alert.alert('Éxito', 'Tarjeta agregada correctamente', [
-      { text: 'OK', onPress: onClose }
-    ]);
+    if (modoEdicion && tarjetaEditar) {
+      editarTarjeta(tarjetaEditar.id, datos);
+      Alert.alert('Éxito', 'Tarjeta actualizada correctamente', [{ text: 'OK', onPress: onClose }]);
+    } else {
+      agregarTarjeta(datos);
+      resetFormulario();
+      Alert.alert('Éxito', 'Tarjeta agregada correctamente', [{ text: 'OK', onPress: onClose }]);
+    }
   };
 
   const handleCancelar = () => {
@@ -99,7 +124,7 @@ export const ModalAgregarTarjeta = ({ visible, onClose }: Props) => {
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: tema.colores.bordes }]}>
             <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-              💳 Nueva Tarjeta
+              {modoEdicion ? '✏️ Editar Tarjeta' : '💳 Nueva Tarjeta'}
             </Text>
             <TouchableOpacity onPress={handleCancelar} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={[styles.cerrar, { color: tema.colores.textoSecundario }]}>✕</Text>
@@ -159,6 +184,22 @@ export const ModalAgregarTarjeta = ({ visible, onClose }: Props) => {
                 maxLength={4}
                 value={ultimosCuatro}
                 onChangeText={setUltimosCuatro}
+              />
+
+              <Text style={[styles.label, { color: tema.colores.texto }]}>
+                💳 Límite de crédito: <Text style={{ color: tema.colores.textoSecundario, fontWeight: 'normal' }}>(opcional)</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, {
+                  backgroundColor: tema.colores.fondoSecundario,
+                  borderColor: tema.colores.bordes,
+                  color: tema.colores.texto,
+                }]}
+                placeholder="0.00"
+                placeholderTextColor={tema.colores.textoSecundario}
+                keyboardType="decimal-pad"
+                value={limiteCredito}
+                onChangeText={setLimiteCredito}
               />
             </View>
 
@@ -277,7 +318,7 @@ export const ModalAgregarTarjeta = ({ visible, onClose }: Props) => {
               style={[styles.boton, styles.botonAgregar, { backgroundColor: tema.colores.primario }]}
             >
               <Text style={[styles.botonTexto, { color: '#fff' }]}>
-                ➕ Agregar
+                {modoEdicion ? '✓ Guardar cambios' : '➕ Agregar'}
               </Text>
             </TouchableOpacity>
           </View>

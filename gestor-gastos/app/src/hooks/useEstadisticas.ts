@@ -172,6 +172,65 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
     return resultado;
   }, [gastos]);
 
+  const gastoPorDiaSemana = useMemo(() => {
+    const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const sumas: number[] = Array(7).fill(0);
+    const conteos: number[] = Array(7).fill(0);
+
+    gastos
+      .filter(g => g.tipo === 'gasto')
+      .forEach(g => {
+        const dia = new Date(g.fecha).getDay();
+        sumas[dia] += g.montoEnMonedaBase ?? g.monto;
+        conteos[dia]++;
+      });
+
+    const totalTransacciones = conteos.reduce((a, b) => a + b, 0);
+    const totalMonto = sumas.reduce((a, b) => a + b, 0);
+    const promedioGlobal = totalTransacciones > 0 ? totalMonto / totalTransacciones : 0;
+
+    return {
+      dias: DIAS.map((nombre, i) => ({
+        nombre,
+        promedio: conteos[i] > 0 ? sumas[i] / conteos[i] : 0,
+        cantidad: conteos[i],
+      })),
+      promedioGlobal,
+      totalTransacciones,
+    };
+  }, [gastos]);
+
+  const comparativaPorCategoria = useMemo(() => {
+    const hoy = new Date();
+    const meses: { label: string; mes: number; anio: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const fecha = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+      meses.push({
+        label: fecha.toLocaleDateString('es', { month: 'short' }),
+        mes: fecha.getMonth(),
+        anio: fecha.getFullYear(),
+      });
+    }
+
+    return categorias
+      .filter(cat => cat.id !== 'ahorro_metas')
+      .map(cat => {
+        const datos = meses.map(({ label, mes, anio }) => {
+          const total = gastos
+            .filter(g =>
+              g.tipo === 'gasto' &&
+              g.categoria === cat.id &&
+              new Date(g.fecha).getMonth() === mes &&
+              new Date(g.fecha).getFullYear() === anio
+            )
+            .reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0);
+          return { label, total };
+        });
+        return { categoriaId: cat.id, nombre: cat.nombre, emoji: cat.emoji, datos };
+      })
+      .filter(c => c.datos.some(d => d.total > 0));
+  }, [gastos, categorias]);
+
   return {
     gastosPorCategoria,
     totalGastos,
@@ -181,5 +240,7 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
     promedioDiario,
     topGastos,
     tendenciaMensual,
+    gastoPorDiaSemana,
+    comparativaPorCategoria,
   };
 };

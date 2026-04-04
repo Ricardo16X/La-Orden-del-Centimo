@@ -4,6 +4,7 @@ import { useTema } from '../src/context/TemaContext';
 import { DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
 import { View, Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import { useReprogramarRecordatorios } from '../src/hooks/useReprogramarRecordatorios';
 
 function CustomDrawerContent(props: any) {
   const { tema } = useTema();
@@ -79,6 +80,7 @@ function CustomDrawerContent(props: any) {
 
 export default function DrawerLayout() {
   const { tema } = useTema();
+  useReprogramarRecordatorios();
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: tema.colores.fondo }}>

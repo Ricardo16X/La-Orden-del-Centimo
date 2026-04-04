@@ -11,7 +11,7 @@ export default function GastosRecurrentesScreen() {
   const { tema } = useTema();
   const { gastosRecurrentes, agregarGastoRecurrente, eliminarGastoRecurrente, toggleGastoRecurrente } = useGastosRecurrentes();
   const { categorias } = useCategorias();
-  const { monedas, monedaBase } = useMonedas();
+  const { monedas, monedaBase, convertirAMonedaBase } = useMonedas();
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [descripcion, setDescripcion] = useState('');
@@ -140,17 +140,29 @@ export default function GastosRecurrentesScreen() {
     { valor: 7, nombre: 'Sáb' },
   ];
 
-  // Calcular total mensual de gastos recurrentes activos
-  const totalMensual = gastosRecurrentes
-    .filter(gr => gr.activo)
-    .reduce((sum, gr) => {
-      switch (gr.frecuencia) {
-        case 'diario': return sum + gr.monto * 30;
-        case 'semanal': return sum + gr.monto * 4;
-        case 'mensual': return sum + gr.monto;
-        default: return sum;
-      }
-    }, 0);
+  // Calcular equivalente mensual de un gasto recurrente
+  const calcularEquivalenteMensual = (gr: GastoRecurrente): number => {
+    switch (gr.frecuencia) {
+      case 'diario': return gr.monto * 30;
+      case 'semanal': return gr.monto * 52 / 12;
+      case 'mensual': return gr.monto;
+    }
+  };
+
+  // Agrupar activos por moneda y calcular total en moneda base
+  const activos = gastosRecurrentes.filter(gr => gr.activo);
+  const porMoneda: Record<string, { monto: number; count: number; simbolo: string }> = {};
+  let totalEnBase = 0;
+  activos.forEach(gr => {
+    const eq = calcularEquivalenteMensual(gr);
+    if (!porMoneda[gr.moneda]) {
+      porMoneda[gr.moneda] = { monto: 0, count: 0, simbolo: obtenerSimboloMoneda(gr.moneda) };
+    }
+    porMoneda[gr.moneda].monto += eq;
+    porMoneda[gr.moneda].count += 1;
+    totalEnBase += convertirAMonedaBase(eq, gr.moneda);
+  });
+  const monedasUsadas = Object.entries(porMoneda);
 
   return (
     <KeyboardAvoidingView
@@ -166,20 +178,54 @@ export default function GastosRecurrentesScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Resumen mensual */}
-        {gastosRecurrentes.filter(gr => gr.activo).length > 0 && (
+        {activos.length > 0 && (
           <View style={[styles.resumen, {
             backgroundColor: tema.colores.fondoSecundario,
             borderColor: tema.colores.bordes,
           }]}>
             <Text style={[styles.resumenLabel, { color: tema.colores.textoSecundario }]}>
-              Estimado mensual
+              Estimado mensual · {activos.length} activos
             </Text>
-            <Text style={[styles.resumenValor, { color: tema.colores.primario }]}>
-              ~{obtenerSimboloMoneda(monedaBase?.codigo || '')}{totalMensual.toFixed(2)}
-            </Text>
-            <Text style={[styles.resumenCantidad, { color: tema.colores.textoSecundario }]}>
-              {gastosRecurrentes.filter(gr => gr.activo).length} activos
-            </Text>
+
+            {/* Tarjetas por moneda */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carruselMonedas}>
+              <View style={styles.carruselContenido}>
+                {monedasUsadas.map(([codigo, data]) => (
+                  <View
+                    key={codigo}
+                    style={[styles.tarjetaMoneda, {
+                      backgroundColor: tema.colores.fondo,
+                      borderColor: tema.colores.primario + '44',
+                    }]}
+                  >
+                    <Text style={[styles.tarjetaCodigo, { color: tema.colores.textoSecundario }]}>
+                      {codigo}
+                    </Text>
+                    <Text style={[styles.tarjetaMonto, { color: tema.colores.primario }]}>
+                      {data.simbolo}{data.monto.toFixed(2)}
+                    </Text>
+                    <Text style={[styles.tarjetaCount, { color: tema.colores.textoSecundario }]}>
+                      {data.count} {data.count === 1 ? 'gasto' : 'gastos'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+
+            {/* Total en moneda base — solo si hay más de una moneda */}
+            {monedasUsadas.length > 1 && (
+              <>
+                <View style={[styles.resumenSeparador, { backgroundColor: tema.colores.bordes }]} />
+                <View style={styles.resumenTotalFila}>
+                  <Text style={[styles.resumenTotalLabel, { color: tema.colores.textoSecundario }]}>
+                    Total en {monedaBase?.codigo}
+                  </Text>
+                  <Text style={[styles.resumenTotalValor, { color: tema.colores.primario }]}>
+                    ≈ {monedaBase?.simbolo}{totalEnBase.toFixed(2)}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         )}
 
@@ -482,6 +528,54 @@ const styles = StyleSheet.create({
   resumenCantidad: {
     fontSize: 12,
     marginTop: 4,
+  },
+  carruselMonedas: {
+    marginTop: 10,
+  },
+  carruselContenido: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingBottom: 4,
+  },
+  tarjetaMoneda: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    minWidth: 120,
+    alignItems: 'center',
+    gap: 2,
+  },
+  tarjetaCodigo: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  tarjetaMonto: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginVertical: 2,
+  },
+  tarjetaCount: {
+    fontSize: 11,
+  },
+  resumenSeparador: {
+    height: 1,
+    marginVertical: 10,
+  },
+  resumenTotalFila: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  resumenTotalLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  resumenTotalValor: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   lista: {
     marginBottom: 15,

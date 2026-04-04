@@ -4,12 +4,12 @@ import { ModalBase } from './ModalBase';
 interface Props {
   visible: boolean;
   onClose: () => void;
-  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string) => void;
+  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string, tarjetaId?: string) => void;
 }
 
 export const ModalAgregarGasto = ({ visible, onClose, onAgregar }: Props) => {
-  const handleAgregar = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string) => {
-    onAgregar(monto, descripcion, categoria, moneda, nota, fecha);
+  const handleAgregar = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string, tarjetaId?: string) => {
+    onAgregar(monto, descripcion, categoria, moneda, nota, fecha, tarjetaId);
     onClose();
   };
 

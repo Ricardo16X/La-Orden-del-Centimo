@@ -1,12 +1,14 @@
-import { View, Text, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useGastos } from '../context/GastosContext';
 import { useCategorias } from '../context/CategoriasContext';
 import { useMonedas } from '../context/MonedasContext';
 import { useEstadisticas } from '../hooks';
+import { usePresupuestos } from '../context/PresupuestosContext';
 import { GraficaPastel } from '../components/GraficaPastel';
 import { GraficaLineas } from '../components/GraficaLineas';
-import { StackedBarChart } from 'react-native-chart-kit';
+import { StackedBarChart, BarChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -21,9 +23,37 @@ export const EstadisticasScreen = () => {
     promedioDiario,
     topGastos,
     tendenciaMensual,
+    gastoPorDiaSemana,
+    comparativaPorCategoria,
   } = useEstadisticas(gastos, categorias);
 
   const simbolo = monedaBase?.simbolo || 'Q';
+
+  const { presupuestos } = usePresupuestos();
+  const [categoriaComparativaId, setCategoriaComparativaId] = useState<string | null>(null);
+
+  // Límite de gasto diario
+  const hoyDate = new Date();
+  const diasEnMes = new Date(hoyDate.getFullYear(), hoyDate.getMonth() + 1, 0).getDate();
+  const diasRestantes = Math.max(diasEnMes - hoyDate.getDate() + 1, 1);
+  const totalPresupuestado = presupuestos
+    .filter(p => p.periodo === 'mensual')
+    .reduce((sum, p) => sum + p.monto, 0);
+  const baseCalculo = totalPresupuestado > 0 ? totalPresupuestado : resumenMes.ingresos;
+  const disponibleRestante = baseCalculo - resumenMes.gastos;
+  const limiteDiario = disponibleRestante / diasRestantes;
+  const porcentajeGastado = baseCalculo > 0 ? Math.min(resumenMes.gastos / baseCalculo, 1) : 0;
+
+  // Día más caro
+  const diasConDatos = gastoPorDiaSemana.dias.filter(d => d.cantidad > 0);
+  const diaMasCaro = gastoPorDiaSemana.totalTransacciones >= 14 && diasConDatos.length > 0
+    ? diasConDatos.reduce((max, d) => d.promedio > max.promedio ? d : max)
+    : null;
+  const maxPromedioDia = diasConDatos.length > 0 ? Math.max(...diasConDatos.map(d => d.promedio)) : 1;
+
+  // Categoría seleccionada para comparativa
+  const catComparativaId = categoriaComparativaId ?? comparativaPorCategoria[0]?.categoriaId;
+  const catSeleccionada = comparativaPorCategoria.find(c => c.categoriaId === catComparativaId);
 
   // Preparar datos para gráfica de pastel
   const datosPastel = gastosPorCategoria
@@ -126,6 +156,62 @@ export const EstadisticasScreen = () => {
           )}
         </View>
 
+        {/* Límite de Gasto Diario */}
+        {baseCalculo > 0 && (
+          <View style={[styles.seccion, {
+            backgroundColor: tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+          }]}>
+            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
+              🎯 Límite de Gasto Diario
+            </Text>
+
+            <View style={styles.limiteFila}>
+              <Text style={[styles.limiteLabel, { color: tema.colores.textoSecundario }]}>
+                {totalPresupuestado > 0 ? 'Presupuesto del mes' : 'Ingresos del mes'}
+              </Text>
+              <Text style={[styles.limiteValor, { color: tema.colores.texto }]}>
+                {simbolo}{baseCalculo.toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={styles.limiteFila}>
+              <Text style={[styles.limiteLabel, { color: tema.colores.textoSecundario }]}>Gastado hasta hoy</Text>
+              <Text style={[styles.limiteValor, { color: '#ef4444' }]}>
+                {simbolo}{resumenMes.gastos.toFixed(2)}
+              </Text>
+            </View>
+
+            <View style={[styles.progressBarTrack, { backgroundColor: tema.colores.bordes }]}>
+              <View style={[styles.progressBarFill, {
+                width: `${porcentajeGastado * 100}%` as any,
+                backgroundColor: porcentajeGastado >= 1 ? '#ef4444' : porcentajeGastado >= 0.8 ? '#f59e0b' : '#10b981',
+              }]} />
+            </View>
+
+            <View style={styles.limiteFila}>
+              <Text style={[styles.limiteLabel, { color: tema.colores.textoSecundario }]}>Días restantes</Text>
+              <Text style={[styles.limiteValor, { color: tema.colores.textoSecundario }]}>
+                {diasRestantes} {diasRestantes === 1 ? 'día' : 'días'}
+              </Text>
+            </View>
+
+            <View style={[styles.limiteDiarioCard, {
+              backgroundColor: limiteDiario >= 0 ? '#10b98115' : '#ef444415',
+              borderColor: limiteDiario >= 0 ? '#10b981' : '#ef4444',
+            }]}>
+              <Text style={[styles.limiteDiarioLabel, { color: tema.colores.textoSecundario }]}>
+                {limiteDiario >= 0 ? 'Puedes gastar hoy' : 'Presupuesto excedido'}
+              </Text>
+              <Text style={[styles.limiteDiarioValor, { color: limiteDiario >= 0 ? '#10b981' : '#ef4444' }]}>
+                {limiteDiario >= 0
+                  ? `${simbolo}${limiteDiario.toFixed(2)}`
+                  : `${simbolo}${Math.abs(disponibleRestante).toFixed(2)} excedido`}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Comparativa Mensual */}
         {hayDatosTendencia && (
           <View style={[styles.seccion, {
@@ -170,6 +256,68 @@ export const EstadisticasScreen = () => {
           </View>
         )}
 
+        {/* Comparativa por Categoría */}
+        {comparativaPorCategoria.length > 0 && (
+          <View style={[styles.seccion, {
+            backgroundColor: tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+          }]}>
+            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
+              🏷️ Comparativa por Categoría
+            </Text>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+              <View style={styles.chipsContainer}>
+                {comparativaPorCategoria.map(c => {
+                  const seleccionado = catComparativaId === c.categoriaId;
+                  return (
+                    <TouchableOpacity
+                      key={c.categoriaId}
+                      onPress={() => setCategoriaComparativaId(c.categoriaId)}
+                      style={[styles.chip, {
+                        backgroundColor: seleccionado ? tema.colores.primario : tema.colores.fondo,
+                        borderColor: seleccionado ? tema.colores.primario : tema.colores.bordes,
+                      }]}
+                    >
+                      <Text style={styles.chipEmoji}>{c.emoji}</Text>
+                      <Text style={[styles.chipTexto, { color: seleccionado ? '#fff' : tema.colores.texto }]}>
+                        {c.nombre}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            {catSeleccionada && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <BarChart
+                  data={{
+                    labels: catSeleccionada.datos.map(d => d.label),
+                    datasets: [{ data: catSeleccionada.datos.map(d => d.total || 0) }],
+                  }}
+                  width={Math.max(screenWidth - 60, catSeleccionada.datos.length * 70)}
+                  height={180}
+                  yAxisLabel={simbolo}
+                  yAxisSuffix=""
+                  chartConfig={{
+                    backgroundColor: tema.colores.fondoSecundario,
+                    backgroundGradientFrom: tema.colores.fondoSecundario,
+                    backgroundGradientTo: tema.colores.fondoSecundario,
+                    decimalPlaces: 0,
+                    color: () => tema.colores.primario,
+                    labelColor: () => tema.colores.textoSecundario,
+                  }}
+                  style={{ borderRadius: 10, marginTop: 10 }}
+                  fromZero
+                  showValuesOnTopOfBars
+                  withInnerLines={false}
+                />
+              </ScrollView>
+            )}
+          </View>
+        )}
+
         {/* Gráfica de Tendencia */}
         {gastos.length > 0 && (
           <View style={[styles.seccion, {
@@ -180,6 +328,55 @@ export const EstadisticasScreen = () => {
               📈 Tendencia (Últimos 7 días)
             </Text>
             <GraficaLineas datos={datosLineas} />
+          </View>
+        )}
+
+        {/* Día Más Caro de la Semana */}
+        {gastoPorDiaSemana.totalTransacciones >= 14 && (
+          <View style={[styles.seccion, {
+            backgroundColor: tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+          }]}>
+            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
+              📅 Día Más Caro de la Semana
+            </Text>
+
+            {diaMasCaro && gastoPorDiaSemana.promedioGlobal > 0 && (
+              <View style={[styles.insightCard, { backgroundColor: tema.colores.primario + '15', borderColor: tema.colores.primario + '44' }]}>
+                <Text style={[styles.insightTexto, { color: tema.colores.texto }]}>
+                  Los{' '}
+                  <Text style={{ fontWeight: 'bold', color: tema.colores.primario }}>{diaMasCaro.nombre}</Text>
+                  {' '}tiendes a gastar más, un{' '}
+                  <Text style={{ fontWeight: 'bold', color: '#f59e0b' }}>
+                    {Math.round((diaMasCaro.promedio / gastoPorDiaSemana.promedioGlobal - 1) * 100)}%
+                  </Text>
+                  {' '}por encima del promedio.
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.barrasContainer}>
+              {diasConDatos.map((d, i) => {
+                const esMasCaro = diaMasCaro?.nombre === d.nombre;
+                const widthPct = maxPromedioDia > 0 ? d.promedio / maxPromedioDia : 0;
+                return (
+                  <View key={i} style={styles.barraFila}>
+                    <Text style={[styles.barraDia, { color: esMasCaro ? tema.colores.primario : tema.colores.textoSecundario }]}>
+                      {d.nombre}
+                    </Text>
+                    <View style={[styles.barraTrack, { backgroundColor: tema.colores.bordes }]}>
+                      <View style={[styles.barraFill, {
+                        width: `${widthPct * 100}%` as any,
+                        backgroundColor: esMasCaro ? tema.colores.primario : tema.colores.textoSecundario + '88',
+                      }]} />
+                    </View>
+                    <Text style={[styles.barraValor, { color: esMasCaro ? tema.colores.primario : tema.colores.textoSecundario }]}>
+                      {simbolo}{d.promedio.toFixed(0)}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -381,5 +578,109 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  // Límite de gasto diario
+  limiteFila: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  limiteLabel: {
+    fontSize: 13,
+  },
+  limiteValor: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  progressBarTrack: {
+    height: 8,
+    borderRadius: 4,
+    marginVertical: 8,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: 8,
+    borderRadius: 4,
+  },
+  limiteDiarioCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  limiteDiarioLabel: {
+    fontSize: 13,
+    marginBottom: 4,
+  },
+  limiteDiarioValor: {
+    fontSize: 26,
+    fontWeight: 'bold',
+  },
+  // Comparativa por categoría
+  chipsScroll: {
+    marginBottom: 4,
+  },
+  chipsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 4,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  chipEmoji: {
+    fontSize: 16,
+  },
+  chipTexto: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  // Día más caro
+  insightCard: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
+  insightTexto: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  barrasContainer: {
+    gap: 10,
+  },
+  barraFila: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  barraDia: {
+    fontSize: 12,
+    fontWeight: '600',
+    width: 30,
+  },
+  barraTrack: {
+    flex: 1,
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  barraFill: {
+    height: 10,
+    borderRadius: 5,
+  },
+  barraValor: {
+    fontSize: 12,
+    fontWeight: '600',
+    width: 60,
+    textAlign: 'right',
   },
 });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, ScrollView } from 'react-native';
 import { SelectorCategoria } from './SelectorCategoria';
 import { SelectorMoneda } from './SelectorMoneda';
 import { SelectorFecha } from './SelectorFecha';
@@ -7,10 +7,11 @@ import { useTema } from '../context/TemaContext';
 import { useMonedas } from '../context/MonedasContext';
 import { useFormGasto } from '../hooks';
 import { TipoTransaccion } from '../types';
+import { useTarjetas } from '../context/TarjetasContext';
 
 interface Props {
   tipo: TipoTransaccion;
-  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string) => void;
+  onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string, tarjetaId?: string) => void;
 }
 
 const CONFIG = {
@@ -29,6 +30,7 @@ const CONFIG = {
 export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
   const { tema } = useTema();
   const { monedaBase } = useMonedas();
+  const { tarjetas } = useTarjetas();
   const config = CONFIG[tipo];
 
   const [monedaSeleccionada, setMonedaSeleccionada] = useState<string>('');
@@ -48,12 +50,14 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
     setNota,
     fecha,
     setFecha,
+    tarjetaId,
+    setTarjetaId,
     categoriaSeleccionada,
     setCategoriaSeleccionada,
     handleSubmit,
     resetForm,
-  } = useFormGasto((monto, descripcion, categoria, nota, fecha) => {
-    onAgregar(monto, descripcion, categoria, monedaSeleccionada, nota, fecha);
+  } = useFormGasto((monto, descripcion, categoria, nota, fecha, tarjetaId) => {
+    onAgregar(monto, descripcion, categoria, monedaSeleccionada, nota, fecha, tarjetaId);
   });
 
   const handleAgregar = () => {
@@ -61,6 +65,7 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
     if (success) {
       resetForm();
       setMonedaSeleccionada(monedaBase?.codigo || '');
+      setTarjetaId(undefined);
     }
   };
 
@@ -109,6 +114,43 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
         maxLength={200}
         textAlignVertical="top"
       />
+
+      {tipo === 'gasto' && tarjetas.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tarjetasScroll}
+        >
+          <View style={styles.tarjetasContainer}>
+            <TouchableOpacity
+              onPress={() => setTarjetaId(undefined)}
+              style={[styles.tarjetaChip, {
+                backgroundColor: !tarjetaId ? tema.colores.primario : tema.colores.fondoSecundario,
+                borderColor: !tarjetaId ? tema.colores.primario : tema.colores.bordes,
+              }]}
+            >
+              <Text style={[styles.tarjetaChipTexto, { color: !tarjetaId ? '#fff' : tema.colores.textoSecundario }]}>
+                💵 Efectivo
+              </Text>
+            </TouchableOpacity>
+            {tarjetas.map(t => (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => setTarjetaId(t.id)}
+                style={[styles.tarjetaChip, {
+                  backgroundColor: tarjetaId === t.id ? tema.colores.primario : tema.colores.fondoSecundario,
+                  borderColor: tarjetaId === t.id ? tema.colores.primario : tema.colores.bordes,
+                }]}
+              >
+                <View style={[styles.tarjetaDot, { backgroundColor: t.color }]} />
+                <Text style={[styles.tarjetaChipTexto, { color: tarjetaId === t.id ? '#fff' : tema.colores.texto }]}>
+                  {t.nombre}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      )}
 
       <SelectorFecha fecha={fecha} onChange={setFecha} />
 
@@ -165,5 +207,31 @@ const styles = StyleSheet.create({
   botonTexto: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  tarjetasScroll: {
+    marginBottom: 10,
+  },
+  tarjetasContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  tarjetaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    gap: 6,
+  },
+  tarjetaDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  tarjetaChipTexto: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

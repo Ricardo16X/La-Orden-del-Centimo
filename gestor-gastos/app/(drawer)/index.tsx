@@ -43,8 +43,8 @@ export default function HomeScreen() {
     totalFiltrados,
   } = useFiltrosGastos(gastos);
 
-  const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string) => {
-    agregarGasto({ monto, descripcion, categoria, tipo: 'gasto', moneda, nota: nota || undefined, fecha });
+  const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string, tarjetaId?: string) => {
+    agregarGasto({ monto, descripcion, categoria, tipo: 'gasto', moneda, nota: nota || undefined, fecha, tarjetaId });
   };
 
   const handleAgregarIngreso = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string) => {

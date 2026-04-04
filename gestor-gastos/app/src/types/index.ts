@@ -22,6 +22,8 @@ export interface Gasto {
   transferenciaId?: string; // ID compartido por el par de gastos de una transferencia
   // Nota opcional con contexto adicional
   nota?: string;
+  // Tarjeta de crédito con la que se realizó el pago (opcional)
+  tarjetaId?: string;
 }
 
 /**
@@ -126,6 +128,8 @@ export interface TarjetaCredito {
   diaCorte: number; // 1-31
   diaPago: number; // 1-31
   color: string;
+  limiteCredito?: number; // Límite de crédito de la tarjeta
+  ultimoPago?: string; // ISO date del último pago registrado (reinicia el ciclo)
 }
 
 /**
