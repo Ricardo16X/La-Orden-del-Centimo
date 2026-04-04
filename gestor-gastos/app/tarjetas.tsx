@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useTema } from './src/context/TemaContext';
@@ -20,6 +20,9 @@ export default function TarjetasScreen() {
   const [modalCuotaVisible, setModalCuotaVisible] = useState(false);
   const [tarjetaSeleccionada, setTarjetaSeleccionada] = useState<{ id: string; nombre: string } | null>(null);
   const [tarjetaParaEditar, setTarjetaParaEditar] = useState<TarjetaCredito | null>(null);
+  const [modalDesglose, setModalDesglose] = useState(false);
+  const [desgloseTarjeta, setDesgloseTarjeta] = useState<TarjetaCredito | null>(null);
+  const [desgloseTipo, setDesgloseTipo] = useState<'pendiente' | 'actual'>('pendiente');
 
   useNotificacionesTarjetas();
 
@@ -80,6 +83,30 @@ export default function TarjetasScreen() {
       .reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0);
 
     return { consumoPendientePago, consumoCicloActual, ultimoCorte, yaPageado };
+  };
+
+  const obtenerDiasHastaPago = (tarjeta: TarjetaCredito, ultimoCorte: Date): number => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fechaPago = new Date(ultimoCorte.getFullYear(), ultimoCorte.getMonth() + 1, tarjeta.diaPago);
+    fechaPago.setHours(0, 0, 0, 0);
+    return Math.round((fechaPago.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+  };
+
+  const obtenerGastosDesglose = (tarjeta: TarjetaCredito, tipo: 'pendiente' | 'actual') => {
+    const { ultimoCorte } = obtenerBalancesTarjeta(tarjeta);
+    const cortePrevio = new Date(ultimoCorte);
+    cortePrevio.setMonth(cortePrevio.getMonth() - 1);
+    return gastos
+      .filter(g => {
+        if (g.tarjetaId !== tarjeta.id || g.tipo !== 'gasto') return false;
+        const f = new Date(g.fecha);
+        f.setHours(0, 0, 0, 0);
+        return tipo === 'pendiente'
+          ? f > cortePrevio && f <= ultimoCorte
+          : f > ultimoCorte;
+      })
+      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
   };
 
   const handleRegistrarPagoCiclo = (tarjeta: TarjetaCredito) => {
@@ -169,6 +196,17 @@ export default function TarjetasScreen() {
     );
   };
 
+  const resumenGlobal = tarjetas.reduce((acc, t) => {
+    const { consumoPendientePago, consumoCicloActual } = obtenerBalancesTarjeta(t);
+    const est = obtenerEstadisticasTarjeta(t.id);
+    return {
+      totalPendiente: acc.totalPendiente + consumoPendientePago,
+      totalActual: acc.totalActual + consumoCicloActual,
+      totalLimite: acc.totalLimite + (t.limiteCredito ?? 0),
+      totalDeuda: acc.totalDeuda + consumoPendientePago + consumoCicloActual + est.totalPendiente,
+    };
+  }, { totalPendiente: 0, totalActual: 0, totalLimite: 0, totalDeuda: 0 });
+
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
       {/* Header */}
@@ -198,6 +236,53 @@ export default function TarjetasScreen() {
             <Text style={[styles.descripcion, { color: tema.colores.textoSecundario }]}>
               Gestiona tus tarjetas de crédito y mantén el control de fechas importantes
             </Text>
+
+            {/* Resumen global de todas las tarjetas */}
+            {tarjetas.length > 1 && (
+              <View style={[styles.resumenGlobal, { backgroundColor: tema.colores.fondoSecundario, borderColor: tema.colores.bordes }]}>
+                <Text style={[styles.resumenGlobalTitulo, { color: tema.colores.texto }]}>
+                  💳 Resumen de tarjetas
+                </Text>
+                <View style={styles.resumenGlobalFila}>
+                  <View style={styles.resumenGlobalItem}>
+                    <Text style={[styles.resumenGlobalEtiqueta, { color: tema.colores.textoSecundario }]}>A pagar este mes</Text>
+                    <Text style={[styles.resumenGlobalMonto, { color: resumenGlobal.totalPendiente > 0 ? '#ef4444' : tema.colores.texto }]}>
+                      {tema.moneda}{resumenGlobal.totalPendiente.toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={[styles.resumenGlobalDivisor, { backgroundColor: tema.colores.bordes }]} />
+                  <View style={styles.resumenGlobalItem}>
+                    <Text style={[styles.resumenGlobalEtiqueta, { color: tema.colores.textoSecundario }]}>Acumulando</Text>
+                    <Text style={[styles.resumenGlobalMonto, { color: tema.colores.primario }]}>
+                      {tema.moneda}{resumenGlobal.totalActual.toFixed(2)}
+                    </Text>
+                  </View>
+                  {resumenGlobal.totalLimite > 0 && (
+                    <>
+                      <View style={[styles.resumenGlobalDivisor, { backgroundColor: tema.colores.bordes }]} />
+                      <View style={styles.resumenGlobalItem}>
+                        <Text style={[styles.resumenGlobalEtiqueta, { color: tema.colores.textoSecundario }]}>Crédito usado</Text>
+                        <Text style={[styles.resumenGlobalMonto, { color: tema.colores.texto }]}>
+                          {Math.round((resumenGlobal.totalDeuda / resumenGlobal.totalLimite) * 100)}%
+                        </Text>
+                      </View>
+                    </>
+                  )}
+                </View>
+                {resumenGlobal.totalLimite > 0 && (() => {
+                  const util = Math.min(resumenGlobal.totalDeuda / resumenGlobal.totalLimite, 1);
+                  const color = util >= 0.8 ? '#ef4444' : util >= 0.5 ? '#f59e0b' : '#10b981';
+                  return (
+                    <View style={[styles.utilizacionTrack, { backgroundColor: tema.colores.bordes, marginTop: 8 }]}>
+                      <View style={[styles.utilizacionFill, { width: `${Math.round(util * 100)}%` as any, backgroundColor: color }]} />
+                    </View>
+                  );
+                })()}
+                <Text style={[styles.resumenGlobalPie, { color: tema.colores.textoSecundario }]}>
+                  Deuda total: {tema.moneda}{resumenGlobal.totalDeuda.toFixed(2)}{resumenGlobal.totalLimite > 0 ? ` de ${tema.moneda}${resumenGlobal.totalLimite.toFixed(2)} en crédito` : ''}
+                </Text>
+              </View>
+            )}
 
             {/* Proyección de cuotas */}
             <VistaProyeccionCuotas variant="full-width" />
@@ -247,25 +332,42 @@ export default function TarjetasScreen() {
                       )}
 
                       {(() => {
-                        const { consumoPendientePago, consumoCicloActual, yaPageado } = obtenerBalancesTarjeta(tarjeta);
+                        const { consumoPendientePago, consumoCicloActual, yaPageado, ultimoCorte } = obtenerBalancesTarjeta(tarjeta);
                         const totalDeuda = consumoPendientePago + consumoCicloActual + estadisticasCuotas.totalPendiente;
                         const hayActividad = consumoPendientePago > 0 || consumoCicloActual > 0 || estadisticasCuotas.totalPendiente > 0 || yaPageado;
+
+                        const diasHastaPago = consumoPendientePago > 0 ? obtenerDiasHastaPago(tarjeta, ultimoCorte) : 0;
+                        const textoVence = diasHastaPago < 0
+                          ? `Venció hace ${Math.abs(diasHastaPago)} día${Math.abs(diasHastaPago) !== 1 ? 's' : ''}`
+                          : diasHastaPago === 0 ? '¡Vence hoy!'
+                          : `Vence en ${diasHastaPago} día${diasHastaPago !== 1 ? 's' : ''}`;
+                        const colorVence = diasHastaPago <= 3 ? '#ef4444' : '#f59e0b';
 
                         return (
                           <>
                             {hayActividad && (
                               <View style={[styles.utilizacionContainer, { backgroundColor: tema.colores.fondo }]}>
 
-                                {/* Ciclo cerrado: lo que hay que pagar */}
+                                {/* Ciclo cerrado: lo que hay que pagar + countdown */}
                                 {consumoPendientePago > 0 && (
-                                  <View style={styles.utilizacionHeader}>
-                                    <Text style={[styles.utilizacionLabel, { color: '#ef4444' }]}>
-                                      💳 A pagar (vence día {tarjeta.diaPago})
-                                    </Text>
-                                    <Text style={[styles.utilizacionPorcentaje, { color: '#ef4444' }]}>
-                                      {tema.moneda}{consumoPendientePago.toFixed(2)}
-                                    </Text>
-                                  </View>
+                                  <>
+                                    <View style={styles.utilizacionHeader}>
+                                      <Text style={[styles.utilizacionLabel, { color: '#ef4444' }]}>
+                                        💳 A pagar
+                                      </Text>
+                                      <Text style={[styles.utilizacionPorcentaje, { color: '#ef4444' }]}>
+                                        {tema.moneda}{consumoPendientePago.toFixed(2)}
+                                      </Text>
+                                    </View>
+                                    <View style={styles.utilizacionHeader}>
+                                      <Text style={[styles.countdownTexto, { color: colorVence }]}>
+                                        ⏰ {textoVence}
+                                      </Text>
+                                      <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjeta); setDesgloseTipo('pendiente'); setModalDesglose(true); }}>
+                                        <Text style={[styles.verDetalleTexto, { color: tema.colores.primario }]}>Ver detalle →</Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </>
                                 )}
 
                                 {/* Confirmación de pago ya registrado */}
@@ -277,14 +379,21 @@ export default function TarjetasScreen() {
 
                                 {/* Ciclo abierto: acumulando para el próximo corte */}
                                 {consumoCicloActual > 0 && (
-                                  <View style={styles.utilizacionHeader}>
-                                    <Text style={[styles.utilizacionLabel, { color: tema.colores.textoSecundario }]}>
-                                      🔄 Ciclo en curso (corta día {tarjeta.diaCorte})
-                                    </Text>
-                                    <Text style={[styles.utilizacionPorcentaje, { color: tema.colores.primario }]}>
-                                      {tema.moneda}{consumoCicloActual.toFixed(2)}
-                                    </Text>
-                                  </View>
+                                  <>
+                                    <View style={styles.utilizacionHeader}>
+                                      <Text style={[styles.utilizacionLabel, { color: tema.colores.textoSecundario }]}>
+                                        🔄 Ciclo en curso (corta día {tarjeta.diaCorte})
+                                      </Text>
+                                      <Text style={[styles.utilizacionPorcentaje, { color: tema.colores.primario }]}>
+                                        {tema.moneda}{consumoCicloActual.toFixed(2)}
+                                      </Text>
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end', marginBottom: 2 }}>
+                                      <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjeta); setDesgloseTipo('actual'); setModalDesglose(true); }}>
+                                        <Text style={[styles.verDetalleTexto, { color: tema.colores.primario }]}>Ver detalle →</Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  </>
                                 )}
 
                                 {/* Barra de utilización (solo si hay límite configurado) */}
@@ -446,6 +555,72 @@ export default function TarjetasScreen() {
           nombreTarjeta={tarjetaSeleccionada.nombre}
         />
       )}
+
+      {/* Modal Desglose de gastos del ciclo */}
+      <Modal
+        visible={modalDesglose}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalDesglose(false)}
+      >
+        <View style={styles.desgloseOverlay}>
+          <View style={[styles.desgloseContainer, { backgroundColor: tema.colores.fondoSecundario }]}>
+            <View style={styles.desgloseHeader}>
+              <Text style={[styles.desgloseTitulo, { color: tema.colores.texto }]}>
+                {desgloseTipo === 'pendiente' ? '💳 A pagar' : '🔄 Ciclo en curso'}
+              </Text>
+              <TouchableOpacity onPress={() => setModalDesglose(false)}>
+                <Text style={{ fontSize: 22, color: tema.colores.textoSecundario }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {desgloseTarjeta && (
+              <Text style={[styles.desgloseSubtitulo, { color: tema.colores.textoSecundario }]}>
+                {desgloseTarjeta.nombre} · {desgloseTipo === 'pendiente'
+                  ? `ciclo cerrado el día ${desgloseTarjeta.diaCorte}`
+                  : `ciclo abierto desde el día ${desgloseTarjeta.diaCorte}`}
+              </Text>
+            )}
+            <ScrollView style={styles.desgloseScroll} showsVerticalScrollIndicator={false}>
+              {desgloseTarjeta && (() => {
+                const items = obtenerGastosDesglose(desgloseTarjeta, desgloseTipo);
+                if (items.length === 0) {
+                  return (
+                    <Text style={[styles.desgloseSinDatos, { color: tema.colores.textoSecundario }]}>
+                      No hay gastos en este ciclo
+                    </Text>
+                  );
+                }
+                const total = items.reduce((s, g) => s + (g.montoEnMonedaBase ?? g.monto), 0);
+                return (
+                  <>
+                    {items.map(g => (
+                      <View key={g.id} style={[styles.desgloseItem, { borderBottomColor: tema.colores.bordes }]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.desgloseItemDesc, { color: tema.colores.texto }]}>
+                            {g.descripcion}
+                          </Text>
+                          <Text style={[styles.desgloseItemFecha, { color: tema.colores.textoSecundario }]}>
+                            {g.categoria} · {new Date(g.fecha).toLocaleDateString('es-GT', { day: 'numeric', month: 'short' })}
+                          </Text>
+                        </View>
+                        <Text style={[styles.desgloseItemMonto, { color: tema.colores.texto }]}>
+                          {tema.moneda}{(g.montoEnMonedaBase ?? g.monto).toFixed(2)}
+                        </Text>
+                      </View>
+                    ))}
+                    <View style={[styles.desgloseTotalFila, { borderTopColor: tema.colores.bordes }]}>
+                      <Text style={[styles.desgloseTotalLabel, { color: tema.colores.textoSecundario }]}>Total</Text>
+                      <Text style={[styles.desgloseTotalMonto, { color: desgloseTipo === 'pendiente' ? '#ef4444' : tema.colores.primario }]}>
+                        {tema.moneda}{total.toFixed(2)}
+                      </Text>
+                    </View>
+                  </>
+                );
+              })()}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -705,5 +880,121 @@ const styles = StyleSheet.create({
   botonPagarCicloTexto: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  // Resumen global
+  resumenGlobal: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
+  },
+  resumenGlobalTitulo: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  resumenGlobalFila: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  resumenGlobalItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  resumenGlobalDivisor: {
+    width: 1,
+    marginHorizontal: 8,
+  },
+  resumenGlobalEtiqueta: {
+    fontSize: 10,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  resumenGlobalMonto: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  resumenGlobalPie: {
+    fontSize: 10,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  // Countdown y ver detalle
+  countdownTexto: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  verDetalleTexto: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  // Modal Desglose
+  desgloseOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  desgloseContainer: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '70%',
+  },
+  desgloseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  desgloseTitulo: {
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  desgloseSubtitulo: {
+    fontSize: 12,
+    marginBottom: 14,
+  },
+  desgloseScroll: {
+    maxHeight: 400,
+  },
+  desgloseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  desgloseItemDesc: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  desgloseItemFecha: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  desgloseItemMonto: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  desgloseTotalFila: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    paddingBottom: 4,
+    borderTopWidth: 2,
+    marginTop: 4,
+  },
+  desgloseTotalLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  desgloseTotalMonto: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  desgloseSinDatos: {
+    textAlign: 'center',
+    paddingVertical: 30,
+    fontSize: 14,
   },
 });
