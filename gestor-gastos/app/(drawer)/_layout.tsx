@@ -5,6 +5,7 @@ import { DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navi
 import { View, Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useReprogramarRecordatorios } from '../src/hooks/useReprogramarRecordatorios';
+import { useNotificacionesTarjetas } from '../src/hooks/useNotificacionesTarjetas';
 
 function CustomDrawerContent(props: any) {
   const { tema } = useTema();
@@ -81,6 +82,7 @@ function CustomDrawerContent(props: any) {
 export default function DrawerLayout() {
   const { tema } = useTema();
   useReprogramarRecordatorios();
+  useNotificacionesTarjetas();
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: tema.colores.fondo }}>

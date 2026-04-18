@@ -1,6 +1,5 @@
 /**
  * Configuración de temas de la aplicación
- * Solo modo claro y oscuro
  */
 
 import { Tema } from '../types';
@@ -56,6 +55,41 @@ export const TEMAS: Tema[] = [
       otros: '📦',
     },
   },
+  {
+    // "La Orden" — sociedad secreta, control financiero en las sombras.
+    // Paleta flat & dark: cobre pulido como único acento cálido sobre pizarra casi negra.
+    id: 'orden',
+    nombre: 'La Orden',
+    emoji: '🜲',
+    colores: {
+      // Sala de juntas oscura — fondo que no distrae
+      fondo: '#121415',
+      // Superficie de cards apenas distinguible del fondo, sin romper la oscuridad
+      fondoSecundario: '#1A1D1E',
+      // Cobre pulido — el único color con vida; botones, saldos, íconos activos
+      primario: '#8B4A3C',
+      // Cobre ligeramente más claro para estados hover/activo
+      primarioClaro: '#D4926E',
+      // Mismo cobre como acento (coherencia visual en un sistema de un solo acento)
+      acento: '#C87D55',
+      // Separadores tan sutiles que no interrumpen la lectura
+      bordes: '#2A2D2F',
+      // Blanco hueso — nunca blanco puro para no romper la atmósfera
+      texto: '#E0E0E0',
+      // Gris con toque cobrizo para fechas, categorías y metadatos
+      textoSecundario: '#7A7068',
+    },
+    moneda: '$',
+    categorias: {
+      comida: '🍽️',
+      transporte: '🚘',
+      equipo: '🛒',
+      pociones: '☕',
+      vivienda: '🏠',
+      entrenamiento: '🏃',
+      otros: '📦',
+    },
+  }
 ];
 
 export const obtenerTema = (id: string): Tema => {

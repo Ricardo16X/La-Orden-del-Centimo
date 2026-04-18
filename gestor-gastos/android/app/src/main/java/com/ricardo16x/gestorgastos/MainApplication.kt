@@ -1,4 +1,4 @@
-package com.anonymous.gestorgastos
+package com.ricardo16x.gestorgastos
 
 import android.app.Application
 import android.content.res.Configuration

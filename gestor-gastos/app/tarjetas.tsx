@@ -10,7 +10,6 @@ import { ModalAgregarCuota } from './src/components/ModalAgregarCuota';
 import { VistaProyeccionCuotas } from './src/components/VistaProyeccionCuotas';
 import { SimuladorCuotas } from './src/components/SimuladorCuotas';
 import { TarjetaCredito } from './src/types';
-import { useNotificacionesTarjetas } from './src/hooks/useNotificacionesTarjetas';
 
 export default function TarjetasScreen() {
   const { tema } = useTema();
@@ -24,16 +23,16 @@ export default function TarjetasScreen() {
   const [desgloseTarjeta, setDesgloseTarjeta] = useState<TarjetaCredito | null>(null);
   const [desgloseTipo, setDesgloseTipo] = useState<'pendiente' | 'actual'>('pendiente');
 
-  useNotificacionesTarjetas();
-
   const { gastos } = useGastos();
 
-  // Calcula la fecha del último corte ocurrido (igual o antes de hoy)
+  // Calcula la fecha del último corte ocurrido (estrictamente antes de hoy).
+  // El día de corte es el ÚLTIMO día del ciclo (inclusivo): sus gastos aún pertenecen
+  // al ciclo en curso y solo se reflejan en "a pagar" a partir del día siguiente.
   const obtenerUltimoCorte = (tarjeta: TarjetaCredito): Date => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     const dia = hoy.getDate();
-    let mes = dia >= tarjeta.diaCorte ? hoy.getMonth() : hoy.getMonth() - 1;
+    let mes = dia > tarjeta.diaCorte ? hoy.getMonth() : hoy.getMonth() - 1;
     let anio = hoy.getFullYear();
     if (mes < 0) { mes = 11; anio -= 1; }
     const corte = new Date(anio, mes, tarjeta.diaCorte);

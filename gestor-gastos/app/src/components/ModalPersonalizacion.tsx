@@ -1,6 +1,7 @@
 import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity, Switch, TextInput } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useTema } from '../context/TemaContext';
+import { TEMAS } from '../constants/temas';
 
 interface Props {
   visible: boolean;
@@ -8,10 +9,9 @@ interface Props {
 }
 
 export const ModalPersonalizacion = ({ visible, onClose }: Props) => {
-  const { tema, modoOscuroAutomatico, toggleModoOscuroAutomatico, cambiarMoneda } = useTema();
+  const { tema, modoOscuroAutomatico, toggleModoOscuroAutomatico, cambiarTema, cambiarMoneda } = useTema();
   const [monedaInput, setMonedaInput] = useState(tema.moneda);
 
-  // Sincronizar el input local cuando cambie el tema
   useEffect(() => {
     setMonedaInput(tema.moneda);
   }, [tema.moneda]);
@@ -35,6 +35,60 @@ export const ModalPersonalizacion = ({ visible, onClose }: Props) => {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
+
+            {/* Selector de tema */}
+            <View style={[styles.seccion, {
+              backgroundColor: tema.colores.fondoSecundario,
+              borderColor: tema.colores.bordes,
+            }]}>
+              <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
+                Tema
+              </Text>
+              <Text style={[styles.descripcion, { color: tema.colores.textoSecundario }]}>
+                Elige el aspecto visual de la aplicación
+              </Text>
+              <View style={styles.temasGrid}>
+                {TEMAS.map(t => {
+                  const activo = tema.id === t.id && !modoOscuroAutomatico;
+                  return (
+                    <TouchableOpacity
+                      key={t.id}
+                      onPress={() => cambiarTema(t.id)}
+                      style={[
+                        styles.temaCard,
+                        {
+                          backgroundColor: t.colores.fondo,
+                          borderColor: activo ? t.colores.primario : tema.colores.bordes,
+                          borderWidth: activo ? 2 : 1,
+                        },
+                      ]}
+                    >
+                      {/* Franja de color primario */}
+                      <View style={[styles.temaFranja, { backgroundColor: t.colores.primario }]} />
+                      <View style={styles.temaCardBody}>
+                        <Text style={styles.temaCardEmoji}>{t.emoji}</Text>
+                        <Text style={[styles.temaCardNombre, { color: t.colores.texto }]}>
+                          {t.nombre}
+                        </Text>
+                        {/* Muestra de paleta */}
+                        <View style={styles.temaPaleta}>
+                          {[t.colores.primario, t.colores.acento, t.colores.fondoSecundario].map((color, i) => (
+                            <View
+                              key={i}
+                              style={[styles.temaDot, { backgroundColor: color }]}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                      {activo && (
+                        <Text style={[styles.temaActivo, { color: t.colores.primario }]}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* Modo Oscuro Automático */}
             <View style={[styles.seccion, {
               backgroundColor: tema.colores.fondoSecundario,
@@ -43,10 +97,10 @@ export const ModalPersonalizacion = ({ visible, onClose }: Props) => {
               <View style={styles.opcionConSwitch}>
                 <View style={styles.opcionInfo}>
                   <Text style={[styles.subtitulo, { color: tema.colores.primario, marginBottom: 4 }]}>
-                    Modo Oscuro Automático
+                    Modo Automático
                   </Text>
                   <Text style={[styles.descripcion, { color: tema.colores.textoSecundario }]}>
-                    El tema se ajustará según la configuración de tu dispositivo
+                    Cambia entre Claro y Oscuro según tu dispositivo
                   </Text>
                 </View>
                 <Switch
@@ -69,7 +123,6 @@ export const ModalPersonalizacion = ({ visible, onClose }: Props) => {
               <Text style={[styles.descripcion, { color: tema.colores.textoSecundario }]}>
                 Personaliza el símbolo que se muestra junto a los montos
               </Text>
-
               <View style={styles.monedaRow}>
                 <TextInput
                   style={[
@@ -100,21 +153,6 @@ export const ModalPersonalizacion = ({ visible, onClose }: Props) => {
               </View>
             </View>
 
-            {/* Información del tema */}
-            <View style={[styles.seccion, {
-              backgroundColor: tema.colores.fondoSecundario,
-              borderColor: tema.colores.bordes,
-            }]}>
-              <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-                Tema Actual
-              </Text>
-              <View style={styles.temaInfo}>
-                <Text style={[styles.temaEmoji]}>{tema.emoji}</Text>
-                <Text style={[styles.temaNombre, { color: tema.colores.texto }]}>
-                  {tema.nombre}
-                </Text>
-              </View>
-            </View>
           </ScrollView>
         </View>
       </View>
@@ -131,7 +169,7 @@ const styles = StyleSheet.create({
   },
   modal: {
     width: '90%',
-    maxHeight: '80%',
+    maxHeight: '85%',
     borderRadius: 20,
     padding: 20,
   },
@@ -165,6 +203,51 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     lineHeight: 20,
   },
+  // Selector de temas
+  temasGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  temaCard: {
+    flex: 1,
+    borderRadius: 10,
+    overflow: 'hidden',
+    minHeight: 100,
+  },
+  temaFranja: {
+    height: 4,
+  },
+  temaCardBody: {
+    padding: 10,
+    alignItems: 'center',
+    gap: 4,
+  },
+  temaCardEmoji: {
+    fontSize: 20,
+  },
+  temaCardNombre: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  temaPaleta: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 4,
+  },
+  temaDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  temaActivo: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  // Modo automático
   opcionConSwitch: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -174,6 +257,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  // Moneda
   monedaRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -191,17 +275,5 @@ const styles = StyleSheet.create({
   },
   ejemploMoneda: {
     fontSize: 14,
-  },
-  temaInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  temaEmoji: {
-    fontSize: 24,
-  },
-  temaNombre: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

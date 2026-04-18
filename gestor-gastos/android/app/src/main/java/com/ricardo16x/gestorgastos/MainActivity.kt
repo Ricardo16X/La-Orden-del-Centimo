@@ -1,4 +1,4 @@
-package com.anonymous.gestorgastos
+package com.ricardo16x.gestorgastos
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
