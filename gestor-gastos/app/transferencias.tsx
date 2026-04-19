@@ -1,7 +1,9 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { useState } from 'react';
-import { router } from 'expo-router';
 import { useTema } from './src/context/TemaContext';
+import { useToast } from './src/context/ToastContext';
+import { EstadoVacio } from './src/components/EstadoVacio';
+import { BotonAnimado } from './src/components/BotonAnimado';
 import { useGastos } from './src/context/GastosContext';
 import { useMonedas } from './src/context/MonedasContext';
 import { generarId } from './src/utils';
@@ -16,6 +18,7 @@ interface TransferenciaAgrupada {
 
 export default function TransferenciasScreen() {
   const { tema } = useTema();
+  const { showToast } = useToast();
   const { gastos, agregarGasto, eliminarGasto } = useGastos();
   const { monedas, monedaBase } = useMonedas();
 
@@ -229,13 +232,6 @@ export default function TransferenciasScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
-        </TouchableOpacity>
-        <View style={{ width: 70 }} />
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {!mostrarFormulario ? (
           <>
@@ -284,29 +280,25 @@ export default function TransferenciasScreen() {
                 })}
               </View>
             ) : (
-              <View style={styles.vacio}>
-                <Text style={{ fontSize: 60, textAlign: 'center', marginBottom: 15 }}>💱</Text>
-                <Text style={[styles.vacioTitulo, { color: tema.colores.texto }]}>
-                  Sin transferencias
-                </Text>
-                <Text style={[styles.vacioTexto, { color: tema.colores.textoSecundario }]}>
-                  Registra cambios de divisa para mantener tu balance por moneda actualizado
-                </Text>
-              </View>
+              <EstadoVacio
+                emoji="💱"
+                titulo="Sin transferencias"
+                subtitulo="Registra cambios de divisa para mantener tu balance por moneda actualizado"
+              />
             )}
 
-            <TouchableOpacity
+            <BotonAnimado
               style={[styles.botonAgregar, { backgroundColor: tema.colores.primario }]}
               onPress={() => {
                 if (monedas.length < 2) {
-                  Alert.alert('Aviso', 'Necesitas al menos 2 monedas configuradas para hacer transferencias. Ve a Perfil > Monedas para agregar más.');
+                  showToast('Necesitas al menos 2 monedas para transferir. Configúralas en Perfil → Monedas', 'info');
                   return;
                 }
                 setMostrarFormulario(true);
               }}
             >
               <Text style={styles.botonAgregarTexto}>+ Nueva Transferencia</Text>
-            </TouchableOpacity>
+            </BotonAnimado>
           </>
         ) : (
           <>
@@ -441,12 +433,12 @@ export default function TransferenciasScreen() {
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <BotonAnimado
                   style={[styles.botonGuardar, { backgroundColor: tema.colores.primario }]}
                   onPress={handleGuardar}
                 >
                   <Text style={styles.botonGuardarTexto}>Transferir</Text>
-                </TouchableOpacity>
+                </BotonAnimado>
               </View>
             </View>
           </>
@@ -459,7 +451,7 @@ export default function TransferenciasScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
+    paddingTop: 10,
     paddingHorizontal: 20,
   },
   header: {
@@ -467,10 +459,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-  },
-  botonVolver: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   lista: {
     marginBottom: 15,
@@ -497,14 +485,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   itemMontoOrigen: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   itemFlecha: {
     fontSize: 14,
   },
   itemMontoDestino: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   itemFecha: {
@@ -513,20 +501,6 @@ const styles = StyleSheet.create({
   },
   botonEliminar: {
     marginLeft: 8,
-  },
-  vacio: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  vacioTitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  vacioTexto: {
-    fontSize: 14,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
   botonAgregar: {
     padding: 15,
@@ -544,7 +518,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     marginTop: 12,
@@ -568,7 +542,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   monedaTexto: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   preview: {

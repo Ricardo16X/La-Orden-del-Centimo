@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useTema } from '../context/TemaContext';
 import { useCuotas } from '../context/CuotasContext';
+import { useMonedas } from '../context/MonedasContext';
 
 interface Props {
   variant?: 'widget' | 'full-width';
@@ -9,6 +10,8 @@ interface Props {
 export const VistaProyeccionCuotas = ({ variant = 'widget' }: Props) => {
   const { tema } = useTema();
   const { obtenerProyeccionCuotas } = useCuotas();
+  const { monedaBase } = useMonedas();
+  const simbolo = monedaBase?.simbolo ?? simbolo;
 
   const proyecciones = obtenerProyeccionCuotas(6);
 
@@ -71,7 +74,7 @@ export const VistaProyeccionCuotas = ({ variant = 'widget' }: Props) => {
                     styles.mesMonto,
                     { color: esEstesMes ? '#fff' : tema.colores.texto }
                   ]}>
-                    {tema.moneda}{proyeccion.totalCuotas.toFixed(2)}
+                    {simbolo}{proyeccion.totalCuotas.toFixed(2)}
                   </Text>
 
                   {proyeccion.cuotasQueFinal.length > 0 && (

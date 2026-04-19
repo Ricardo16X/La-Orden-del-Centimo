@@ -1,6 +1,7 @@
-import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
+import { useToast } from '../context/ToastContext';
 import { useTarjetas } from '../context/TarjetasContext';
 
 interface Props {
@@ -17,6 +18,7 @@ const COLORES_TARJETA = [
 
 export const ModalGestionarTarjetas = ({ visible, onClose }: Props) => {
   const { tema } = useTema();
+  const { showToast } = useToast();
   const { tarjetas, agregarTarjeta, eliminarTarjeta, obtenerEstadoTarjeta } = useTarjetas();
 
   const [nombre, setNombre] = useState('');
@@ -37,29 +39,29 @@ export const ModalGestionarTarjetas = ({ visible, onClose }: Props) => {
 
   const handleAgregar = () => {
     if (!nombre.trim()) {
-      Alert.alert('Error', 'Por favor ingresa el nombre de la tarjeta');
+      showToast('Por favor ingresa el nombre de la tarjeta', 'error');
       return;
     }
 
     if (!banco.trim()) {
-      Alert.alert('Error', 'Por favor ingresa el banco');
+      showToast('Por favor ingresa el banco', 'error');
       return;
     }
 
     if (ultimosCuatro.length !== 4 || !/^\d+$/.test(ultimosCuatro)) {
-      Alert.alert('Error', 'Los últimos 4 dígitos deben ser exactamente 4 números');
+      showToast('Los últimos 4 dígitos deben ser exactamente 4 números', 'error');
       return;
     }
 
     const corte = parseInt(diaCorte);
     if (isNaN(corte) || corte < 1 || corte > 31) {
-      Alert.alert('Error', 'El día de corte debe estar entre 1 y 31');
+      showToast('El día de corte debe estar entre 1 y 31', 'error');
       return;
     }
 
     const pago = parseInt(diaPago);
     if (isNaN(pago) || pago < 1 || pago > 31) {
-      Alert.alert('Error', 'El día de pago debe estar entre 1 y 31');
+      showToast('El día de pago debe estar entre 1 y 31', 'error');
       return;
     }
 
@@ -73,7 +75,7 @@ export const ModalGestionarTarjetas = ({ visible, onClose }: Props) => {
     });
 
     resetFormulario();
-    Alert.alert('Éxito', 'Tarjeta agregada correctamente');
+    showToast('Tarjeta agregada correctamente');
   };
 
   const handleEliminar = (id: string, nombreTarjeta: string) => {
@@ -87,7 +89,7 @@ export const ModalGestionarTarjetas = ({ visible, onClose }: Props) => {
           style: 'destructive',
           onPress: () => {
             eliminarTarjeta(id);
-            Alert.alert('Eliminada', 'Tarjeta eliminada correctamente');
+            showToast('Tarjeta eliminada correctamente');
           },
         },
       ]
@@ -319,7 +321,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   titulo: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
   },
   cerrar: {
@@ -333,12 +335,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   subtitulo: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     marginTop: 10,
@@ -409,7 +411,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tarjetaNombre: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
   },

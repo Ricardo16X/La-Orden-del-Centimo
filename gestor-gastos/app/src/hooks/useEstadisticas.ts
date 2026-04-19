@@ -200,6 +200,29 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
     };
   }, [gastos]);
 
+  const gastosPorCategoriaMes = useMemo<EstadisticasCategoria[]>(() => {
+    const hoy = new Date();
+    const mesActual = hoy.getMonth();
+    const anioActual = hoy.getFullYear();
+
+    return categorias
+      .map(categoria => {
+        const gastosCategoria = gastos.filter(g => {
+          const f = new Date(g.fecha);
+          return (
+            g.categoria === categoria.id &&
+            g.tipo === 'gasto' &&
+            f.getMonth() === mesActual &&
+            f.getFullYear() === anioActual
+          );
+        });
+        const total = gastosCategoria.reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0);
+        return { ...categoria, cantidad: gastosCategoria.length, total };
+      })
+      .filter(c => c.cantidad > 0)
+      .sort((a, b) => b.total - a.total);
+  }, [gastos, categorias]);
+
   const comparativaPorCategoria = useMemo(() => {
     const hoy = new Date();
     const meses: { label: string; mes: number; anio: number }[] = [];
@@ -233,6 +256,7 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
 
   return {
     gastosPorCategoria,
+    gastosPorCategoriaMes,
     totalGastos,
     promedioGastos,
     gastoMayorCategoria,

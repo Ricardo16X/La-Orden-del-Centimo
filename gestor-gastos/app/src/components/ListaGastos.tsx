@@ -1,6 +1,7 @@
 import { FlatList, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Gasto } from '../types';
 import { useTema } from '../context/TemaContext';
+import { EstadoVacio } from './EstadoVacio';
 import { useCategorias } from '../context/CategoriasContext';
 import { useMonedas } from '../context/MonedasContext';
 import { formatearFechaCompacta } from '../utils/date';
@@ -74,9 +75,11 @@ export const ListaGastos = ({ gastos, onEliminar, onEditar }: Props) => {
         );
       }}
       ListEmptyComponent={
-        <Text style={[styles.vacio, { color: tema?.colores?.textoSecundario || '#c9b08a' }]}>
-          Tu diario está vacío. ¡Comienza tu aventura financiera!
-        </Text>
+        <EstadoVacio
+          emoji="📭"
+          titulo="Tu diario está vacío"
+          subtitulo="¡Comienza tu aventura financiera registrando tu primer gasto!"
+        />
       }
     />
   );

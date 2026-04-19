@@ -2,12 +2,15 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTema } from '../context/TemaContext';
 import { useAlertasTarjetas } from '../hooks/useAlertasTarjetas';
 import { useCuotas } from '../context/CuotasContext';
+import { useMonedas } from '../context/MonedasContext';
 import { router } from 'expo-router';
 
 export const ResumenTarjetas = () => {
   const { tema } = useTema();
   const { alertas, tarjetasSeguras } = useAlertasTarjetas();
   const { obtenerTotalCuotasMensual } = useCuotas();
+  const { monedaBase } = useMonedas();
+  const simbolo = monedaBase?.simbolo ?? simbolo;
 
   const totalCuotasMensual = obtenerTotalCuotasMensual();
 
@@ -126,7 +129,7 @@ export const ResumenTarjetas = () => {
                   Cuotas mensuales
                 </Text>
                 <Text style={[styles.cuotasMonto, { color: tema.colores.texto }]}>
-                  {tema.moneda}{totalCuotasMensual.toFixed(2)}/mes
+                  {simbolo}{totalCuotasMensual.toFixed(2)}/mes
                 </Text>
               </View>
             </View>
@@ -149,7 +152,7 @@ export const ResumenTarjetas = () => {
           {totalCuotasMensual > 0 && (
             <View style={[styles.cuotasInfoCompacta, { backgroundColor: tema.colores.fondoSecundario }]}>
               <Text style={[styles.cuotasCompactaTexto, { color: tema.colores.textoSecundario }]}>
-                📦 {tema.moneda}{totalCuotasMensual.toFixed(2)}/mes en cuotas
+                📦 {simbolo}{totalCuotasMensual.toFixed(2)}/mes en cuotas
               </Text>
             </View>
           )}

@@ -1,13 +1,16 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { useState, useEffect } from 'react';
-import { router } from 'expo-router';
 import { useTema } from './src/context/TemaContext';
+import { useToast } from './src/context/ToastContext';
+import { EstadoVacio } from './src/components/EstadoVacio';
+import { BotonAnimado } from './src/components/BotonAnimado';
 import { useRecordatorios } from './src/context/RecordatoriosContext';
 import { useNotificaciones } from './src/hooks/useNotificaciones';
 import { Recordatorio, FrecuenciaRecordatorio } from './src/types';
 
 export default function RecordatoriosScreen() {
   const { tema } = useTema();
+  const { showToast } = useToast();
   const { recordatorios, agregarRecordatorio, editarRecordatorio, eliminarRecordatorio, toggleRecordatorio } = useRecordatorios();
   const { programarNotificacion, cancelarNotificacion, permisoConcedido } = useNotificaciones();
 
@@ -126,13 +129,6 @@ export default function RecordatoriosScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
-        </TouchableOpacity>
-        <View style={{ width: 70 }} />
-      </View>
-
             {!permisoConcedido && (
             <View style={[styles.alerta, {
               backgroundColor: `${tema.colores.acento}20`,
@@ -189,20 +185,20 @@ export default function RecordatoriosScreen() {
                     ))}
                   </View>
                 ) : (
-                  <View style={styles.vacio}>
-                    <Text style={[styles.vacioTexto, { color: tema.colores.textoSecundario }]}>
-                      No tienes recordatorios configurados
-                    </Text>
-                  </View>
+                  <EstadoVacio
+                    emoji="🔔"
+                    titulo="No tienes recordatorios configurados"
+                    subtitulo="Agrega un recordatorio para no olvidar tus pagos"
+                  />
                 )}
 
                 {/* Botón agregar */}
-                <TouchableOpacity
+                <BotonAnimado
                   style={[styles.botonAgregar, { backgroundColor: tema.colores.primario }]}
                   onPress={() => setMostrarFormulario(true)}
                 >
                   <Text style={styles.botonAgregarTexto}>+ Nuevo Recordatorio</Text>
-                </TouchableOpacity>
+                </BotonAnimado>
               </>
             ) : (
               <>
@@ -344,12 +340,12 @@ export default function RecordatoriosScreen() {
                       </Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity
+                    <BotonAnimado
                       style={[styles.botonGuardar, { backgroundColor: tema.colores.primario }]}
                       onPress={handleAgregar}
                     >
                       <Text style={styles.botonGuardarTexto}>Guardar</Text>
-                    </TouchableOpacity>
+                    </BotonAnimado>
                   </View>
                 </View>
               </>
@@ -362,26 +358,8 @@ export default function RecordatoriosScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
+    paddingTop: 10,
     paddingHorizontal: 20,
-  },
-  botonVolver: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  titulo: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  cerrar: {
-    fontSize: 28,
-    fontWeight: 'bold',
   },
   alerta: {
     padding: 12,
@@ -407,7 +385,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   recordatorioTitulo: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
   },
@@ -426,15 +404,6 @@ const styles = StyleSheet.create({
   botonEliminar: {
     marginTop: 8,
   },
-  vacio: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  vacioTexto: {
-    fontSize: 16,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
   botonAgregar: {
     padding: 15,
     borderRadius: 12,
@@ -450,7 +419,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     marginTop: 12,
@@ -477,7 +446,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   frecuenciaTexto: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   botonesFormulario: {

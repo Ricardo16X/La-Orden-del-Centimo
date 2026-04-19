@@ -67,11 +67,11 @@ export const TEMAS: Tema[] = [
       // Superficie de cards apenas distinguible del fondo, sin romper la oscuridad
       fondoSecundario: '#1A1D1E',
       // Cobre pulido — el único color con vida; botones, saldos, íconos activos
-      primario: '#8B4A3C',
-      // Cobre ligeramente más claro para estados hover/activo
+      primario: '#C87D55',
+      // Cobre más claro para estados hover/activo
       primarioClaro: '#D4926E',
-      // Mismo cobre como acento (coherencia visual en un sistema de un solo acento)
-      acento: '#C87D55',
+      // Cobre más oscuro para acentos secundarios
+      acento: '#A0563A',
       // Separadores tan sutiles que no interrumpen la lectura
       bordes: '#2A2D2F',
       // Blanco hueso — nunca blanco puro para no romper la atmósfera

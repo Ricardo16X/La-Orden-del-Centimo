@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
+import { useToast } from '../context/ToastContext';
 import { useBackup } from '../hooks';
 import { ModalPersonalizacion } from '../components/ModalPersonalizacion';
 import { ModalExportar } from '../components/ModalExportar';
@@ -8,6 +9,7 @@ import { ModalConfiguracionMonedas } from '../components/ModalConfiguracionMoned
 
 export const PerfilScreen = () => {
   const { tema } = useTema();
+  const { showToast } = useToast();
   const { crearBackup, restaurarBackup } = useBackup();
 
   const [modalPersonalizacionVisible, setModalPersonalizacionVisible] = useState(false);
@@ -16,11 +18,6 @@ export const PerfilScreen = () => {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      <Text style={[styles.titulo, { color: tema.colores.primario }]}>👤 Tu Perfil</Text>
-      <Text style={[styles.subtitulo, { color: tema.colores.textoSecundario }]}>
-        Configuración y preferencias
-      </Text>
-
       {/* Menú de opciones */}
       <View style={styles.menu}>
         {/* Personalización */}
@@ -98,7 +95,7 @@ export const PerfilScreen = () => {
           onPress={async () => {
             const exito = await crearBackup();
             if (exito) {
-              Alert.alert('Éxito', 'Copia de seguridad creada correctamente');
+              showToast('Copia de seguridad creada correctamente');
             }
           }}
         >
@@ -163,17 +160,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 20,
     paddingHorizontal: 20,
-  },
-  titulo: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitulo: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 20,
   },
   menu: {
     gap: 15,

@@ -17,6 +17,7 @@ import {
   Platform,
 } from 'react-native';
 import { useTema } from '../context/TemaContext';
+import { useToast } from '../context/ToastContext';
 import { useMonedas } from '../context/MonedasContext';
 import { MONEDAS_DISPONIBLES, obtenerMonedaPorCodigo } from '../constants/monedas';
 
@@ -27,6 +28,7 @@ interface Props {
 
 export const ModalConfiguracionMonedas = ({ visible, onClose }: Props) => {
   const { tema } = useTema();
+  const { showToast } = useToast();
   const {
     monedas,
     monedaBase,
@@ -63,9 +65,9 @@ export const ModalConfiguracionMonedas = ({ visible, onClose }: Props) => {
       setModoAgregar(false);
       setCodigoSeleccionado('');
       setTipoCambioInput('');
-      Alert.alert('Éxito', 'Moneda agregada correctamente');
+      showToast('Moneda agregada correctamente');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showToast(error.message, 'error');
     }
   };
 
@@ -81,9 +83,9 @@ export const ModalConfiguracionMonedas = ({ visible, onClose }: Props) => {
           onPress: async () => {
             try {
               await eliminarMoneda(codigo);
-              Alert.alert('Éxito', 'Moneda eliminada');
+              showToast('Moneda eliminada');
             } catch (error: any) {
-              Alert.alert('Error', error.message);
+              showToast(error.message, 'error');
             }
           },
         },
@@ -102,9 +104,9 @@ export const ModalConfiguracionMonedas = ({ visible, onClose }: Props) => {
       await actualizarTipoCambio(codigo, tipoCambio);
       setEditando(null);
       setNuevoTipoCambio('');
-      Alert.alert('Éxito', 'Tipo de cambio actualizado');
+      showToast('Tipo de cambio actualizado');
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      showToast(error.message, 'error');
     }
   };
 
@@ -119,9 +121,9 @@ export const ModalConfiguracionMonedas = ({ visible, onClose }: Props) => {
           onPress: async () => {
             try {
               await cambiarMonedaBase(codigo);
-              Alert.alert('Éxito', `${codigo} es ahora tu moneda base`);
+              showToast(`${codigo} es ahora tu moneda base`);
             } catch (error: any) {
-              Alert.alert('Error', error.message);
+              showToast(error.message, 'error');
             }
           },
         },
@@ -450,7 +452,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   subtitulo: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     marginBottom: 12,
     marginTop: 8,
@@ -476,7 +478,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   monedaNombre: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
   },
@@ -549,7 +551,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     marginBottom: 8,
     marginTop: 12,
@@ -592,7 +594,7 @@ const styles = StyleSheet.create({
   },
   botonFormularioTexto: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
   },
   limiteTexto: {

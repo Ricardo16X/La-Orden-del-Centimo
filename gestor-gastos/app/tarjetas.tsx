@@ -1,10 +1,13 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal } from 'react-native';
-import { useState } from 'react';
-import { router } from 'expo-router';
+import { useState, useEffect } from 'react';
 import { useTema } from './src/context/TemaContext';
+import { useToast } from './src/context/ToastContext';
+import { EstadoVacio } from './src/components/EstadoVacio';
+import { BotonAnimado } from './src/components/BotonAnimado';
 import { useTarjetas } from './src/context/TarjetasContext';
 import { useCuotas } from './src/context/CuotasContext';
 import { useGastos } from './src/context/GastosContext';
+import { useMonedas } from './src/context/MonedasContext';
 import { ModalAgregarTarjeta } from './src/components/ModalAgregarTarjeta';
 import { ModalAgregarCuota } from './src/components/ModalAgregarCuota';
 import { VistaProyeccionCuotas } from './src/components/VistaProyeccionCuotas';
@@ -13,8 +16,15 @@ import { TarjetaCredito } from './src/types';
 
 export default function TarjetasScreen() {
   const { tema } = useTema();
+  const { showToast } = useToast();
   const { tarjetas, eliminarTarjeta, obtenerEstadoTarjeta, editarTarjeta } = useTarjetas();
   const { obtenerEstadisticasTarjeta, eliminarCuota, registrarPagoCuota } = useCuotas();
+  const { monedaBase } = useMonedas();
+  const simbolo = monedaBase?.simbolo ?? tema.moneda;
+  const c = tema.colores;
+
+  const [tarjetaActivaId, setTarjetaActivaId] = useState<string | null>(null);
+  const [cuotasExpandido, setCuotasExpandido] = useState(false);
   const [modalTarjetaVisible, setModalTarjetaVisible] = useState(false);
   const [modalCuotaVisible, setModalCuotaVisible] = useState(false);
   const [tarjetaSeleccionada, setTarjetaSeleccionada] = useState<{ id: string; nombre: string } | null>(null);
@@ -25,9 +35,42 @@ export default function TarjetasScreen() {
 
   const { gastos } = useGastos();
 
-  // Calcula la fecha del último corte ocurrido (estrictamente antes de hoy).
-  // El día de corte es el ÚLTIMO día del ciclo (inclusivo): sus gastos aún pertenecen
-  // al ciclo en curso y solo se reflejan en "a pagar" a partir del día siguiente.
+  // Sincronizar tarjeta activa cuando cambia la lista
+  useEffect(() => {
+    if (tarjetas.length === 0) { setTarjetaActivaId(null); return; }
+    if (!tarjetaActivaId || !tarjetas.find(t => t.id === tarjetaActivaId)) {
+      setTarjetaActivaId(tarjetas[0].id);
+    }
+  }, [tarjetas]);
+
+  const tarjetaActiva = tarjetas.find(t => t.id === tarjetaActivaId) ?? null;
+
+  const seleccionarTarjeta = (id: string) => {
+    if (id !== tarjetaActivaId) {
+      setTarjetaActivaId(id);
+      setCuotasExpandido(false);
+    }
+  };
+
+  // ─── Contraste de texto sobre color de tarjeta ──────────────────────────────
+
+  const obtenerColoresTextoTarjeta = (hex: string) => {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const lin = (c: number) => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    const oscuro = L > 0.35;
+    return {
+      primario:    oscuro ? 'rgba(0,0,0,0.85)'  : '#fff',
+      secundario:  oscuro ? 'rgba(0,0,0,0.55)'  : 'rgba(255,255,255,0.75)',
+      tenue:       oscuro ? 'rgba(0,0,0,0.40)'  : 'rgba(255,255,255,0.6)',
+      botonBg:     oscuro ? 'rgba(0,0,0,0.20)'  : 'rgba(0,0,0,0.40)',
+    };
+  };
+
+  // ─── Lógica de balances (sin cambios) ───────────────────────────────────────
+
   const obtenerUltimoCorte = (tarjeta: TarjetaCredito): Date => {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -40,55 +83,27 @@ export default function TarjetasScreen() {
     return corte;
   };
 
-  /**
-   * Separa los gastos de la tarjeta en dos ventanas:
-   *
-   * consumoPendientePago: gastos del ciclo YA CERRADO (corte previo → último corte).
-   *   Esto es lo que aparecerá en el estado de cuenta y debe pagarse antes del día de pago.
-   *   Se pone en 0 si el usuario ya registró el pago de este corte.
-   *
-   * consumoCicloActual: gastos del ciclo ABIERTO (después del último corte → hoy).
-   *   Estos NO se incluyen en el pago actual; se acumularán hasta el próximo corte.
-   */
   const obtenerBalancesTarjeta = (tarjeta: TarjetaCredito) => {
     const ultimoCorte = obtenerUltimoCorte(tarjeta);
-
     const cortePrevio = new Date(ultimoCorte);
     cortePrevio.setMonth(cortePrevio.getMonth() - 1);
-
-    // ¿Ya se registró el pago de este estado de cuenta?
     const yaPageado = tarjeta.ultimoPago
       ? new Date(tarjeta.ultimoPago) >= ultimoCorte
       : false;
-
     const gastosTarjeta = gastos.filter(g => g.tarjetaId === tarjeta.id && g.tipo === 'gasto');
-
-    // Ciclo cerrado: desde el día después del corte previo hasta el último corte (inclusive)
     const consumoPendientePago = yaPageado ? 0 : gastosTarjeta
-      .filter(g => {
-        const f = new Date(g.fecha);
-        f.setHours(0, 0, 0, 0);
-        return f > cortePrevio && f <= ultimoCorte;
-      })
+      .filter(g => { const f = new Date(g.fecha); f.setHours(0,0,0,0); return f > cortePrevio && f <= ultimoCorte; })
       .reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0);
-
-    // Ciclo abierto: estrictamente después del último corte hasta hoy
     const consumoCicloActual = gastosTarjeta
-      .filter(g => {
-        const f = new Date(g.fecha);
-        f.setHours(0, 0, 0, 0);
-        return f > ultimoCorte;
-      })
+      .filter(g => { const f = new Date(g.fecha); f.setHours(0,0,0,0); return f > ultimoCorte; })
       .reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0);
-
     return { consumoPendientePago, consumoCicloActual, ultimoCorte, yaPageado };
   };
 
   const obtenerDiasHastaPago = (tarjeta: TarjetaCredito, ultimoCorte: Date): number => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
     const fechaPago = new Date(ultimoCorte.getFullYear(), ultimoCorte.getMonth() + 1, tarjeta.diaPago);
-    fechaPago.setHours(0, 0, 0, 0);
+    fechaPago.setHours(0,0,0,0);
     return Math.round((fechaPago.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
   };
 
@@ -99,30 +114,42 @@ export default function TarjetasScreen() {
     return gastos
       .filter(g => {
         if (g.tarjetaId !== tarjeta.id || g.tipo !== 'gasto') return false;
-        const f = new Date(g.fecha);
-        f.setHours(0, 0, 0, 0);
-        return tipo === 'pendiente'
-          ? f > cortePrevio && f <= ultimoCorte
-          : f > ultimoCorte;
+        const f = new Date(g.fecha); f.setHours(0,0,0,0);
+        return tipo === 'pendiente' ? f > cortePrevio && f <= ultimoCorte : f > ultimoCorte;
       })
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
   };
+
+  // ─── Urgencia de chips ───────────────────────────────────────────────────────
+
+  const obtenerUrgenciaChip = (tarjeta: TarjetaCredito): 'pago' | 'corte' | 'ok' => {
+    const { consumoPendientePago, ultimoCorte } = obtenerBalancesTarjeta(tarjeta);
+    if (consumoPendientePago > 0) return 'pago';
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const proximoCorte = new Date(ultimoCorte.getFullYear(), ultimoCorte.getMonth() + 1, tarjeta.diaCorte);
+    const dias = Math.round((proximoCorte.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+    if (dias <= 5) return 'corte';
+    return 'ok';
+  };
+
+  const prioridadUrgencia = { pago: 0, corte: 1, ok: 2 };
+  const tarjetasOrdenadas = [...tarjetas].sort((a, b) =>
+    prioridadUrgencia[obtenerUrgenciaChip(a)] - prioridadUrgencia[obtenerUrgenciaChip(b)]
+  );
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
 
   const handleRegistrarPagoCiclo = (tarjeta: TarjetaCredito) => {
     const { consumoPendientePago, ultimoCorte } = obtenerBalancesTarjeta(tarjeta);
     Alert.alert(
       '💳 Registrar pago',
-      `¿Confirmar pago de ${tema.moneda}${consumoPendientePago.toFixed(2)} de "${tarjeta.nombre}"?\n\nCorresponde al ciclo cerrado el día ${tarjeta.diaCorte}. Los gastos del nuevo ciclo no se incluyen.`,
+      `¿Confirmar pago de ${simbolo}${consumoPendientePago.toFixed(2)} de "${tarjeta.nombre}"?\n\nCorresponde al ciclo cerrado el día ${tarjeta.diaCorte}.`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar pago',
-          onPress: () => {
-            // Guardamos la fecha del CORTE pagado (no la de hoy) para que la lógica sea precisa
-            editarTarjeta(tarjeta.id, { ultimoPago: ultimoCorte.toISOString() });
-            Alert.alert('✅ Pago registrado', `El estado de cuenta quedó en ${tema.moneda}0.00.`);
-          },
-        },
+        { text: 'Confirmar', onPress: () => {
+          editarTarjeta(tarjeta.id, { ultimoPago: ultimoCorte.toISOString() });
+          showToast('Pago registrado correctamente');
+        }},
       ]
     );
   };
@@ -132,448 +159,372 @@ export default function TarjetasScreen() {
     setModalTarjetaVisible(true);
   };
 
-  const handleEliminar = (id: string, nombreTarjeta: string) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      `¿Estás seguro de eliminar la tarjeta ${nombreTarjeta}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            eliminarTarjeta(id);
-            Alert.alert('Eliminada', 'Tarjeta eliminada correctamente');
-          },
-        },
-      ]
-    );
-  };
-
-  const handleAgregarCuota = (tarjetaId: string, nombreTarjeta: string) => {
-    setTarjetaSeleccionada({ id: tarjetaId, nombre: nombreTarjeta });
-    setModalCuotaVisible(true);
+  const handleEliminar = (id: string, nombre: string) => {
+    Alert.alert('Confirmar eliminación', `¿Eliminar la tarjeta "${nombre}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: () => {
+        eliminarTarjeta(id);
+        showToast('Tarjeta eliminada');
+      }},
+    ]);
   };
 
   const handleEliminarCuota = (cuotaId: string, descripcion: string) => {
-    Alert.alert(
-      'Confirmar eliminación',
-      `¿Estás seguro de eliminar la cuota "${descripcion}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => {
-            eliminarCuota(cuotaId);
-            Alert.alert('Eliminada', 'Cuota eliminada correctamente');
-          },
-        },
-      ]
-    );
+    Alert.alert('Confirmar eliminación', `¿Eliminar la cuota "${descripcion}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: () => {
+        eliminarCuota(cuotaId);
+        showToast('Cuota eliminada');
+      }},
+    ]);
   };
 
   const handleRegistrarPago = (cuotaId: string, descripcion: string, cuotasPagadas: number, totalCuotas: number) => {
-    if (cuotasPagadas >= totalCuotas) {
-      Alert.alert('Info', 'Esta cuota ya está completamente pagada');
-      return;
-    }
-
-    Alert.alert(
-      'Registrar pago',
-      `¿Confirmar pago de la cuota ${cuotasPagadas + 1}/${totalCuotas} de "${descripcion}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Registrar',
-          onPress: () => {
-            registrarPagoCuota(cuotaId);
-            Alert.alert('Éxito', 'Pago registrado correctamente');
-          },
-        },
-      ]
-    );
+    if (cuotasPagadas >= totalCuotas) { showToast('Esta cuota ya está completamente pagada', 'info'); return; }
+    Alert.alert('Registrar pago', `¿Confirmar cuota ${cuotasPagadas + 1}/${totalCuotas} de "${descripcion}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Registrar', onPress: () => { registrarPagoCuota(cuotaId); showToast('Pago registrado'); }},
+    ]);
   };
 
-  const resumenGlobal = tarjetas.reduce((acc, t) => {
-    const { consumoPendientePago, consumoCicloActual } = obtenerBalancesTarjeta(t);
-    const est = obtenerEstadisticasTarjeta(t.id);
-    return {
-      totalPendiente: acc.totalPendiente + consumoPendientePago,
-      totalActual: acc.totalActual + consumoCicloActual,
-      totalLimite: acc.totalLimite + (t.limiteCredito ?? 0),
-      totalDeuda: acc.totalDeuda + consumoPendientePago + consumoCicloActual + est.totalPendiente,
-    };
-  }, { totalPendiente: 0, totalActual: 0, totalLimite: 0, totalDeuda: 0 });
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
-        </TouchableOpacity>
-        <View style={{ width: 70 }} />
-      </View>
+    <View style={[styles.container, { backgroundColor: c.fondo }]}>
+      {tarjetas.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <EstadoVacio
+            emoji="💳"
+            titulo="No tienes tarjetas registradas"
+            subtitulo='Toca el botón "+" para agregar tu primera tarjeta'
+          />
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-      {/* Lista de Tarjetas */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        {tarjetas.length === 0 ? (
-          // Estado vacío
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>💳</Text>
-            <Text style={[styles.emptyTitulo, { color: tema.colores.texto }]}>
-              No tienes tarjetas registradas
-            </Text>
-            <Text style={[styles.emptyDescripcion, { color: tema.colores.textoSecundario }]}>
-              Toca el botón ➕ para agregar tu primera tarjeta
-            </Text>
-          </View>
-        ) : (
-          // Lista de tarjetas
-          <View>
-            <Text style={[styles.descripcion, { color: tema.colores.textoSecundario }]}>
-              Gestiona tus tarjetas de crédito y mantén el control de fechas importantes
-            </Text>
+          {/* ── 1. Chips selector ── */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipsContainer}
+          >
+            {tarjetasOrdenadas.map(t => {
+              const urgencia = obtenerUrgenciaChip(t);
+              const activa = t.id === tarjetaActivaId;
+              const colorUrgencia = urgencia === 'pago' ? '#ef4444' : urgencia === 'corte' ? '#f59e0b' : '#10b981';
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  onPress={() => seleccionarTarjeta(t.id)}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: activa ? c.fondoSecundario : c.fondo,
+                      borderColor: activa ? t.color : c.bordes,
+                    },
+                  ]}
+                >
+                  <View style={[styles.chipAccent, { backgroundColor: t.color }]} />
+                  <Text style={[styles.chipNombre, { color: activa ? c.texto : c.textoSecundario }]} numberOfLines={1}>
+                    {t.nombre}
+                  </Text>
+                  <View style={[styles.chipDot, { backgroundColor: colorUrgencia }]} />
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
-            {/* Resumen global de todas las tarjetas */}
-            {tarjetas.length > 1 && (
-              <View style={[styles.resumenGlobal, { backgroundColor: tema.colores.fondoSecundario, borderColor: tema.colores.bordes }]}>
-                <Text style={[styles.resumenGlobalTitulo, { color: tema.colores.texto }]}>
-                  💳 Resumen de tarjetas
-                </Text>
-                <View style={styles.resumenGlobalFila}>
-                  <View style={styles.resumenGlobalItem}>
-                    <Text style={[styles.resumenGlobalEtiqueta, { color: tema.colores.textoSecundario }]}>A pagar este mes</Text>
-                    <Text style={[styles.resumenGlobalMonto, { color: resumenGlobal.totalPendiente > 0 ? '#ef4444' : tema.colores.texto }]}>
-                      {tema.moneda}{resumenGlobal.totalPendiente.toFixed(2)}
-                    </Text>
+          {/* ── 2. Spotlight card ── */}
+          {tarjetaActiva && (() => {
+            const estado = obtenerEstadoTarjeta(tarjetaActiva);
+            const txt = obtenerColoresTextoTarjeta(tarjetaActiva.color);
+            return (
+              <View style={[styles.spotlight, { backgroundColor: tarjetaActiva.color }]}>
+                {/* Decoración */}
+                <View style={styles.decoCirculoGrande} />
+                <View style={styles.decoCirculoPequeno} />
+
+                {/* Acciones */}
+                <View style={styles.spotlightAcciones}>
+                  <TouchableOpacity onPress={() => handleEditar(tarjetaActiva)} style={[styles.spotlightBoton, { backgroundColor: txt.botonBg }]}>
+                    <Text style={styles.spotlightBotonTexto}>✏️</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleEliminar(tarjetaActiva.id, tarjetaActiva.nombre)} style={[styles.spotlightBoton, { backgroundColor: txt.botonBg }]}>
+                    <Text style={styles.spotlightBotonTexto}>🗑️</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Contenido de la tarjeta */}
+                <View style={styles.spotlightContenido}>
+                  <View>
+                    <Text style={[styles.spotlightBanco, { color: txt.secundario }]}>{tarjetaActiva.banco}</Text>
+                    <Text style={[styles.spotlightNombre, { color: txt.primario }]}>{tarjetaActiva.nombre}</Text>
                   </View>
-                  <View style={[styles.resumenGlobalDivisor, { backgroundColor: tema.colores.bordes }]} />
-                  <View style={styles.resumenGlobalItem}>
-                    <Text style={[styles.resumenGlobalEtiqueta, { color: tema.colores.textoSecundario }]}>Acumulando</Text>
-                    <Text style={[styles.resumenGlobalMonto, { color: tema.colores.primario }]}>
-                      {tema.moneda}{resumenGlobal.totalActual.toFixed(2)}
-                    </Text>
+                  <View style={styles.spotlightDigitos}>
+                    <Text style={[styles.spotlightDigitosTexto, { color: txt.secundario }]}>•• •• •• {tarjetaActiva.ultimosCuatroDigitos}</Text>
                   </View>
-                  {resumenGlobal.totalLimite > 0 && (
-                    <>
-                      <View style={[styles.resumenGlobalDivisor, { backgroundColor: tema.colores.bordes }]} />
-                      <View style={styles.resumenGlobalItem}>
-                        <Text style={[styles.resumenGlobalEtiqueta, { color: tema.colores.textoSecundario }]}>Crédito usado</Text>
-                        <Text style={[styles.resumenGlobalMonto, { color: tema.colores.texto }]}>
-                          {Math.round((resumenGlobal.totalDeuda / resumenGlobal.totalLimite) * 100)}%
+                  <View style={styles.spotlightFooter}>
+                    <View>
+                      <Text style={[styles.spotlightFechaLabel, { color: txt.tenue }]}>CORTE</Text>
+                      <Text style={[styles.spotlightFechaValor, { color: txt.primario }]}>{tarjetaActiva.diaCorte}</Text>
+                    </View>
+                    <View>
+                      <Text style={[styles.spotlightFechaLabel, { color: txt.tenue }]}>PAGO</Text>
+                      <Text style={[styles.spotlightFechaValor, { color: txt.primario }]}>{tarjetaActiva.diaPago}</Text>
+                    </View>
+                    <View style={styles.spotlightEstadoBadge}>
+                      <Text style={[styles.spotlightEstadoTexto, { color: estado.color }]}>
+                        {estado.mensaje}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* ── 3. Panel financiero ── */}
+          {tarjetaActiva && (() => {
+            const { consumoPendientePago, consumoCicloActual, yaPageado, ultimoCorte } = obtenerBalancesTarjeta(tarjetaActiva);
+            const estadisticas = obtenerEstadisticasTarjeta(tarjetaActiva.id);
+            const totalDeuda = consumoPendientePago + consumoCicloActual + estadisticas.totalPendiente;
+            const diasHastaPago = consumoPendientePago > 0 ? obtenerDiasHastaPago(tarjetaActiva, ultimoCorte) : null;
+
+            return (
+              <View style={[styles.panel, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+
+                {/* Fila: A pagar */}
+                {consumoPendientePago > 0 && (
+                  <View style={[styles.panelFila, { borderBottomColor: c.bordes }]}>
+                    <View style={styles.panelFilaLeft}>
+                      <View style={[styles.panelDot, { backgroundColor: '#ef4444' }]} />
+                      <View>
+                        <Text style={[styles.panelEtiqueta, { color: c.textoSecundario }]}>A pagar este ciclo</Text>
+                        {diasHastaPago !== null && (
+                          <Text style={[styles.panelSubetiqueta, { color: diasHastaPago <= 3 ? '#ef4444' : '#f59e0b' }]}>
+                            {diasHastaPago < 0
+                              ? `Venció hace ${Math.abs(diasHastaPago)} día${Math.abs(diasHastaPago) !== 1 ? 's' : ''}`
+                              : diasHastaPago === 0 ? '⚠ Vence hoy'
+                              : `⏰ Vence en ${diasHastaPago} día${diasHastaPago !== 1 ? 's' : ''}`}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <View style={styles.panelFilaRight}>
+                      <Text style={[styles.panelMonto, { color: '#ef4444' }]}>
+                        {simbolo}{consumoPendientePago.toFixed(2)}
+                      </Text>
+                      <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjetaActiva); setDesgloseTipo('pendiente'); setModalDesglose(true); }}>
+                        <Text style={[styles.panelDetalle, { color: c.primario }]}>Ver →</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* Pagado confirmado */}
+                {yaPageado && consumoPendientePago === 0 && (
+                  <View style={[styles.panelFila, { borderBottomColor: c.bordes }]}>
+                    <View style={styles.panelFilaLeft}>
+                      <View style={[styles.panelDot, { backgroundColor: '#10b981' }]} />
+                      <Text style={[styles.panelEtiqueta, { color: '#10b981' }]}>Estado de cuenta pagado ✓</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Fila: Ciclo actual */}
+                {consumoCicloActual > 0 && (
+                  <View style={[styles.panelFila, { borderBottomColor: c.bordes }]}>
+                    <View style={styles.panelFilaLeft}>
+                      <View style={[styles.panelDot, { backgroundColor: c.primario }]} />
+                      <View>
+                        <Text style={[styles.panelEtiqueta, { color: c.textoSecundario }]}>Ciclo en curso</Text>
+                        <Text style={[styles.panelSubetiqueta, { color: c.textoSecundario }]}>
+                          Corta el día {tarjetaActiva.diaCorte}
                         </Text>
                       </View>
-                    </>
-                  )}
-                </View>
-                {resumenGlobal.totalLimite > 0 && (() => {
-                  const util = Math.min(resumenGlobal.totalDeuda / resumenGlobal.totalLimite, 1);
-                  const color = util >= 0.8 ? '#ef4444' : util >= 0.5 ? '#f59e0b' : '#10b981';
+                    </View>
+                    <View style={styles.panelFilaRight}>
+                      <Text style={[styles.panelMonto, { color: c.primario }]}>
+                        {simbolo}{consumoCicloActual.toFixed(2)}
+                      </Text>
+                      <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjetaActiva); setDesgloseTipo('actual'); setModalDesglose(true); }}>
+                        <Text style={[styles.panelDetalle, { color: c.primario }]}>Ver →</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* Barra de utilización */}
+                {tarjetaActiva.limiteCredito && tarjetaActiva.limiteCredito > 0 && (() => {
+                  const util = Math.min(totalDeuda / tarjetaActiva.limiteCredito!, 1);
+                  const pct = Math.round(util * 100);
+                  const colorBarra = util >= 0.8 ? '#ef4444' : util >= 0.5 ? '#f59e0b' : '#10b981';
                   return (
-                    <View style={[styles.utilizacionTrack, { backgroundColor: tema.colores.bordes, marginTop: 8 }]}>
-                      <View style={[styles.utilizacionFill, { width: `${Math.round(util * 100)}%` as any, backgroundColor: color }]} />
+                    <View style={styles.utilizacionContainer}>
+                      <View style={styles.utilizacionHeaderRow}>
+                        <Text style={[styles.panelEtiqueta, { color: c.textoSecundario }]}>Utilización del crédito</Text>
+                        <Text style={[styles.utilizacionPct, { color: colorBarra }]}>{pct}%</Text>
+                      </View>
+                      <View style={[styles.utilizacionTrack, { backgroundColor: c.bordes }]}>
+                        <View style={[styles.utilizacionFill, { width: `${pct}%` as any, backgroundColor: colorBarra }]} />
+                      </View>
+                      <Text style={[styles.utilizacionDetalle, { color: c.textoSecundario }]}>
+                        {simbolo}{totalDeuda.toFixed(2)} de {simbolo}{tarjetaActiva.limiteCredito!.toFixed(2)}
+                      </Text>
                     </View>
                   );
                 })()}
-                <Text style={[styles.resumenGlobalPie, { color: tema.colores.textoSecundario }]}>
-                  Deuda total: {tema.moneda}{resumenGlobal.totalDeuda.toFixed(2)}{resumenGlobal.totalLimite > 0 ? ` de ${tema.moneda}${resumenGlobal.totalLimite.toFixed(2)} en crédito` : ''}
-                </Text>
+
+                {/* Botón pagar */}
+                {consumoPendientePago > 0 && (
+                  <BotonAnimado
+                    onPress={() => handleRegistrarPagoCiclo(tarjetaActiva)}
+                    style={[styles.botonPagar, { backgroundColor: '#10b981' }]}
+                  >
+                    <Text style={styles.botonPagarTexto}>
+                      ✓ Registrar pago · {simbolo}{consumoPendientePago.toFixed(2)}
+                    </Text>
+                  </BotonAnimado>
+                )}
               </View>
-            )}
+            );
+          })()}
 
-            {/* Proyección de cuotas */}
-            <VistaProyeccionCuotas variant="full-width" />
-
-            {/* Simulador de cuotas */}
-            <SimuladorCuotas variant="full-width" />
-
-            {tarjetas.map(tarjeta => {
-              const estado = obtenerEstadoTarjeta(tarjeta);
-              const estadisticasCuotas = obtenerEstadisticasTarjeta(tarjeta.id);
-
-              return (
-                <View
-                  key={tarjeta.id}
-                  style={[styles.tarjetaItem, {
-                    backgroundColor: tema.colores.fondoSecundario,
-                    borderColor: tema.colores.bordes,
-                  }]}
+          {/* ── 4. Cuotas colapsables ── */}
+          {tarjetaActiva && (() => {
+            const estadisticas = obtenerEstadisticasTarjeta(tarjetaActiva.id);
+            const tieneCuotas = estadisticas.cuotas.length > 0;
+            return (
+              <View style={[styles.cuotasCard, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+                <TouchableOpacity
+                  style={styles.cuotasHeader}
+                  onPress={() => tieneCuotas && setCuotasExpandido(v => !v)}
+                  activeOpacity={tieneCuotas ? 0.7 : 1}
                 >
-                  <View style={[styles.tarjetaBarra, { backgroundColor: tarjeta.color }]} />
-
-                  <View style={styles.tarjetaContenido}>
-                    <View style={styles.tarjetaInfo}>
-                      <Text style={[styles.tarjetaNombre, { color: tema.colores.texto }]}>
-                        {tarjeta.nombre}
+                  <View style={styles.cuotasHeaderLeft}>
+                    <Text style={styles.cuotasIcono}>📦</Text>
+                    <View>
+                      <Text style={[styles.cuotasTitulo, { color: c.texto }]}>
+                        Compras a cuotas
+                        {tieneCuotas && (
+                          <Text style={[styles.cuotasConteo, { color: c.primario }]}> · {estadisticas.cuotasActivas}</Text>
+                        )}
                       </Text>
-                      <Text style={[styles.tarjetaBanco, { color: tema.colores.textoSecundario }]}>
-                        {tarjeta.banco} ••{tarjeta.ultimosCuatroDigitos}
-                      </Text>
-                      <Text style={[styles.tarjetaFechas, { color: tema.colores.textoSecundario }]}>
-                        Corte: {tarjeta.diaCorte} • Pago: {tarjeta.diaPago}
-                      </Text>
-                      <Text style={[styles.tarjetaEstado, { color: estado.color }]}>
-                        {estado.mensaje}
-                      </Text>
-
-                      {/* Resumen de cuotas */}
-                      {estadisticasCuotas.cuotasActivas > 0 && (
-                        <View style={[styles.cuotasResumen, { backgroundColor: tema.colores.fondo }]}>
-                          <Text style={[styles.cuotasTexto, { color: tema.colores.primario }]}>
-                            📦 {estadisticasCuotas.cuotasActivas} compra{estadisticasCuotas.cuotasActivas !== 1 ? 's' : ''} a cuotas
-                          </Text>
-                          <Text style={[styles.cuotasMonto, { color: tema.colores.texto }]}>
-                            {tema.moneda}{estadisticasCuotas.totalMensual.toFixed(2)}/mes
-                          </Text>
-                        </View>
+                      {tieneCuotas && (
+                        <Text style={[styles.cuotasSubtitulo, { color: c.textoSecundario }]}>
+                          {simbolo}{estadisticas.totalMensual.toFixed(2)}/mes
+                        </Text>
                       )}
-
-                      {(() => {
-                        const { consumoPendientePago, consumoCicloActual, yaPageado, ultimoCorte } = obtenerBalancesTarjeta(tarjeta);
-                        const totalDeuda = consumoPendientePago + consumoCicloActual + estadisticasCuotas.totalPendiente;
-                        const hayActividad = consumoPendientePago > 0 || consumoCicloActual > 0 || estadisticasCuotas.totalPendiente > 0 || yaPageado;
-
-                        const diasHastaPago = consumoPendientePago > 0 ? obtenerDiasHastaPago(tarjeta, ultimoCorte) : 0;
-                        const textoVence = diasHastaPago < 0
-                          ? `Venció hace ${Math.abs(diasHastaPago)} día${Math.abs(diasHastaPago) !== 1 ? 's' : ''}`
-                          : diasHastaPago === 0 ? '¡Vence hoy!'
-                          : `Vence en ${diasHastaPago} día${diasHastaPago !== 1 ? 's' : ''}`;
-                        const colorVence = diasHastaPago <= 3 ? '#ef4444' : '#f59e0b';
-
-                        return (
-                          <>
-                            {hayActividad && (
-                              <View style={[styles.utilizacionContainer, { backgroundColor: tema.colores.fondo }]}>
-
-                                {/* Ciclo cerrado: lo que hay que pagar + countdown */}
-                                {consumoPendientePago > 0 && (
-                                  <>
-                                    <View style={styles.utilizacionHeader}>
-                                      <Text style={[styles.utilizacionLabel, { color: '#ef4444' }]}>
-                                        💳 A pagar
-                                      </Text>
-                                      <Text style={[styles.utilizacionPorcentaje, { color: '#ef4444' }]}>
-                                        {tema.moneda}{consumoPendientePago.toFixed(2)}
-                                      </Text>
-                                    </View>
-                                    <View style={styles.utilizacionHeader}>
-                                      <Text style={[styles.countdownTexto, { color: colorVence }]}>
-                                        ⏰ {textoVence}
-                                      </Text>
-                                      <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjeta); setDesgloseTipo('pendiente'); setModalDesglose(true); }}>
-                                        <Text style={[styles.verDetalleTexto, { color: tema.colores.primario }]}>Ver detalle →</Text>
-                                      </TouchableOpacity>
-                                    </View>
-                                  </>
-                                )}
-
-                                {/* Confirmación de pago ya registrado */}
-                                {yaPageado && consumoPendientePago === 0 && (
-                                  <Text style={[styles.utilizacionDetalle, { color: '#10b981', marginBottom: 4 }]}>
-                                    ✅ Estado de cuenta pagado
-                                  </Text>
-                                )}
-
-                                {/* Ciclo abierto: acumulando para el próximo corte */}
-                                {consumoCicloActual > 0 && (
-                                  <>
-                                    <View style={styles.utilizacionHeader}>
-                                      <Text style={[styles.utilizacionLabel, { color: tema.colores.textoSecundario }]}>
-                                        🔄 Ciclo en curso (corta día {tarjeta.diaCorte})
-                                      </Text>
-                                      <Text style={[styles.utilizacionPorcentaje, { color: tema.colores.primario }]}>
-                                        {tema.moneda}{consumoCicloActual.toFixed(2)}
-                                      </Text>
-                                    </View>
-                                    <View style={{ alignItems: 'flex-end', marginBottom: 2 }}>
-                                      <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjeta); setDesgloseTipo('actual'); setModalDesglose(true); }}>
-                                        <Text style={[styles.verDetalleTexto, { color: tema.colores.primario }]}>Ver detalle →</Text>
-                                      </TouchableOpacity>
-                                    </View>
-                                  </>
-                                )}
-
-                                {/* Barra de utilización (solo si hay límite configurado) */}
-                                {tarjeta.limiteCredito && tarjeta.limiteCredito > 0 && (() => {
-                                  const utilizacion = Math.min(totalDeuda / tarjeta.limiteCredito!, 1);
-                                  const porcentaje = Math.round(utilizacion * 100);
-                                  const colorBarra = utilizacion >= 0.8 ? '#ef4444' : utilizacion >= 0.5 ? '#f59e0b' : '#10b981';
-                                  return (
-                                    <>
-                                      <View style={[styles.utilizacionSeparador, { backgroundColor: tema.colores.bordes }]} />
-                                      <View style={styles.utilizacionHeader}>
-                                        <Text style={[styles.utilizacionLabel, { color: tema.colores.textoSecundario }]}>
-                                          Utilización del crédito
-                                        </Text>
-                                        <Text style={[styles.utilizacionPorcentaje, { color: colorBarra }]}>
-                                          {porcentaje}%
-                                        </Text>
-                                      </View>
-                                      <View style={[styles.utilizacionTrack, { backgroundColor: tema.colores.bordes }]}>
-                                        <View style={[styles.utilizacionFill, {
-                                          width: `${porcentaje}%` as any,
-                                          backgroundColor: colorBarra,
-                                        }]} />
-                                      </View>
-                                      <Text style={[styles.utilizacionDetalle, { color: tema.colores.textoSecundario }]}>
-                                        {tema.moneda}{totalDeuda.toFixed(2)} de {tema.moneda}{tarjeta.limiteCredito!.toFixed(2)} disponibles
-                                      </Text>
-                                    </>
-                                  );
-                                })()}
-                              </View>
-                            )}
-
-                            {/* Botón de pago: solo para el ciclo CERRADO */}
-                            {consumoPendientePago > 0 && (
-                              <TouchableOpacity
-                                onPress={() => handleRegistrarPagoCiclo(tarjeta)}
-                                style={[styles.botonPagarCiclo, { borderColor: '#10b981' }]}
-                              >
-                                <Text style={[styles.botonPagarCicloTexto, { color: '#10b981' }]}>
-                                  ✓ Registrar pago · {tema.moneda}{consumoPendientePago.toFixed(2)}
-                                </Text>
-                              </TouchableOpacity>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </View>
-
-                    <View style={styles.accionesCard}>
-                      <TouchableOpacity
-                        onPress={() => handleEditar(tarjeta)}
-                        style={styles.botonAccion}
-                      >
-                        <Text style={{ fontSize: 20 }}>✏️</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleEliminar(tarjeta.id, tarjeta.nombre)}
-                        style={styles.botonAccion}
-                      >
-                        <Text style={styles.botonEliminarTexto}>🗑️</Text>
-                      </TouchableOpacity>
                     </View>
                   </View>
-
-                  {/* Botón para agregar cuotas */}
-                  <TouchableOpacity
-                    onPress={() => handleAgregarCuota(tarjeta.id, tarjeta.nombre)}
-                    style={[styles.botonAgregarCuota, { backgroundColor: tema.colores.fondo, borderColor: tema.colores.primario }]}
-                  >
-                    <Text style={[styles.botonAgregarCuotaTexto, { color: tema.colores.primario }]}>
-                      📦 Agregar compra a cuotas
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Lista de cuotas activas */}
-                  {estadisticasCuotas.cuotas.length > 0 && (
-                    <View style={[styles.cuotasLista, { borderTopColor: tema.colores.bordes }]}>
-                      <Text style={[styles.cuotasListaTitulo, { color: tema.colores.textoSecundario }]}>
-                        Compras a cuotas:
+                  <View style={styles.cuotasHeaderRight}>
+                    <TouchableOpacity
+                      onPress={() => { setTarjetaSeleccionada({ id: tarjetaActiva.id, nombre: tarjetaActiva.nombre }); setModalCuotaVisible(true); }}
+                      style={[styles.botonAgregarCuota, { borderColor: c.primario }]}
+                    >
+                      <Text style={[styles.botonAgregarCuotaTexto, { color: c.primario }]}>+ Agregar</Text>
+                    </TouchableOpacity>
+                    {tieneCuotas && (
+                      <Text style={[styles.cuotasChevron, { color: c.textoSecundario }]}>
+                        {cuotasExpandido ? '▲' : '▼'}
                       </Text>
-                      {estadisticasCuotas.cuotas.map(cuota => (
-                        <View key={cuota.id} style={[styles.cuotaItem, { backgroundColor: tema.colores.fondo }]}>
-                          <View style={styles.cuotaInfo}>
-                            <Text style={[styles.cuotaDescripcion, { color: tema.colores.texto }]}>
-                              {cuota.descripcion}
-                            </Text>
-                            <Text style={[styles.cuotaDetalle, { color: tema.colores.textoSecundario }]}>
-                              {cuota.cuotasPagadas}/{cuota.cantidadCuotas} cuotas • {tema.moneda}{cuota.montoPorCuota}/mes
-                            </Text>
-                            <View style={styles.progresoBar}>
-                              <View
-                                style={[
-                                  styles.progresoFill,
-                                  {
-                                    width: `${(cuota.cuotasPagadas / cuota.cantidadCuotas) * 100}%`,
-                                    backgroundColor: tema.colores.primario
-                                  }
-                                ]}
-                              />
-                            </View>
-                            {/* Botón para registrar pago manual */}
-                            {cuota.cuotasPagadas < cuota.cantidadCuotas && (
-                              <TouchableOpacity
-                                onPress={() => handleRegistrarPago(cuota.id, cuota.descripcion, cuota.cuotasPagadas, cuota.cantidadCuotas)}
-                                style={[styles.botonRegistrarPago, { backgroundColor: tema.colores.primario }]}
-                              >
-                                <Text style={styles.botonRegistrarPagoTexto}>
-                                  ✓ Registrar cuota {cuota.cuotasPagadas + 1}
-                                </Text>
-                              </TouchableOpacity>
-                            )}
+                    )}
+                  </View>
+                </TouchableOpacity>
+
+                {cuotasExpandido && tieneCuotas && (
+                  <View style={[styles.cuotasLista, { borderTopColor: c.bordes }]}>
+                    {estadisticas.cuotas.map((cuota, i) => (
+                      <View
+                        key={cuota.id}
+                        style={[
+                          styles.cuotaItem,
+                          { borderBottomColor: c.bordes },
+                          i === estadisticas.cuotas.length - 1 && { borderBottomWidth: 0 },
+                        ]}
+                      >
+                        <View style={styles.cuotaInfo}>
+                          <Text style={[styles.cuotaDescripcion, { color: c.texto }]}>{cuota.descripcion}</Text>
+                          <Text style={[styles.cuotaDetalle, { color: c.textoSecundario }]}>
+                            {cuota.cuotasPagadas}/{cuota.cantidadCuotas} cuotas · {simbolo}{cuota.montoPorCuota}/mes
+                          </Text>
+                          <View style={[styles.progresoBar, { backgroundColor: c.bordes }]}>
+                            <View style={[styles.progresoFill, {
+                              width: `${(cuota.cuotasPagadas / cuota.cantidadCuotas) * 100}%`,
+                              backgroundColor: c.primario,
+                            }]} />
                           </View>
-                          <TouchableOpacity
-                            onPress={() => handleEliminarCuota(cuota.id, cuota.descripcion)}
-                            style={styles.botonEliminarCuota}
-                          >
-                            <Text style={styles.botonEliminarCuotaTexto}>✕</Text>
-                          </TouchableOpacity>
+                          {cuota.cuotasPagadas < cuota.cantidadCuotas && (
+                            <BotonAnimado
+                              onPress={() => handleRegistrarPago(cuota.id, cuota.descripcion, cuota.cuotasPagadas, cuota.cantidadCuotas)}
+                              style={[styles.botonRegistrarPago, { backgroundColor: c.primario }]}
+                            >
+                              <Text style={styles.botonRegistrarPagoTexto}>
+                                ✓ Registrar cuota {cuota.cuotasPagadas + 1}
+                              </Text>
+                            </BotonAnimado>
+                          )}
                         </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </ScrollView>
+                        <TouchableOpacity
+                          onPress={() => handleEliminarCuota(cuota.id, cuota.descripcion)}
+                          style={styles.cuotaEliminar}
+                        >
+                          <Text style={styles.cuotaEliminarTexto}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            );
+          })()}
 
-      {/* Botón Flotante */}
-      <TouchableOpacity
-        style={[styles.botonFlotante, { backgroundColor: tema.colores.primario }]}
+          {/* ── 5. Proyección + Simulador ── */}
+          <VistaProyeccionCuotas variant="full-width" />
+          <SimuladorCuotas variant="full-width" />
+
+          <View style={styles.espacioInferior} />
+        </ScrollView>
+      )}
+
+      {/* FAB */}
+      <BotonAnimado
+        style={[styles.fab, { backgroundColor: c.primario }]}
         onPress={() => setModalTarjetaVisible(true)}
-        activeOpacity={0.8}
       >
-        <Text style={styles.botonFlotanteTexto}>➕</Text>
-      </TouchableOpacity>
+        <Text style={styles.fabTexto}>+</Text>
+      </BotonAnimado>
 
-      {/* Modal Agregar Tarjeta */}
+      {/* Modals */}
       <ModalAgregarTarjeta
         visible={modalTarjetaVisible}
-        onClose={() => {
-          setModalTarjetaVisible(false);
-          setTarjetaParaEditar(null);
-        }}
+        onClose={() => { setModalTarjetaVisible(false); setTarjetaParaEditar(null); }}
         tarjetaEditar={tarjetaParaEditar ?? undefined}
       />
 
-      {/* Modal Agregar Cuota */}
       {tarjetaSeleccionada && (
         <ModalAgregarCuota
           visible={modalCuotaVisible}
-          onClose={() => {
-            setModalCuotaVisible(false);
-            setTarjetaSeleccionada(null);
-          }}
+          onClose={() => { setModalCuotaVisible(false); setTarjetaSeleccionada(null); }}
           tarjetaId={tarjetaSeleccionada.id}
           nombreTarjeta={tarjetaSeleccionada.nombre}
         />
       )}
 
-      {/* Modal Desglose de gastos del ciclo */}
-      <Modal
-        visible={modalDesglose}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalDesglose(false)}
-      >
+      {/* Modal desglose */}
+      <Modal visible={modalDesglose} transparent animationType="slide" onRequestClose={() => setModalDesglose(false)}>
         <View style={styles.desgloseOverlay}>
-          <View style={[styles.desgloseContainer, { backgroundColor: tema.colores.fondoSecundario }]}>
+          <View style={[styles.desgloseContainer, { backgroundColor: c.fondoSecundario }]}>
             <View style={styles.desgloseHeader}>
-              <Text style={[styles.desgloseTitulo, { color: tema.colores.texto }]}>
+              <Text style={[styles.desgloseTitulo, { color: c.texto }]}>
                 {desgloseTipo === 'pendiente' ? '💳 A pagar' : '🔄 Ciclo en curso'}
               </Text>
               <TouchableOpacity onPress={() => setModalDesglose(false)}>
-                <Text style={{ fontSize: 22, color: tema.colores.textoSecundario }}>✕</Text>
+                <Text style={{ fontSize: 22, color: c.textoSecundario }}>✕</Text>
               </TouchableOpacity>
             </View>
             {desgloseTarjeta && (
-              <Text style={[styles.desgloseSubtitulo, { color: tema.colores.textoSecundario }]}>
+              <Text style={[styles.desgloseSubtitulo, { color: c.textoSecundario }]}>
                 {desgloseTarjeta.nombre} · {desgloseTipo === 'pendiente'
                   ? `ciclo cerrado el día ${desgloseTarjeta.diaCorte}`
                   : `ciclo abierto desde el día ${desgloseTarjeta.diaCorte}`}
@@ -582,35 +533,29 @@ export default function TarjetasScreen() {
             <ScrollView style={styles.desgloseScroll} showsVerticalScrollIndicator={false}>
               {desgloseTarjeta && (() => {
                 const items = obtenerGastosDesglose(desgloseTarjeta, desgloseTipo);
-                if (items.length === 0) {
-                  return (
-                    <Text style={[styles.desgloseSinDatos, { color: tema.colores.textoSecundario }]}>
-                      No hay gastos en este ciclo
-                    </Text>
-                  );
-                }
+                if (items.length === 0) return (
+                  <Text style={[styles.desgloseSinDatos, { color: c.textoSecundario }]}>No hay gastos en este ciclo</Text>
+                );
                 const total = items.reduce((s, g) => s + (g.montoEnMonedaBase ?? g.monto), 0);
                 return (
                   <>
                     {items.map(g => (
-                      <View key={g.id} style={[styles.desgloseItem, { borderBottomColor: tema.colores.bordes }]}>
+                      <View key={g.id} style={[styles.desgloseItem, { borderBottomColor: c.bordes }]}>
                         <View style={{ flex: 1 }}>
-                          <Text style={[styles.desgloseItemDesc, { color: tema.colores.texto }]}>
-                            {g.descripcion}
-                          </Text>
-                          <Text style={[styles.desgloseItemFecha, { color: tema.colores.textoSecundario }]}>
+                          <Text style={[styles.desgloseItemDesc, { color: c.texto }]}>{g.descripcion}</Text>
+                          <Text style={[styles.desgloseItemFecha, { color: c.textoSecundario }]}>
                             {g.categoria} · {new Date(g.fecha).toLocaleDateString('es-GT', { day: 'numeric', month: 'short' })}
                           </Text>
                         </View>
-                        <Text style={[styles.desgloseItemMonto, { color: tema.colores.texto }]}>
-                          {tema.moneda}{(g.montoEnMonedaBase ?? g.monto).toFixed(2)}
+                        <Text style={[styles.desgloseItemMonto, { color: c.texto }]}>
+                          {simbolo}{(g.montoEnMonedaBase ?? g.monto).toFixed(2)}
                         </Text>
                       </View>
                     ))}
-                    <View style={[styles.desgloseTotalFila, { borderTopColor: tema.colores.bordes }]}>
-                      <Text style={[styles.desgloseTotalLabel, { color: tema.colores.textoSecundario }]}>Total</Text>
-                      <Text style={[styles.desgloseTotalMonto, { color: desgloseTipo === 'pendiente' ? '#ef4444' : tema.colores.primario }]}>
-                        {tema.moneda}{total.toFixed(2)}
+                    <View style={[styles.desgloseTotalFila, { borderTopColor: c.bordes }]}>
+                      <Text style={[styles.desgloseTotalLabel, { color: c.textoSecundario }]}>Total</Text>
+                      <Text style={[styles.desgloseTotalMonto, { color: desgloseTipo === 'pendiente' ? '#ef4444' : c.primario }]}>
+                        {simbolo}{total.toFixed(2)}
                       </Text>
                     </View>
                   </>
@@ -625,375 +570,238 @@ export default function TarjetasScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 50,
-    paddingHorizontal: 20,
-  },
-  header: {
+  container: { flex: 1 },
+  emptyContainer: { flex: 1, justifyContent: 'center' },
+  scrollContent: { paddingTop: 16, paddingHorizontal: 16, paddingBottom: 100 },
+
+  // Chips
+  chipsContainer: { gap: 10, paddingBottom: 16, paddingHorizontal: 2 },
+  chip: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 24,
+    borderWidth: 2,
+    gap: 8,
+    maxWidth: 160,
   },
-  botonVolver: {
-    fontSize: 16,
-    fontWeight: '600',
+  chipAccent: { width: 8, height: 8, borderRadius: 4 },
+  chipNombre: { fontSize: 13, fontWeight: '600', flex: 1 },
+  chipDot: { width: 7, height: 7, borderRadius: 4 },
+
+  // Spotlight card
+  spotlight: {
+    borderRadius: 20,
+    height: 200,
+    marginBottom: 16,
+    overflow: 'hidden',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
   },
-  titulo: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  decoCirculoGrande: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    top: -60,
+    right: -50,
   },
-  scrollContent: {
-    paddingBottom: 100,
+  decoCirculoPequeno: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    top: 80,
+    right: 40,
   },
-  descripcion: {
-    fontSize: 14,
-    marginBottom: 20,
-    textAlign: 'center',
+  spotlightAcciones: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    flexDirection: 'row',
+    gap: 4,
+    zIndex: 1,
   },
-  // Estado vacío
-  emptyState: {
-    alignItems: 'center',
+  spotlightBoton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.25)',
     justifyContent: 'center',
-    paddingVertical: 80,
+    alignItems: 'center',
   },
-  emptyEmoji: {
-    fontSize: 80,
-    marginBottom: 20,
+  spotlightBotonTexto: { fontSize: 16 },
+  spotlightContenido: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'space-between',
   },
-  emptyTitulo: {
+  spotlightBanco: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  spotlightNombre: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
+    marginTop: 2,
   },
-  emptyDescripcion: {
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: 40,
+  spotlightDigitos: { alignItems: 'center' },
+  spotlightDigitosTexto: {
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 3,
   },
-  // Tarjetas
-  tarjetaItem: {
+  spotlightFooter: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 20,
+  },
+  spotlightFechaLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  spotlightFechaValor: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  spotlightEstadoBadge: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  spotlightEstadoTexto: {
+    fontSize: 11,
+    fontWeight: '700',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 12,
+    overflow: 'hidden',
+  },
+
+  // Panel financiero
+  panel: {
+    borderRadius: 16,
     borderWidth: 2,
     marginBottom: 12,
     overflow: 'hidden',
   },
-  tarjetaBarra: {
-    height: 6,
-  },
-  tarjetaContenido: {
+  panelFila: {
     flexDirection: 'row',
-    padding: 15,
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
   },
-  tarjetaInfo: {
-    flex: 1,
-  },
-  tarjetaNombre: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  tarjetaBanco: {
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  tarjetaFechas: {
-    fontSize: 12,
-    marginBottom: 6,
-  },
-  tarjetaEstado: {
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  botonEliminar: {
-    padding: 10,
-  },
-  botonEliminarTexto: {
-    fontSize: 24,
-  },
-  // Cuotas Resumen
-  cuotasResumen: {
-    marginTop: 8,
-    padding: 8,
-    borderRadius: 8,
-  },
-  cuotasTexto: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  cuotasMonto: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  // Botón Agregar Cuota
-  botonAgregarCuota: {
+  panelFilaLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  panelFilaRight: { alignItems: 'flex-end', gap: 4 },
+  panelDot: { width: 8, height: 8, borderRadius: 4 },
+  panelEtiqueta: { fontSize: 13, fontWeight: '600' },
+  panelSubetiqueta: { fontSize: 11, marginTop: 2 },
+  panelMonto: { fontSize: 16, fontWeight: 'bold' },
+  panelDetalle: { fontSize: 11, fontWeight: '600' },
+  utilizacionContainer: { padding: 16 },
+  utilizacionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  utilizacionPct: { fontSize: 13, fontWeight: 'bold' },
+  utilizacionTrack: { height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 6 },
+  utilizacionFill: { height: 6, borderRadius: 3 },
+  utilizacionDetalle: { fontSize: 11 },
+  botonPagar: {
     margin: 12,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderStyle: 'dashed',
+    marginTop: 4,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: 'center',
   },
-  botonAgregarCuotaTexto: {
-    fontSize: 14,
-    fontWeight: '600',
+  botonPagarTexto: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
+
+  // Cuotas
+  cuotasCard: { borderRadius: 16, borderWidth: 2, marginBottom: 12 },
+  cuotasHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
   },
-  // Lista de Cuotas
-  cuotasLista: {
-    borderTopWidth: 2,
+  cuotasHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  cuotasHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cuotasIcono: { fontSize: 22 },
+  cuotasTitulo: { fontSize: 15, fontWeight: '600' },
+  cuotasConteo: { fontSize: 15, fontWeight: 'bold' },
+  cuotasSubtitulo: { fontSize: 12, marginTop: 2 },
+  cuotasChevron: { fontSize: 12, fontWeight: 'bold' },
+  botonAgregarCuota: {
+    paddingVertical: 6,
     paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
   },
-  cuotasListaTitulo: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
+  botonAgregarCuotaTexto: { fontSize: 12, fontWeight: '600' },
+  cuotasLista: { borderTopWidth: 1 },
   cuotaItem: {
     flexDirection: 'row',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 8,
     alignItems: 'flex-start',
+    padding: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
   },
-  cuotaInfo: {
-    flex: 1,
-  },
-  cuotaDescripcion: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  cuotaDetalle: {
-    fontSize: 12,
-    marginBottom: 6,
-  },
-  progresoBar: {
-    height: 6,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progresoFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  botonEliminarCuota: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  botonEliminarCuotaTexto: {
-    fontSize: 18,
-    color: '#ef4444',
-    fontWeight: 'bold',
-  },
+  cuotaInfo: { flex: 1 },
+  cuotaDescripcion: { fontSize: 14, fontWeight: '600', marginBottom: 4 },
+  cuotaDetalle: { fontSize: 12, marginBottom: 8 },
+  progresoBar: { height: 4, borderRadius: 2, overflow: 'hidden', marginBottom: 10 },
+  progresoFill: { height: 4, borderRadius: 2 },
   botonRegistrarPago: {
-    marginTop: 8,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
-  botonRegistrarPagoTexto: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  // Botón Flotante
-  botonFlotante: {
+  botonRegistrarPagoTexto: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  cuotaEliminar: { padding: 4, marginLeft: 8 },
+  cuotaEliminarTexto: { fontSize: 16, color: '#ef4444', fontWeight: 'bold' },
+
+  // FAB
+  fab: {
     position: 'absolute',
-    bottom: 30,
-    right: 30,
+    bottom: 24,
+    right: 24,
     width: 60,
     height: 60,
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
   },
-  botonFlotanteTexto: {
-    fontSize: 32,
-    color: '#fff',
-  },
-  accionesCard: {
-    gap: 4,
-    alignItems: 'center',
-  },
-  botonAccion: {
-    padding: 8,
-  },
-  utilizacionContainer: {
-    marginTop: 8,
-    padding: 10,
-    borderRadius: 8,
-  },
-  utilizacionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  utilizacionLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  utilizacionPorcentaje: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  utilizacionTrack: {
-    height: 8,
-    borderRadius: 4,
-    overflow: 'hidden',
-    marginBottom: 4,
-  },
-  utilizacionFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  utilizacionDetalle: {
-    fontSize: 10,
-  },
-  utilizacionSeparador: {
-    height: 1,
-    marginVertical: 6,
-  },
-  botonPagarCiclo: {
-    margin: 12,
-    marginTop: 0,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  botonPagarCicloTexto: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  // Resumen global
-  resumenGlobal: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 14,
-    marginBottom: 16,
-  },
-  resumenGlobalTitulo: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  resumenGlobalFila: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-  },
-  resumenGlobalItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  resumenGlobalDivisor: {
-    width: 1,
-    marginHorizontal: 8,
-  },
-  resumenGlobalEtiqueta: {
-    fontSize: 10,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  resumenGlobalMonto: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  resumenGlobalPie: {
-    fontSize: 10,
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  // Countdown y ver detalle
-  countdownTexto: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  verDetalleTexto: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  // Modal Desglose
-  desgloseOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  desgloseContainer: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '70%',
-  },
-  desgloseHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  desgloseTitulo: {
-    fontSize: 17,
-    fontWeight: 'bold',
-  },
-  desgloseSubtitulo: {
-    fontSize: 12,
-    marginBottom: 14,
-  },
-  desgloseScroll: {
-    maxHeight: 400,
-  },
-  desgloseItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  desgloseItemDesc: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  desgloseItemFecha: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  desgloseItemMonto: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  desgloseTotalFila: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 12,
-    paddingBottom: 4,
-    borderTopWidth: 2,
-    marginTop: 4,
-  },
-  desgloseTotalLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  desgloseTotalMonto: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  desgloseSinDatos: {
-    textAlign: 'center',
-    paddingVertical: 30,
-    fontSize: 14,
-  },
+  fabTexto: { color: '#fff', fontSize: 32, fontWeight: '300', lineHeight: 36 },
+
+  espacioInferior: { height: 20 },
+
+  // Modal desglose
+  desgloseOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  desgloseContainer: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '70%' },
+  desgloseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  desgloseTitulo: { fontSize: 18, fontWeight: 'bold' },
+  desgloseSubtitulo: { fontSize: 12, marginBottom: 14 },
+  desgloseScroll: { maxHeight: 400 },
+  desgloseItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
+  desgloseItemDesc: { fontSize: 14, fontWeight: '500' },
+  desgloseItemFecha: { fontSize: 11, marginTop: 2 },
+  desgloseItemMonto: { fontSize: 14, fontWeight: 'bold' },
+  desgloseTotalFila: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 12, paddingBottom: 4, borderTopWidth: 2, marginTop: 4 },
+  desgloseTotalLabel: { fontSize: 13, fontWeight: '600' },
+  desgloseTotalMonto: { fontSize: 16, fontWeight: 'bold' },
+  desgloseSinDatos: { textAlign: 'center', paddingVertical: 30, fontSize: 14 },
 });

@@ -1,24 +1,90 @@
-import { View, Text, ScrollView, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
-import { useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import { useState, useRef, startTransition } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useGastos } from '../context/GastosContext';
 import { useCategorias } from '../context/CategoriasContext';
 import { useMonedas } from '../context/MonedasContext';
 import { useEstadisticas } from '../hooks';
-import { usePresupuestos } from '../context/PresupuestosContext';
 import { GraficaPastel } from '../components/GraficaPastel';
 import { GraficaLineas } from '../components/GraficaLineas';
-import { StackedBarChart, BarChart } from 'react-native-chart-kit';
+import { LineChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
 
+interface DistribucionProps {
+  datosPastel: Array<{ categoriaId: string; total: number }>;
+  comparativaPorCategoria: Array<{ categoriaId: string; nombre: string; emoji: string; datos: Array<{ label: string; total: number }> }>;
+  c: ReturnType<typeof useTema>['tema']['colores'];
+}
+
+const DistribucionMesCard = ({ datosPastel, comparativaPorCategoria, c }: DistribucionProps) => {
+  const [historialId, setHistorialId] = useState<string | null>(null);
+  const hasInteracted = useRef(false);
+  const historial = historialId ? comparativaPorCategoria.find(x => x.categoriaId === historialId) : null;
+
+  const handleSelect = (id: string | null) => {
+    hasInteracted.current = true;
+    startTransition(() => setHistorialId(id));
+  };
+
+  return (
+    <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+      <View style={styles.cardHeader}>
+        <Text style={[styles.cardTitulo, { color: c.texto }]}>Distribución del mes</Text>
+        {!hasInteracted.current && (
+          <Text style={[styles.cardSubtitulo, { color: c.textoSecundario }]}>Toca un segmento</Text>
+        )}
+      </View>
+      <GraficaPastel
+        datos={datosPastel}
+        onSelect={handleSelect}
+      />
+      {historial && (
+        <View style={[styles.historialSection, { borderTopColor: c.bordes }]}>
+          <Text style={[styles.historialTitulo, { color: c.texto }]}>
+            {historial.emoji} {historial.nombre} · últimos 6 meses
+          </Text>
+          <LineChart
+            data={{
+              labels: historial.datos.map(d => d.label),
+              datasets: [{
+                data: historial.datos.map(d => d.total || 0),
+                color: () => c.primario,
+                strokeWidth: 2,
+              }],
+            }}
+            width={screenWidth - 64}
+            height={170}
+            chartConfig={{
+              backgroundColor: c.fondoSecundario,
+              backgroundGradientFrom: c.fondoSecundario,
+              backgroundGradientTo: c.fondoSecundario,
+              decimalPlaces: 0,
+              color: () => c.textoSecundario,
+              labelColor: () => c.textoSecundario,
+              propsForDots: { r: '4', strokeWidth: '2', stroke: c.primario },
+            }}
+            bezier
+            withShadow={false}
+            withInnerLines={false}
+            style={{ borderRadius: 10, marginTop: 12 }}
+          />
+        </View>
+      )}
+    </View>
+  );
+};
+
 export const EstadisticasScreen = () => {
   const { tema } = useTema();
+  const c = tema.colores;
   const { gastos } = useGastos();
   const { categorias } = useCategorias();
   const { monedaBase } = useMonedas();
+  const simbolo = monedaBase?.simbolo ?? '$';
+
   const {
-    gastosPorCategoria,
+    gastosPorCategoriaMes,
     resumenMes,
     promedioDiario,
     topGastos,
@@ -27,351 +93,226 @@ export const EstadisticasScreen = () => {
     comparativaPorCategoria,
   } = useEstadisticas(gastos, categorias);
 
-  const simbolo = monedaBase?.simbolo || 'Q';
 
-  const { presupuestos } = usePresupuestos();
-  const [categoriaComparativaId, setCategoriaComparativaId] = useState<string | null>(null);
+  // ─── Proyección de fin de mes ────────────────────────────────────────────────
 
-  // Límite de gasto diario
-  const hoyDate = new Date();
-  const diasEnMes = new Date(hoyDate.getFullYear(), hoyDate.getMonth() + 1, 0).getDate();
-  const diasRestantes = Math.max(diasEnMes - hoyDate.getDate() + 1, 1);
-  const totalPresupuestado = presupuestos
-    .filter(p => p.periodo === 'mensual')
-    .reduce((sum, p) => sum + p.monto, 0);
-  const baseCalculo = totalPresupuestado > 0 ? totalPresupuestado : resumenMes.ingresos;
-  const disponibleRestante = baseCalculo - resumenMes.gastos;
-  const limiteDiario = disponibleRestante / diasRestantes;
-  const porcentajeGastado = baseCalculo > 0 ? Math.min(resumenMes.gastos / baseCalculo, 1) : 0;
+  const hoy = new Date();
+  const diasTranscurridos = hoy.getDate();
+  const diasTotalesMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
+  const diasRestantes = diasTotalesMes - diasTranscurridos;
+  const proyeccionFinMes = diasTranscurridos > 0
+    ? resumenMes.gastos + (resumenMes.gastos / diasTranscurridos) * diasRestantes
+    : 0;
 
-  // Día más caro
+  // Gasto mes anterior aproximado desde promedioDiario
+  const diasMesAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate();
+  const gastoMesAnteriorAprox = promedioDiario.mesAnterior * diasMesAnterior;
+
+  const diferenciaProy = gastoMesAnteriorAprox > 0
+    ? ((proyeccionFinMes - gastoMesAnteriorAprox) / gastoMesAnteriorAprox) * 100
+    : 0;
+  const proyMejora = diferenciaProy < 0;
+  const colorProy = proyMejora ? '#10b981' : diferenciaProy > 10 ? '#ef4444' : '#f59e0b';
+
+  // ─── Día más caro ────────────────────────────────────────────────────────────
+
   const diasConDatos = gastoPorDiaSemana.dias.filter(d => d.cantidad > 0);
   const diaMasCaro = gastoPorDiaSemana.totalTransacciones >= 14 && diasConDatos.length > 0
     ? diasConDatos.reduce((max, d) => d.promedio > max.promedio ? d : max)
     : null;
   const maxPromedioDia = diasConDatos.length > 0 ? Math.max(...diasConDatos.map(d => d.promedio)) : 1;
 
-  // Categoría seleccionada para comparativa
-  const catComparativaId = categoriaComparativaId ?? comparativaPorCategoria[0]?.categoriaId;
-  const catSeleccionada = comparativaPorCategoria.find(c => c.categoriaId === catComparativaId);
+  // ─── Pie chart + historial integrado ─────────────────────────────────────────
 
-  // Preparar datos para gráfica de pastel
-  const datosPastel = gastosPorCategoria
+  const datosPastel = gastosPorCategoriaMes
     .filter(cat => cat.total > 0)
-    .map(cat => ({
-      categoriaId: cat.id,
-      total: cat.total,
-    }));
+    .map(cat => ({ categoriaId: cat.id, total: cat.total }));
 
-  // Preparar datos para gráfica de líneas (últimos 7 días)
+  // ─── Tendencia 7 días ────────────────────────────────────────────────────────
+
   const datosLineas = (() => {
-    const hoy = new Date();
-    const ultimos7Dias = [];
-
+    const resultado = [];
     for (let i = 6; i >= 0; i--) {
       const fecha = new Date(hoy);
       fecha.setDate(hoy.getDate() - i);
       fecha.setHours(0, 0, 0, 0);
-
-      const gastosDelDia = gastos.filter(g => {
-        const fechaGasto = new Date(g.fecha);
-        fechaGasto.setHours(0, 0, 0, 0);
-        return fechaGasto.getTime() === fecha.getTime() && g.tipo === 'gasto';
-      });
-
-      const totalDia = gastosDelDia.reduce((sum, g) => sum + g.monto, 0);
-
-      ultimos7Dias.push({
-        fecha: fecha.toISOString(),
-        total: totalDia,
-      });
+      const totalDia = gastos
+        .filter(g => {
+          const fg = new Date(g.fecha); fg.setHours(0, 0, 0, 0);
+          return fg.getTime() === fecha.getTime() && g.tipo === 'gasto';
+        })
+        .reduce((s, g) => s + g.monto, 0);
+      resultado.push({ fecha: fecha.toISOString(), total: totalDia });
     }
-
-    return ultimos7Dias;
+    return resultado;
   })();
 
-  // Verificar si hay datos en la tendencia mensual
   const hayDatosTendencia = tendenciaMensual.some(t => t.ingresos > 0 || t.gastos > 0);
 
+  // ─── Render ──────────────────────────────────────────────────────────────────
+
   return (
-    <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-        📊 Estadísticas
-      </Text>
+    <View style={[styles.container, { backgroundColor: c.fondo }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Resumen del Mes */}
-        <View style={[styles.seccion, {
-          backgroundColor: tema.colores.fondoSecundario,
-          borderColor: tema.colores.bordes,
-        }]}>
-          <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-            📋 Resumen del Mes
-          </Text>
-          <View style={styles.resumenGrid}>
-            <View style={styles.resumenItem}>
-              <Text style={[styles.resumenLabel, { color: tema.colores.textoSecundario }]}>Ingresos</Text>
-              <Text style={[styles.resumenValor, { color: '#10b981' }]}>
-                {simbolo}{resumenMes.ingresos.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.resumenItem}>
-              <Text style={[styles.resumenLabel, { color: tema.colores.textoSecundario }]}>Gastos</Text>
-              <Text style={[styles.resumenValor, { color: '#ef4444' }]}>
-                {simbolo}{resumenMes.gastos.toFixed(2)}
-              </Text>
-            </View>
-            <View style={styles.resumenItem}>
-              <Text style={[styles.resumenLabel, { color: tema.colores.textoSecundario }]}>Ahorro</Text>
-              <Text style={[styles.resumenValor, { color: resumenMes.ahorro >= 0 ? '#3b82f6' : '#ef4444' }]}>
-                {simbolo}{resumenMes.ahorro.toFixed(2)}
-              </Text>
-            </View>
-            {resumenMes.cambioVsMesAnterior !== 0 && (
-              <View style={styles.resumenItem}>
-                <Text style={[styles.resumenLabel, { color: tema.colores.textoSecundario }]}>vs mes anterior</Text>
-                <Text style={[styles.resumenValor, { color: resumenMes.cambioVsMesAnterior > 0 ? '#ef4444' : '#10b981' }]}>
-                  {resumenMes.cambioVsMesAnterior > 0 ? '📈 +' : '📉 '}{resumenMes.cambioVsMesAnterior.toFixed(1)}%
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
+        {/* ── 1. Proyección del mes ── */}
+        {resumenMes.gastos > 0 && (
+          <View style={[styles.proyeccionCard, { backgroundColor: c.primario }]}>
+            {/* Decoración */}
+            <View style={styles.proyDecoBig} />
+            <View style={styles.proyDecoSmall} />
 
-        {/* Promedio Diario */}
-        <View style={[styles.seccion, {
-          backgroundColor: tema.colores.fondoSecundario,
-          borderColor: tema.colores.bordes,
-        }]}>
-          <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-            💰 Promedio Diario
-          </Text>
-          <Text style={[styles.promedioValor, { color: tema.colores.texto }]}>
-            {simbolo}{promedioDiario.actual.toFixed(2)}
-          </Text>
-          {promedioDiario.mesAnterior > 0 && (
-            <Text style={[styles.promedioComparacion, { color: tema.colores.textoSecundario }]}>
-              Mes anterior: {simbolo}{promedioDiario.mesAnterior.toFixed(2)}/día
-            </Text>
-          )}
-        </View>
-
-        {/* Límite de Gasto Diario */}
-        {baseCalculo > 0 && (
-          <View style={[styles.seccion, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}>
-            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-              🎯 Límite de Gasto Diario
-            </Text>
-
-            <View style={styles.limiteFila}>
-              <Text style={[styles.limiteLabel, { color: tema.colores.textoSecundario }]}>
-                {totalPresupuestado > 0 ? 'Presupuesto del mes' : 'Ingresos del mes'}
+            <View style={styles.proyContenido}>
+              <Text style={styles.proyTitulo}>Proyección fin de mes</Text>
+              <Text style={styles.proyMonto}>{simbolo}{proyeccionFinMes.toFixed(0)}</Text>
+              <Text style={styles.proyDetalle}>
+                Llevas {simbolo}{resumenMes.gastos.toFixed(0)} · día {diasTranscurridos} de {diasTotalesMes}
               </Text>
-              <Text style={[styles.limiteValor, { color: tema.colores.texto }]}>
-                {simbolo}{baseCalculo.toFixed(2)}
-              </Text>
-            </View>
 
-            <View style={styles.limiteFila}>
-              <Text style={[styles.limiteLabel, { color: tema.colores.textoSecundario }]}>Gastado hasta hoy</Text>
-              <Text style={[styles.limiteValor, { color: '#ef4444' }]}>
-                {simbolo}{resumenMes.gastos.toFixed(2)}
-              </Text>
-            </View>
-
-            <View style={[styles.progressBarTrack, { backgroundColor: tema.colores.bordes }]}>
-              <View style={[styles.progressBarFill, {
-                width: `${porcentajeGastado * 100}%` as any,
-                backgroundColor: porcentajeGastado >= 1 ? '#ef4444' : porcentajeGastado >= 0.8 ? '#f59e0b' : '#10b981',
-              }]} />
-            </View>
-
-            <View style={styles.limiteFila}>
-              <Text style={[styles.limiteLabel, { color: tema.colores.textoSecundario }]}>Días restantes</Text>
-              <Text style={[styles.limiteValor, { color: tema.colores.textoSecundario }]}>
-                {diasRestantes} {diasRestantes === 1 ? 'día' : 'días'}
-              </Text>
-            </View>
-
-            <View style={[styles.limiteDiarioCard, {
-              backgroundColor: limiteDiario >= 0 ? '#10b98115' : '#ef444415',
-              borderColor: limiteDiario >= 0 ? '#10b981' : '#ef4444',
-            }]}>
-              <Text style={[styles.limiteDiarioLabel, { color: tema.colores.textoSecundario }]}>
-                {limiteDiario >= 0 ? 'Puedes gastar hoy' : 'Presupuesto excedido'}
-              </Text>
-              <Text style={[styles.limiteDiarioValor, { color: limiteDiario >= 0 ? '#10b981' : '#ef4444' }]}>
-                {limiteDiario >= 0
-                  ? `${simbolo}${limiteDiario.toFixed(2)}`
-                  : `${simbolo}${Math.abs(disponibleRestante).toFixed(2)} excedido`}
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Comparativa Mensual */}
-        {hayDatosTendencia && (
-          <View style={[styles.seccion, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}>
-            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-              📊 Comparativa Mensual
-            </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <StackedBarChart
-                data={{
-                  labels: tendenciaMensual.map(t => t.mes),
-                  legend: ['Ingresos', 'Gastos'],
-                  data: tendenciaMensual.map(t => [t.ingresos, t.gastos]),
-                  barColors: ['#10b981', '#ef4444'],
-                }}
-                width={Math.max(screenWidth - 60, tendenciaMensual.length * 70)}
-                height={220}
-                chartConfig={{
-                  backgroundColor: tema.colores.fondoSecundario,
-                  backgroundGradientFrom: tema.colores.fondoSecundario,
-                  backgroundGradientTo: tema.colores.fondoSecundario,
-                  decimalPlaces: 0,
-                  color: (opacity = 1) => tema.colores.texto,
-                  labelColor: (opacity = 1) => tema.colores.textoSecundario,
-                }}
-                style={{ borderRadius: 10 }}
-                hideLegend={true}
-              />
-            </ScrollView>
-            <View style={styles.leyenda}>
-              <View style={styles.leyendaItem}>
-                <View style={[styles.leyendaColor, { backgroundColor: '#10b981' }]} />
-                <Text style={[styles.leyendaTexto, { color: tema.colores.textoSecundario }]}>Ingresos</Text>
-              </View>
-              <View style={styles.leyendaItem}>
-                <View style={[styles.leyendaColor, { backgroundColor: '#ef4444' }]} />
-                <Text style={[styles.leyendaTexto, { color: tema.colores.textoSecundario }]}>Gastos</Text>
+              <View style={styles.proyFila}>
+                <View style={[styles.proyChip, { backgroundColor: 'rgba(0,0,0,0.25)' }]}>
+                  <Text style={styles.proyChipTexto}>
+                    {simbolo}{promedioDiario.actual.toFixed(2)}/día promedio
+                  </Text>
+                </View>
+                {gastoMesAnteriorAprox > 0 && (
+                  <View style={[styles.proyChip, { backgroundColor: `${colorProy}30` }]}>
+                    <Text style={[styles.proyChipTexto, { color: colorProy }]}>
+                      {proyMejora ? '↓' : '↑'} {Math.abs(diferenciaProy).toFixed(0)}% vs mes anterior
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
           </View>
         )}
 
-        {/* Comparativa por Categoría */}
-        {comparativaPorCategoria.length > 0 && (
-          <View style={[styles.seccion, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}>
-            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-              🏷️ Comparativa por Categoría
-            </Text>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
-              <View style={styles.chipsContainer}>
-                {comparativaPorCategoria.map(c => {
-                  const seleccionado = catComparativaId === c.categoriaId;
-                  return (
-                    <TouchableOpacity
-                      key={c.categoriaId}
-                      onPress={() => setCategoriaComparativaId(c.categoriaId)}
-                      style={[styles.chip, {
-                        backgroundColor: seleccionado ? tema.colores.primario : tema.colores.fondo,
-                        borderColor: seleccionado ? tema.colores.primario : tema.colores.bordes,
-                      }]}
-                    >
-                      <Text style={styles.chipEmoji}>{c.emoji}</Text>
-                      <Text style={[styles.chipTexto, { color: seleccionado ? '#fff' : tema.colores.texto }]}>
-                        {c.nombre}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </ScrollView>
-
-            {catSeleccionada && (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <BarChart
-                  data={{
-                    labels: catSeleccionada.datos.map(d => d.label),
-                    datasets: [{ data: catSeleccionada.datos.map(d => d.total || 0) }],
-                  }}
-                  width={Math.max(screenWidth - 60, catSeleccionada.datos.length * 70)}
-                  height={180}
-                  yAxisLabel={simbolo}
-                  yAxisSuffix=""
-                  chartConfig={{
-                    backgroundColor: tema.colores.fondoSecundario,
-                    backgroundGradientFrom: tema.colores.fondoSecundario,
-                    backgroundGradientTo: tema.colores.fondoSecundario,
-                    decimalPlaces: 0,
-                    color: () => tema.colores.primario,
-                    labelColor: () => tema.colores.textoSecundario,
-                  }}
-                  style={{ borderRadius: 10, marginTop: 10 }}
-                  fromZero
-                  showValuesOnTopOfBars
-                  withInnerLines={false}
-                />
-              </ScrollView>
-            )}
-          </View>
-        )}
-
-        {/* Gráfica de Tendencia */}
+        {/* ── 2. Tendencia últimos 7 días ── */}
         {gastos.length > 0 && (
-          <View style={[styles.seccion, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}>
-            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-              📈 Tendencia (Últimos 7 días)
-            </Text>
+          <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitulo, { color: c.texto }]}>Últimos 7 días</Text>
+              <Text style={[styles.cardSubtitulo, { color: c.textoSecundario }]}>Gasto diario</Text>
+            </View>
             <GraficaLineas datos={datosLineas} />
           </View>
         )}
 
-        {/* Día Más Caro de la Semana */}
+        {/* ── 3. Evolución mensual ── */}
+        {hayDatosTendencia && (
+          <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitulo, { color: c.texto }]}>Evolución 6 meses</Text>
+              <View style={styles.leyendaRow}>
+                <View style={styles.leyendaItem}>
+                  <View style={[styles.leyendaDot, { backgroundColor: '#10b981' }]} />
+                  <Text style={[styles.leyendaTexto, { color: c.textoSecundario }]}>Ingresos</Text>
+                </View>
+                <View style={styles.leyendaItem}>
+                  <View style={[styles.leyendaDot, { backgroundColor: '#ef4444' }]} />
+                  <Text style={[styles.leyendaTexto, { color: c.textoSecundario }]}>Gastos</Text>
+                </View>
+              </View>
+            </View>
+            <LineChart
+              data={{
+                labels: tendenciaMensual.map(t => t.mes),
+                datasets: [
+                  {
+                    data: tendenciaMensual.map(t => t.ingresos),
+                    color: () => '#10b981',
+                    strokeWidth: 2,
+                  },
+                  {
+                    data: tendenciaMensual.map(t => t.gastos),
+                    color: () => '#ef4444',
+                    strokeWidth: 2,
+                  },
+                ],
+              }}
+              width={screenWidth - 64}
+              height={200}
+              chartConfig={{
+                backgroundColor: c.fondoSecundario,
+                backgroundGradientFrom: c.fondoSecundario,
+                backgroundGradientTo: c.fondoSecundario,
+                decimalPlaces: 0,
+                color: () => c.textoSecundario,
+                labelColor: () => c.textoSecundario,
+                propsForDots: {
+                  r: '4',
+                  strokeWidth: '2',
+                },
+              }}
+              bezier
+              withShadow={false}
+              withInnerLines={false}
+              style={{ borderRadius: 10 }}
+            />
+          </View>
+        )}
+
+        {/* ── 4. Distribución del mes + historial por categoría ── */}
+        {datosPastel.length > 0 && (
+          <DistribucionMesCard
+            datosPastel={datosPastel}
+            comparativaPorCategoria={comparativaPorCategoria}
+            c={c}
+          />
+        )}
+
+        {/* ── 6. Patrón semanal ── */}
         {gastoPorDiaSemana.totalTransacciones >= 14 && (
-          <View style={[styles.seccion, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}>
-            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-              📅 Día Más Caro de la Semana
-            </Text>
+          <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitulo, { color: c.texto }]}>Patrón semanal</Text>
+              <Text style={[styles.cardSubtitulo, { color: c.textoSecundario }]}>Promedio por día</Text>
+            </View>
 
             {diaMasCaro && gastoPorDiaSemana.promedioGlobal > 0 && (
-              <View style={[styles.insightCard, { backgroundColor: tema.colores.primario + '15', borderColor: tema.colores.primario + '44' }]}>
-                <Text style={[styles.insightTexto, { color: tema.colores.texto }]}>
+              <View style={[styles.insightBanner, { backgroundColor: `${c.primario}15`, borderColor: `${c.primario}40` }]}>
+                <Text style={styles.insightIcono}>💡</Text>
+                <Text style={[styles.insightTexto, { color: c.texto }]}>
                   Los{' '}
-                  <Text style={{ fontWeight: 'bold', color: tema.colores.primario }}>{diaMasCaro.nombre}</Text>
-                  {' '}tiendes a gastar más, un{' '}
+                  <Text style={{ fontWeight: 'bold', color: c.primario }}>{diaMasCaro.nombre}</Text>
+                  {' '}gastas{' '}
                   <Text style={{ fontWeight: 'bold', color: '#f59e0b' }}>
                     {Math.round((diaMasCaro.promedio / gastoPorDiaSemana.promedioGlobal - 1) * 100)}%
                   </Text>
-                  {' '}por encima del promedio.
+                  {' '}más que el promedio semanal
                 </Text>
               </View>
             )}
 
-            <View style={styles.barrasContainer}>
-              {diasConDatos.map((d, i) => {
+            <View style={styles.diasContainer}>
+              {gastoPorDiaSemana.dias.map((d, i) => {
                 const esMasCaro = diaMasCaro?.nombre === d.nombre;
-                const widthPct = maxPromedioDia > 0 ? d.promedio / maxPromedioDia : 0;
+                const pct = maxPromedioDia > 0 ? d.promedio / maxPromedioDia : 0;
+                const tieneDatos = d.cantidad > 0;
                 return (
-                  <View key={i} style={styles.barraFila}>
-                    <Text style={[styles.barraDia, { color: esMasCaro ? tema.colores.primario : tema.colores.textoSecundario }]}>
+                  <View key={i} style={styles.diaFila}>
+                    <Text style={[
+                      styles.diaNombre,
+                      { color: esMasCaro ? c.primario : c.textoSecundario },
+                    ]}>
                       {d.nombre}
                     </Text>
-                    <View style={[styles.barraTrack, { backgroundColor: tema.colores.bordes }]}>
-                      <View style={[styles.barraFill, {
-                        width: `${widthPct * 100}%` as any,
-                        backgroundColor: esMasCaro ? tema.colores.primario : tema.colores.textoSecundario + '88',
-                      }]} />
+                    <View style={[styles.diaTrack, { backgroundColor: c.bordes }]}>
+                      {tieneDatos && (
+                        <View style={[
+                          styles.diaFill,
+                          {
+                            width: `${pct * 100}%`,
+                            backgroundColor: esMasCaro ? c.primario : `${c.textoSecundario}88`,
+                          },
+                        ]} />
+                      )}
                     </View>
-                    <Text style={[styles.barraValor, { color: esMasCaro ? tema.colores.primario : tema.colores.textoSecundario }]}>
-                      {simbolo}{d.promedio.toFixed(0)}
+                    <Text style={[
+                      styles.diaValor,
+                      { color: esMasCaro ? c.primario : c.textoSecundario },
+                    ]}>
+                      {tieneDatos ? `${simbolo}${d.promedio.toFixed(0)}` : '—'}
                     </Text>
                   </View>
                 );
@@ -380,46 +321,37 @@ export const EstadisticasScreen = () => {
           </View>
         )}
 
-        {/* Gráfica de Pastel por Categoría */}
-        {datosPastel.length > 0 && (
-          <View style={[styles.seccion, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}>
-            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-              Distribución por Categoría
-            </Text>
-            <GraficaPastel datos={datosPastel} />
-          </View>
-        )}
-
-        {/* Top 5 Gastos del Mes */}
+        {/* ── 7. Top 5 gastos del mes ── */}
         {topGastos.length > 0 && (
-          <View style={[styles.seccion, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}>
-            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-              🏆 Top 5 Gastos del Mes
-            </Text>
-            {topGastos.map((gasto, index) => {
-              const cat = categorias.find(c => c.id === gasto.categoria);
+          <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitulo, { color: c.texto }]}>Top gastos del mes</Text>
+              <Text style={[styles.cardSubtitulo, { color: c.textoSecundario }]}>Los más grandes</Text>
+            </View>
+            {topGastos.map((gasto, idx) => {
+              const cat = categorias.find(cat => cat.id === gasto.categoria);
+              const medallas = ['🥇', '🥈', '🥉', '4°', '5°'];
               return (
-                <View key={gasto.id} style={[styles.categoriaItem, {
-                  borderBottomColor: tema.colores.bordes,
-                }]}>
-                  <Text style={styles.topRango}>{index + 1}</Text>
-                  <Text style={styles.categoriaEmoji}>{cat?.emoji || '💸'}</Text>
-                  <View style={styles.categoriaInfo}>
-                    <Text style={[styles.categoriaNombre, { color: tema.colores.texto }]}>
+                <View
+                  key={gasto.id}
+                  style={[
+                    styles.topItem,
+                    { borderBottomColor: c.bordes },
+                    idx === topGastos.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <Text style={styles.topMedalla}>{medallas[idx]}</Text>
+                  <Text style={styles.topEmoji}>{cat?.emoji ?? '💸'}</Text>
+                  <View style={styles.topInfo}>
+                    <Text style={[styles.topDesc, { color: c.texto }]} numberOfLines={1}>
                       {gasto.descripcion}
                     </Text>
-                    <Text style={[styles.categoriaDetalle, { color: tema.colores.textoSecundario }]}>
-                      {new Date(gasto.fecha).toLocaleDateString('es')}
+                    <Text style={[styles.topMeta, { color: c.textoSecundario }]}>
+                      {cat?.nombre ?? ''} · {new Date(gasto.fecha).toLocaleDateString('es-GT', { day: 'numeric', month: 'short' })}
                     </Text>
                   </View>
                   <Text style={[styles.topMonto, { color: '#ef4444' }]}>
-                    {simbolo}{(gasto.montoEnMonedaBase || gasto.monto).toFixed(2)}
+                    {simbolo}{(gasto.montoEnMonedaBase ?? gasto.monto).toFixed(2)}
                   </Text>
                 </View>
               );
@@ -427,202 +359,138 @@ export const EstadisticasScreen = () => {
           </View>
         )}
 
-        {/* Estadísticas por Categoría */}
-        {gastosPorCategoria.length > 0 ? (
-          <View style={[styles.seccion, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}>
-            <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>
-              🏷️ Por Categoría
-            </Text>
-            {gastosPorCategoria.map(cat => (
-              <View key={cat.id} style={[styles.categoriaItem, {
-                borderBottomColor: tema.colores.bordes
-              }]}>
-                <Text style={styles.categoriaEmoji}>{cat.emoji}</Text>
-                <View style={styles.categoriaInfo}>
-                  <Text style={[styles.categoriaNombre, { color: tema.colores.texto }]}>
-                    {cat.nombre}
-                  </Text>
-                  <Text style={[styles.categoriaDetalle, { color: tema.colores.textoSecundario }]}>
-                    {`${cat.cantidad} ${cat.cantidad === 1 ? 'gasto' : 'gastos'} • ${simbolo}${cat.total.toFixed(2)}`}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={[styles.seccion, {
-            backgroundColor: tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}>
-            <Text style={[styles.vacio, { color: tema.colores.textoSecundario }]}>
-              No hay gastos registrados todavía.
+        {/* Estado vacío */}
+        {gastos.filter(g => g.tipo === 'gasto').length === 0 && (
+          <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+            <Text style={[styles.vacio, { color: c.textoSecundario }]}>
+              Registra algunos gastos para ver tus estadísticas aquí.
             </Text>
           </View>
         )}
+
+        <View style={styles.espacioInferior} />
       </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 20,
-    paddingHorizontal: 20,
+  container: { flex: 1 },
+  scrollContent: { paddingTop: 16, paddingHorizontal: 16, paddingBottom: 40 },
+
+  // ── Proyección card ──
+  proyeccionCard: {
+    borderRadius: 20,
+    marginBottom: 14,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
   },
-  titulo: {
-    fontSize: 28,
+  proyDecoBig: {
+    position: 'absolute',
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    top: -80,
+    right: -60,
+  },
+  proyDecoSmall: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    bottom: -40,
+    left: -30,
+  },
+  proyContenido: {
+    padding: 22,
+  },
+  proyTitulo: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  proyMonto: {
+    color: '#fff',
+    fontSize: 42,
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 4,
+    letterSpacing: -1,
   },
-  seccion: {
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
-    borderWidth: 2,
+  proyDetalle: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
+    marginBottom: 16,
   },
-  subtitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  // Resumen del mes
-  resumenGrid: {
+  proyFila: {
     flexDirection: 'row',
+    gap: 8,
     flexWrap: 'wrap',
   },
-  resumenItem: {
-    width: '50%',
-    paddingVertical: 8,
-    paddingHorizontal: 5,
+  proyChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
-  resumenLabel: {
-    fontSize: 13,
-    marginBottom: 4,
+  proyChipTexto: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
-  resumenValor: {
-    fontSize: 18,
-    fontWeight: 'bold',
+
+  // ── Cards genéricas ──
+  card: {
+    borderRadius: 16,
+    borderWidth: 2,
+    padding: 16,
+    marginBottom: 14,
   },
-  // Promedio diario
-  promedioValor: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginVertical: 8,
-  },
-  promedioComparacion: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  // Leyenda de gráfico de barras
-  leyenda: {
+  cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-    marginTop: 10,
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 14,
+  },
+  cardTitulo: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  cardSubtitulo: {
+    fontSize: 12,
+    flexShrink: 0,
+    marginLeft: 8,
+  },
+
+  // ── Leyenda ──
+  leyendaRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   leyendaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
   },
-  leyendaColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  leyendaDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   leyendaTexto: {
-    fontSize: 12,
+    fontSize: 11,
   },
-  // Top gastos
-  topRango: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#f59e0b',
-    marginRight: 10,
-    minWidth: 20,
-    textAlign: 'center',
-  },
-  topMonto: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  // Categorías
-  categoriaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  categoriaEmoji: {
-    fontSize: 32,
-    marginRight: 15,
-  },
-  categoriaInfo: {
-    flex: 1,
-  },
-  categoriaNombre: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  categoriaDetalle: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-  vacio: {
-    fontSize: 16,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  // Límite de gasto diario
-  limiteFila: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  limiteLabel: {
-    fontSize: 13,
-  },
-  limiteValor: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  progressBarTrack: {
-    height: 8,
-    borderRadius: 4,
-    marginVertical: 8,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: 8,
-    borderRadius: 4,
-  },
-  limiteDiarioCard: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  limiteDiarioLabel: {
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  limiteDiarioValor: {
-    fontSize: 26,
-    fontWeight: 'bold',
-  },
-  // Comparativa por categoría
-  chipsScroll: {
-    marginBottom: 4,
-  },
-  chipsContainer: {
+
+  // ── Chips selector ──
+  chipsScroll: { marginBottom: 4 },
+  chipsRow: {
     flexDirection: 'row',
     gap: 8,
     paddingBottom: 4,
@@ -630,57 +498,85 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 20,
+    borderWidth: 1.5,
+    gap: 5,
+  },
+  chipEmoji: { fontSize: 15 },
+  chipTexto: { fontSize: 12, fontWeight: '600' },
+
+  // ── Insight banner ──
+  insightBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     borderWidth: 1,
-    gap: 6,
-  },
-  chipEmoji: {
-    fontSize: 16,
-  },
-  chipTexto: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  // Día más caro
-  insightCard: {
-    borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 12,
-    marginBottom: 14,
+    marginBottom: 16,
+    gap: 8,
   },
-  insightTexto: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  barrasContainer: {
-    gap: 10,
-  },
-  barraFila: {
+  insightIcono: { fontSize: 16, marginTop: 1 },
+  insightTexto: { fontSize: 13, lineHeight: 20, flex: 1 },
+
+  // ── Barras por día ──
+  diasContainer: { gap: 10 },
+  diaFila: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  barraDia: {
+  diaNombre: {
     fontSize: 12,
     fontWeight: '600',
-    width: 30,
+    width: 32,
   },
-  barraTrack: {
+  diaTrack: {
     flex: 1,
     height: 10,
     borderRadius: 5,
     overflow: 'hidden',
   },
-  barraFill: {
+  diaFill: {
     height: 10,
     borderRadius: 5,
   },
-  barraValor: {
+  diaValor: {
     fontSize: 12,
     fontWeight: '600',
-    width: 60,
+    width: 58,
     textAlign: 'right',
   },
+
+  // ── Top gastos ──
+  topItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  topMedalla: { fontSize: 18, width: 28, textAlign: 'center' },
+  topEmoji: { fontSize: 26 },
+  topInfo: { flex: 1 },
+  topDesc: { fontSize: 14, fontWeight: '600' },
+  topMeta: { fontSize: 12, marginTop: 2 },
+  topMonto: { fontSize: 15, fontWeight: 'bold' },
+
+  // ── Historial integrado ──
+  historialSection: {
+    borderTopWidth: 1,
+    marginTop: 16,
+    paddingTop: 16,
+  },
+  historialTitulo: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+
+  // ── Misc ──
+  vacio: { fontSize: 14, textAlign: 'center', fontStyle: 'italic', paddingVertical: 20 },
+  espacioInferior: { height: 20 },
 });

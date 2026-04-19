@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useCuotas } from '../context/CuotasContext';
 import { useGastos } from '../context/GastosContext';
+import { useMonedas } from '../context/MonedasContext';
 
 interface ResultadoSimulacion {
   montoMensual: number;
@@ -21,6 +22,8 @@ export const SimuladorCuotas = ({ variant = 'widget' }: Props) => {
   const { tema } = useTema();
   const { obtenerTotalCuotasMensual } = useCuotas();
   const { gastos } = useGastos();
+  const { monedaBase } = useMonedas();
+  const simbolo = monedaBase?.simbolo ?? simbolo;
 
   const [expandido, setExpandido] = useState(false);
   const [montoProducto, setMontoProducto] = useState('');
@@ -115,7 +118,7 @@ export const SimuladorCuotas = ({ variant = 'widget' }: Props) => {
         <View style={styles.campo}>
           <Text style={[styles.label, { color: tema.colores.texto }]}>Monto del producto</Text>
           <View style={[styles.inputConPrefijo, { borderColor: tema.colores.bordes }]}>
-            <Text style={[styles.prefijo, { color: tema.colores.primario }]}>{tema.moneda}</Text>
+            <Text style={[styles.prefijo, { color: tema.colores.primario }]}>{simbolo}</Text>
             <TextInput
               style={[styles.input, { color: tema.colores.texto }]}
               value={montoProducto}
@@ -171,7 +174,7 @@ export const SimuladorCuotas = ({ variant = 'widget' }: Props) => {
                 Cuota mensual:
               </Text>
               <Text style={[styles.detalleValor, { color: tema.colores.texto }]}>
-                {tema.moneda}{resultado.montoMensual.toFixed(2)}
+                {simbolo}{resultado.montoMensual.toFixed(2)}
               </Text>
             </View>
 
@@ -180,7 +183,7 @@ export const SimuladorCuotas = ({ variant = 'widget' }: Props) => {
                 Total cuotas mensuales:
               </Text>
               <Text style={[styles.detalleValor, { color: tema.colores.texto }]}>
-                {tema.moneda}{resultado.totalConNuevaCuota.toFixed(2)}
+                {simbolo}{resultado.totalConNuevaCuota.toFixed(2)}
               </Text>
             </View>
 

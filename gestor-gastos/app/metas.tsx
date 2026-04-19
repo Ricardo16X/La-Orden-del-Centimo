@@ -1,7 +1,9 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
-import { router } from 'expo-router';
 import { useTema } from './src/context/TemaContext';
+import { useToast } from './src/context/ToastContext';
+import { EstadoVacio } from './src/components/EstadoVacio';
+import { BotonAnimado } from './src/components/BotonAnimado';
 import { useMetas } from './src/context/MetasContext';
 import { useBalance } from './src/context/BalanceContext';
 import { formatearTiempoRestante, formatearAhorroRequerido } from './src/utils/date';
@@ -12,6 +14,7 @@ const COLORES_DISPONIBLES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf
 
 export default function MetasScreen() {
   const { tema } = useTema();
+  const { showToast } = useToast();
   const { metas, agregarMeta, eliminarMeta, aportarAMeta, retirarDeMeta, obtenerEstadisticasMeta } = useMetas();
   const { balance } = useBalance();
 
@@ -164,21 +167,13 @@ export default function MetasScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      {/* Header con botón volver */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
-        </TouchableOpacity>
-        <View style={{ width: 70 }} />
-      </View>
-
       {!mostrarFormulario && (
-        <TouchableOpacity
+        <BotonAnimado
           style={[styles.botonNuevo, { backgroundColor: tema.colores.primario }]}
           onPress={() => setMostrarFormulario(true)}
         >
           <Text style={styles.textoBotonNuevo}>+ Nueva Meta</Text>
-        </TouchableOpacity>
+        </BotonAnimado>
       )}
 
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -313,15 +308,11 @@ export default function MetasScreen() {
                 })}
               </View>
             ) : (
-              <View style={styles.vacio}>
-                <Text style={styles.vaciIcono}>🎯</Text>
-                <Text style={[styles.vacioTexto, { color: tema.colores.textoSecundario }]}>
-                  No tienes metas de ahorro aún
-                </Text>
-                <Text style={[styles.vacioSubtexto, { color: tema.colores.textoSecundario }]}>
-                  Crea tu primera meta y empieza a ahorrar
-                </Text>
-              </View>
+              <EstadoVacio
+                emoji="🎯"
+                titulo="No tienes metas de ahorro aún"
+                subtitulo="Crea tu primera meta y empieza a ahorrar"
+              />
             )}
           </>
         ) : (
@@ -503,12 +494,12 @@ export default function MetasScreen() {
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <BotonAnimado
                   style={[styles.botonGuardar, { backgroundColor: tema.colores.primario }]}
                   onPress={handleAgregar}
                 >
                   <Text style={styles.textoBotonGuardar}>Crear Meta</Text>
-                </TouchableOpacity>
+                </BotonAnimado>
               </View>
             </View>
           </>
@@ -574,7 +565,7 @@ export default function MetasScreen() {
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <BotonAnimado
                   style={[styles.botonConfirmarAporte, {
                     backgroundColor: tema.colores.primario,
                   }]}
@@ -583,7 +574,7 @@ export default function MetasScreen() {
                   <Text style={styles.textoBotonConfirmar}>
                     {esRetiro ? 'Retirar' : 'Aportar'}
                   </Text>
-                </TouchableOpacity>
+                </BotonAnimado>
               </View>
             </View>
           </View>
@@ -596,7 +587,7 @@ export default function MetasScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
+    paddingTop: 10,
     paddingHorizontal: 20,
   },
   header: {
@@ -604,14 +595,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-  },
-  botonVolver: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  titulo: {
-    fontSize: 20,
-    fontWeight: 'bold',
   },
   botonNuevo: {
     padding: 15,
@@ -718,7 +701,7 @@ const styles = StyleSheet.create({
   },
   textoBotonAportar: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   botonRetirar: {
@@ -729,7 +712,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   textoBotonRetirar: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   badge: {
@@ -745,22 +728,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
-  vacio: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  vaciIcono: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  vacioTexto: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  vacioSubtexto: {
-    fontSize: 14,
-  },
   formulario: {
     padding: 20,
     borderRadius: 15,
@@ -773,7 +740,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     marginTop: 15,
@@ -894,7 +861,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   tituloModal: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center',

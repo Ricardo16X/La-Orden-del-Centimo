@@ -1,7 +1,8 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
-import { router } from 'expo-router';
 import { useTema } from './src/context/TemaContext';
+import { EstadoVacio } from './src/components/EstadoVacio';
+import { BotonAnimado } from './src/components/BotonAnimado';
 import { useGastosRecurrentes } from './src/context/GastosRecurrentesContext';
 import { useCategorias } from './src/context/CategoriasContext';
 import { useMonedas } from './src/context/MonedasContext';
@@ -169,13 +170,6 @@ export default function GastosRecurrentesScreen() {
       style={[styles.container, { backgroundColor: tema.colores.fondo }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={[styles.botonVolver, { color: tema.colores.primario }]}>← Volver</Text>
-        </TouchableOpacity>
-        <View style={{ width: 70 }} />
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Resumen mensual */}
         {activos.length > 0 && (
@@ -282,23 +276,19 @@ export default function GastosRecurrentesScreen() {
                 })}
               </View>
             ) : (
-              <View style={styles.vacio}>
-                <Text style={{ fontSize: 60, textAlign: 'center', marginBottom: 15 }}>🔁</Text>
-                <Text style={[styles.vacioTitulo, { color: tema.colores.texto }]}>
-                  Sin gastos recurrentes
-                </Text>
-                <Text style={[styles.vacioTexto, { color: tema.colores.textoSecundario }]}>
-                  Agrega tus suscripciones y gastos fijos para que se registren automáticamente
-                </Text>
-              </View>
+              <EstadoVacio
+                emoji="🔁"
+                titulo="Sin gastos recurrentes"
+                subtitulo="Agrega tus suscripciones y gastos fijos para que se registren automáticamente"
+              />
             )}
 
-            <TouchableOpacity
+            <BotonAnimado
               style={[styles.botonAgregar, { backgroundColor: tema.colores.primario }]}
               onPress={() => setMostrarFormulario(true)}
             >
               <Text style={styles.botonAgregarTexto}>+ Nuevo Gasto Recurrente</Text>
-            </TouchableOpacity>
+            </BotonAnimado>
           </>
         ) : (
           <>
@@ -475,12 +465,12 @@ export default function GastosRecurrentesScreen() {
                   </Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
+                <BotonAnimado
                   style={[styles.botonGuardar, { backgroundColor: tema.colores.primario }]}
                   onPress={handleAgregar}
                 >
                   <Text style={styles.botonGuardarTexto}>Guardar</Text>
-                </TouchableOpacity>
+                </BotonAnimado>
               </View>
             </View>
           </>
@@ -493,7 +483,7 @@ export default function GastosRecurrentesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
+    paddingTop: 10,
     paddingHorizontal: 20,
   },
   header: {
@@ -501,14 +491,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
-  },
-  botonVolver: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  titulo: {
-    fontSize: 24,
-    fontWeight: 'bold',
   },
   resumen: {
     padding: 15,
@@ -596,12 +578,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemTitulo: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 2,
   },
   itemMonto: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: 2,
   },
@@ -614,20 +596,6 @@ const styles = StyleSheet.create({
   },
   botonEliminar: {
     marginTop: 8,
-  },
-  vacio: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  vacioTitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  vacioTexto: {
-    fontSize: 14,
-    textAlign: 'center',
-    fontStyle: 'italic',
   },
   botonAgregar: {
     padding: 15,
@@ -645,7 +613,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     marginTop: 12,
@@ -691,7 +659,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   monedaTexto: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   frecuenciaOpciones: {
@@ -706,7 +674,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   frecuenciaTexto: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   diasScroll: {

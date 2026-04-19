@@ -1,7 +1,9 @@
-import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useCuotas } from '../context/CuotasContext';
+import { useMonedas } from '../context/MonedasContext';
+import { useToast } from '../context/ToastContext';
 
 interface Props {
   visible: boolean;
@@ -22,6 +24,9 @@ const CATEGORIAS_CUOTAS = [
 export const ModalAgregarCuota = ({ visible, onClose, tarjetaId, nombreTarjeta }: Props) => {
   const { tema } = useTema();
   const { agregarCuota } = useCuotas();
+  const { monedaBase } = useMonedas();
+  const { showToast } = useToast();
+  const simbolo = monedaBase?.simbolo ?? simbolo;
 
   const [descripcion, setDescripcion] = useState('');
   const [comercio, setComercio] = useState('');
@@ -41,25 +46,25 @@ export const ModalAgregarCuota = ({ visible, onClose, tarjetaId, nombreTarjeta }
 
   const handleAgregar = () => {
     if (!descripcion.trim()) {
-      Alert.alert('Error', 'Por favor ingresa una descripción de la compra');
+      showToast('Ingresa una descripción de la compra', 'error');
       return;
     }
 
     const monto = parseFloat(montoTotal);
     if (isNaN(monto) || monto <= 0) {
-      Alert.alert('Error', 'Por favor ingresa un monto válido');
+      showToast('Ingresa un monto válido', 'error');
       return;
     }
 
     const cuotas = parseInt(cantidadCuotas);
     if (isNaN(cuotas) || cuotas < 2 || cuotas > 60) {
-      Alert.alert('Error', 'El número de cuotas debe ser entre 2 y 60');
+      showToast('El número de cuotas debe ser entre 2 y 60', 'error');
       return;
     }
 
     const pagadas = parseInt(cuotasPagadas);
     if (isNaN(pagadas) || pagadas < 0 || pagadas > cuotas) {
-      Alert.alert('Error', `Las cuotas pagadas deben estar entre 0 y ${cuotas}`);
+      showToast(`Las cuotas pagadas deben estar entre 0 y ${cuotas}`, 'error');
       return;
     }
 
@@ -75,11 +80,8 @@ export const ModalAgregarCuota = ({ visible, onClose, tarjetaId, nombreTarjeta }
     });
 
     resetFormulario();
-    Alert.alert(
-      'Éxito',
-      `Compra a cuotas agregada correctamente\n\nPago mensual: ${tema.moneda}${(monto / cuotas).toFixed(2)}`,
-      [{ text: 'OK', onPress: onClose }]
-    );
+    showToast(`Compra agregada · ${simbolo}${(monto / cuotas).toFixed(2)}/mes`);
+    onClose();
   };
 
   const handleCancelar = () => {
@@ -100,7 +102,7 @@ export const ModalAgregarCuota = ({ visible, onClose, tarjetaId, nombreTarjeta }
     >
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={[styles.modalContainer, { backgroundColor: tema.colores.fondo }]}>
           {/* Header */}
@@ -196,7 +198,7 @@ export const ModalAgregarCuota = ({ visible, onClose, tarjetaId, nombreTarjeta }
 
               <Text style={[styles.label, { color: tema.colores.texto }]}>Monto Total:</Text>
               <View style={styles.inputConPrefijo}>
-                <Text style={[styles.prefijo, { color: tema.colores.texto }]}>{tema.moneda}</Text>
+                <Text style={[styles.prefijo, { color: tema.colores.texto }]}>{simbolo}</Text>
                 <TextInput
                   style={[styles.inputNumerico, {
                     backgroundColor: tema.colores.fondoSecundario,
@@ -254,7 +256,7 @@ export const ModalAgregarCuota = ({ visible, onClose, tarjetaId, nombreTarjeta }
                     💳 Pago mensual:
                   </Text>
                   <Text style={[styles.previewMonto, { color: tema.colores.primario }]}>
-                    {tema.moneda}{montoPorCuota}
+                    {simbolo}{montoPorCuota}
                   </Text>
                   <Text style={[styles.previewDetalle, { color: tema.colores.textoSecundario }]}>
                     Durante {cantidadCuotas} meses

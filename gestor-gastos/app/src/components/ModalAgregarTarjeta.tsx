@@ -1,6 +1,7 @@
-import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useTema } from '../context/TemaContext';
+import { useToast } from '../context/ToastContext';
 import { useTarjetas } from '../context/TarjetasContext';
 import { TarjetaCredito } from '../types';
 
@@ -19,6 +20,7 @@ const COLORES_TARJETA = [
 
 export const ModalAgregarTarjeta = ({ visible, onClose, tarjetaEditar }: Props) => {
   const { tema } = useTema();
+  const { showToast } = useToast();
   const { agregarTarjeta, editarTarjeta } = useTarjetas();
   const modoEdicion = !!tarjetaEditar;
 
@@ -56,30 +58,30 @@ export const ModalAgregarTarjeta = ({ visible, onClose, tarjetaEditar }: Props) 
 
   const handleAgregar = () => {
     if (!nombre.trim()) {
-      Alert.alert('Error', 'Por favor ingresa el nombre de la tarjeta');
+      showToast('Por favor ingresa el nombre de la tarjeta', 'error');
       return;
     }
     if (!banco.trim()) {
-      Alert.alert('Error', 'Por favor ingresa el banco');
+      showToast('Por favor ingresa el banco', 'error');
       return;
     }
     if (ultimosCuatro.length !== 4 || !/^\d+$/.test(ultimosCuatro)) {
-      Alert.alert('Error', 'Los últimos 4 dígitos deben ser exactamente 4 números');
+      showToast('Los últimos 4 dígitos deben ser exactamente 4 números', 'error');
       return;
     }
     const corte = parseInt(diaCorte);
     if (isNaN(corte) || corte < 1 || corte > 31) {
-      Alert.alert('Error', 'El día de corte debe estar entre 1 y 31');
+      showToast('El día de corte debe estar entre 1 y 31', 'error');
       return;
     }
     const pago = parseInt(diaPago);
     if (isNaN(pago) || pago < 1 || pago > 31) {
-      Alert.alert('Error', 'El día de pago debe estar entre 1 y 31');
+      showToast('El día de pago debe estar entre 1 y 31', 'error');
       return;
     }
     const limite = limiteCredito.trim() ? parseFloat(limiteCredito) : undefined;
     if (limite !== undefined && (isNaN(limite) || limite <= 0)) {
-      Alert.alert('Error', 'El límite de crédito debe ser un número mayor a 0');
+      showToast('El límite de crédito debe ser un número mayor a 0', 'error');
       return;
     }
 
@@ -95,11 +97,11 @@ export const ModalAgregarTarjeta = ({ visible, onClose, tarjetaEditar }: Props) 
 
     if (modoEdicion && tarjetaEditar) {
       editarTarjeta(tarjetaEditar.id, datos);
-      Alert.alert('Éxito', 'Tarjeta actualizada correctamente', [{ text: 'OK', onPress: onClose }]);
+      showToast('Tarjeta actualizada correctamente'); onClose();
     } else {
       agregarTarjeta(datos);
       resetFormulario();
-      Alert.alert('Éxito', 'Tarjeta agregada correctamente', [{ text: 'OK', onPress: onClose }]);
+      showToast('Tarjeta agregada correctamente'); onClose();
     }
   };
 
@@ -117,8 +119,7 @@ export const ModalAgregarTarjeta = ({ visible, onClose, tarjetaEditar }: Props) 
     >
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={[styles.modalContainer, { backgroundColor: tema.colores.fondo }]}>
           {/* Header */}
@@ -366,12 +367,12 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   seccionTitulo: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     marginTop: 10,
@@ -423,7 +424,7 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
   },
   previewNombre: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
   },

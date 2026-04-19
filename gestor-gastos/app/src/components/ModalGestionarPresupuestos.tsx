@@ -1,6 +1,7 @@
-import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useState } from 'react';
 import { useTema } from '../context/TemaContext';
+import { useToast } from '../context/ToastContext';
 import { useCategorias } from '../context/CategoriasContext';
 import { usePresupuestos } from '../context/PresupuestosContext';
 import { useMonedas } from '../context/MonedasContext';
@@ -18,6 +19,7 @@ const PERIODOS = [
 
 export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
   const { tema } = useTema();
+  const { showToast } = useToast();
   const { categorias } = useCategorias();
   const { presupuestos, agregarPresupuesto, editarPresupuesto, eliminarPresupuesto, obtenerEstadisticasPresupuesto } = usePresupuestos();
   const { monedas, monedaBase } = useMonedas();
@@ -54,19 +56,19 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
 
   const handleAgregar = () => {
     if (!categoriaSeleccionada) {
-      Alert.alert('Error', 'Por favor selecciona una categoría');
+      showToast('Por favor selecciona una categoría', 'error');
       return;
     }
 
     const montoNum = parseFloat(monto);
     if (isNaN(montoNum) || montoNum <= 0) {
-      Alert.alert('Error', 'Por favor ingresa un monto válido');
+      showToast('Por favor ingresa un monto válido', 'error');
       return;
     }
 
     const alertaNum = parseFloat(alertaEn);
     if (isNaN(alertaNum) || alertaNum < 0 || alertaNum > 100) {
-      Alert.alert('Error', 'El porcentaje de alerta debe estar entre 0 y 100');
+      showToast('El porcentaje de alerta debe estar entre 0 y 100', 'error');
       return;
     }
 
@@ -80,7 +82,7 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
         monedaId: monedaSeleccionada,
       });
       resetFormulario();
-      Alert.alert('Éxito', 'Presupuesto actualizado correctamente');
+      showToast('Presupuesto actualizado correctamente');
       return;
     }
 
@@ -103,7 +105,7 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
                 alertaEn: alertaNum,
               });
               resetFormulario();
-              Alert.alert('Éxito', 'Presupuesto actualizado correctamente');
+              showToast('Presupuesto actualizado correctamente');
             },
           },
         ]
@@ -120,7 +122,7 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
     });
 
     resetFormulario();
-    Alert.alert('Éxito', 'Presupuesto agregado correctamente');
+    showToast('Presupuesto agregado correctamente');
   };
 
   const handleEliminar = (id: string) => {
@@ -134,7 +136,7 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
           style: 'destructive',
           onPress: () => {
             eliminarPresupuesto(id);
-            Alert.alert('Eliminado', 'Presupuesto eliminado correctamente');
+            showToast('Presupuesto eliminado correctamente');
           },
         },
       ]
@@ -456,7 +458,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   titulo: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
   },
   cerrar: {
@@ -496,7 +498,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   subtitulo: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   cancelarEdicion: {
@@ -504,7 +506,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 8,
     marginTop: 10,
@@ -543,7 +545,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   monedaTexto: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   categoriaEmoji: {
@@ -611,7 +613,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   presupuestoCategoria: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
     flex: 1,
   },

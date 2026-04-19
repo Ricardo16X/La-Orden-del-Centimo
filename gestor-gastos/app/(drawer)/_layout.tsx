@@ -97,6 +97,7 @@ export default function DrawerLayout() {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+          headerTitleAlign: 'left',
           drawerStyle: {
             backgroundColor: tema.colores.fondo,
           },

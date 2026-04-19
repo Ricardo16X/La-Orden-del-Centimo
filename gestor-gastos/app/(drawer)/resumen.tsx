@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { StyleSheet, ScrollView } from 'react-native';
 import { useTema } from '../src/context/TemaContext';
 import { ResumenBalance } from '../src/components/ResumenBalance';
 import { ResumenPorMoneda } from '../src/components/ResumenPorMoneda';
@@ -18,10 +18,6 @@ export default function ResumenScreen() {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      <Text style={[styles.descripcion, { color: tema.colores.textoSecundario }]}>
-        Vista general de tu situación financiera
-      </Text>
-
       <ResumenBalance />
 
       <ResumenPorMoneda />

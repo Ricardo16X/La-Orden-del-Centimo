@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
 import 'react-native-reanimated';
 
+import { ToastProvider } from './src/context/ToastContext';
 import { GastosProvider } from './src/context/GastosContext';
 import { TemaProvider, useTema } from './src/context/TemaContext';
 import { CategoriasProvider } from './src/context/CategoriasContext';
@@ -38,13 +39,55 @@ function NavigationContent() {
         }}
       >
         <Stack.Screen name="(drawer)" />
-        <Stack.Screen name="categorias" />
-        <Stack.Screen name="presupuestos" />
-        <Stack.Screen name="tarjetas" />
-        <Stack.Screen name="recordatorios" />
-        <Stack.Screen name="metas" />
-        <Stack.Screen name="gastosRecurrentes" />
-        <Stack.Screen name="transferencias" />
+        <Stack.Screen name="categorias" options={{
+          headerShown: true,
+          title: 'Categorías',
+          headerStyle: { backgroundColor: tema.colores.primario },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }} />
+        <Stack.Screen name="presupuestos" options={{
+          headerShown: true,
+          title: 'Presupuestos',
+          headerStyle: { backgroundColor: tema.colores.primario },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }} />
+        <Stack.Screen name="tarjetas" options={{
+          headerShown: true,
+          title: 'Tarjetas de Crédito',
+          headerStyle: { backgroundColor: tema.colores.primario },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }} />
+        <Stack.Screen name="recordatorios" options={{
+          headerShown: true,
+          title: 'Recordatorios',
+          headerStyle: { backgroundColor: tema.colores.primario },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }} />
+        <Stack.Screen name="metas" options={{
+          headerShown: true,
+          title: 'Metas de Ahorro',
+          headerStyle: { backgroundColor: tema.colores.primario },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }} />
+        <Stack.Screen name="gastosRecurrentes" options={{
+          headerShown: true,
+          title: 'Gastos Recurrentes',
+          headerStyle: { backgroundColor: tema.colores.primario },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }} />
+        <Stack.Screen name="transferencias" options={{
+          headerShown: true,
+          title: 'Transferencias',
+          headerStyle: { backgroundColor: tema.colores.primario },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
@@ -56,6 +99,7 @@ export default function RootLayout() {
   SplashScreen.hideAsync();
 
   return (
+    <ToastProvider>
     <TemaProvider>
       <MonedasProvider>
         <CategoriasProvider>
@@ -79,5 +123,6 @@ export default function RootLayout() {
         </CategoriasProvider>
       </MonedasProvider>
     </TemaProvider>
+    </ToastProvider>
   );
 }
