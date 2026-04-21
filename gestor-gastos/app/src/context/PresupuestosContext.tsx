@@ -9,6 +9,7 @@ import { Presupuesto, NuevoPresupuesto, EstadisticasPresupuesto } from '../types
 import { STORAGE_KEYS } from '../utils/storage-keys';
 import { generarId } from '../utils';
 import { useGastos } from './GastosContext';
+import { useMonedas } from './MonedasContext';
 
 interface PresupuestosContextType {
   presupuestos: Presupuesto[];
@@ -25,6 +26,7 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
   const [cargado, setCargado] = useState(false);
   const { gastos } = useGastos();
+  const { monedaBase } = useMonedas();
 
   useEffect(() => {
     cargarPresupuestos();
@@ -120,15 +122,18 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
     // Calcular días restantes del período
     const diasRestantes = Math.max(0, Math.ceil((fechaFin.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24)));
 
+    // Normalizar moneda del presupuesto (compatibilidad con datos anteriores sin monedaId)
+    const monedaBase_ = monedaBase?.codigo || 'GTQ';
+    const monedaPresupuesto = presupuesto.monedaId || monedaBase_;
+
     // Calcular total gastado en la categoría en el período (filtrando por moneda)
     const gastado = gastos
       .filter(g => {
-        // Filtrar por tipo, categoría y moneda del presupuesto
-        if (g.tipo !== 'gasto' || g.categoria !== categoriaId || g.moneda !== presupuesto.monedaId) return false;
+        // Normalizar moneda del gasto (gastos antiguos pueden no tener el campo)
+        const monedaGasto = g.moneda || monedaBase_;
+        if (g.tipo !== 'gasto' || g.categoria !== categoriaId || monedaGasto !== monedaPresupuesto) return false;
 
-        // Parsear la fecha del gasto (formato ISO)
         const fechaGasto = new Date(g.fecha);
-
         return fechaGasto >= fechaInicio && fechaGasto <= ahora;
       })
       .reduce((sum, g) => sum + g.monto, 0);

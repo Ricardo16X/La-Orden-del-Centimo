@@ -22,7 +22,7 @@ export default function PresupuestosScreen() {
   const { showToast } = useToast();
   const { categorias } = useCategorias();
   const { presupuestos, agregarPresupuesto, editarPresupuesto, eliminarPresupuesto, obtenerEstadisticasPresupuesto } = usePresupuestos();
-  const { monedas, monedaBase } = useMonedas();
+  const { monedas, monedaBase, convertirAMonedaBase } = useMonedas();
   const simbolo = monedaBase?.simbolo ?? '$';
 
   const [formVisible, setFormVisible] = useState(false);
@@ -71,8 +71,15 @@ export default function PresupuestosScreen() {
       return pb - pa;
     });
 
-  const totalGastado       = presupuestosConStats.reduce((s, p) => s + (p.stats?.gastado ?? 0), 0);
-  const totalPresupuestado = presupuestosConStats.reduce((s, p) => s + p.monto, 0);
+  const codigoBase = monedaBase?.codigo || 'GTQ';
+  const totalGastado = presupuestosConStats.reduce((s, p) => {
+    const cod = p.monedaId || codigoBase;
+    return s + convertirAMonedaBase(p.stats?.gastado ?? 0, cod);
+  }, 0);
+  const totalPresupuestado = presupuestosConStats.reduce((s, p) => {
+    const cod = p.monedaId || codigoBase;
+    return s + convertirAMonedaBase(p.monto, cod);
+  }, 0);
   const excedidos  = presupuestosConStats.filter(p => p.stats?.excedido).length;
   const enAlerta   = presupuestosConStats.filter(p => p.stats?.debeAlertar).length;
   const alDia      = presupuestosConStats.filter(p => !p.stats?.excedido && !p.stats?.debeAlertar).length;
@@ -117,7 +124,7 @@ export default function PresupuestosScreen() {
 
     const existente = presupuestos.find(p => p.categoriaId === categoriaSeleccionada && p.periodo === periodo);
     if (existente) {
-      editarPresupuesto(existente.id, { monto: montoNum, alertaEn: alertaNum });
+      editarPresupuesto(existente.id, { monto: montoNum, alertaEn: alertaNum, monedaId: monedaSeleccionada });
       resetFormulario();
       showToast('Presupuesto actualizado');
       return;

@@ -1,16 +1,28 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useTema } from '../context/TemaContext';
 import { useAlertasPresupuesto } from '../hooks/useAlertasPresupuesto';
+import { useMonedas } from '../context/MonedasContext';
 
-export const AlertasPresupuesto = () => {
+interface Props {
+  soloExcedidos?: boolean;
+}
+
+export const AlertasPresupuesto = ({ soloExcedidos }: Props = {}) => {
   const { tema } = useTema();
   const { alertas, tieneAlertas } = useAlertasPresupuesto();
+  const { monedaBase } = useMonedas();
+  const simbolo = monedaBase?.simbolo || '$';
 
-  if (!tieneAlertas) return null;
+  const alertasFiltradas = soloExcedidos ? alertas.filter(a => a.excedido) : alertas;
+
+  if (!tieneAlertas || alertasFiltradas.length === 0) return null;
 
   return (
     <View style={styles.container}>
-      {alertas.map((alerta, index) => {
+      <Text style={[styles.titulo, { color: tema.colores.primario }]}>
+        🚨 Presupuestos excedidos
+      </Text>
+      {alertasFiltradas.map((alerta, index) => {
         const porcentajeRedondeado = Math.round(alerta.porcentaje);
         const esExcedido = alerta.excedido;
 
@@ -51,7 +63,7 @@ export const AlertasPresupuesto = () => {
 
             <View style={styles.alertaDetalles}>
               <Text style={[styles.montoTexto, { color: tema.colores.texto }]}>
-                {`$${alerta.gastado.toFixed(2)} de $${alerta.presupuesto.toFixed(2)}`}
+                {`${simbolo}${alerta.gastado.toFixed(2)} de ${simbolo}${alerta.presupuesto.toFixed(2)}`}
               </Text>
               <Text
                 style={[
@@ -65,7 +77,7 @@ export const AlertasPresupuesto = () => {
 
             <Text style={[styles.mensajeAlerta, { color: tema.colores.textoSecundario }]}>
               {esExcedido
-                ? `¡Has excedido el presupuesto por $${(alerta.gastado - alerta.presupuesto).toFixed(2)}!`
+                ? `¡Has excedido el presupuesto por ${simbolo}${(alerta.gastado - alerta.presupuesto).toFixed(2)}!`
                 : `Estás cerca del límite de tu presupuesto`
               }
             </Text>
@@ -79,6 +91,12 @@ export const AlertasPresupuesto = () => {
 const styles = StyleSheet.create({
   container: {
     gap: 12,
+    marginVertical: 10,
+  },
+  titulo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 2,
   },
   alerta: {
     borderRadius: 15,

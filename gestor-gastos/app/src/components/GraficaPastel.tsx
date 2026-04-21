@@ -1,6 +1,6 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, GestureResponderEvent } from 'react-native';
 import { useState } from 'react';
-import Svg, { Path, G, Circle } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { useTema } from '../context/TemaContext';
 import { useCategorias } from '../context/CategoriasContext';
 import { useMonedas } from '../context/MonedasContext';
@@ -38,7 +38,7 @@ export const GraficaPastel = ({ datos, onSelect }: Props) => {
   const [containerWidth, setContainerWidth] = useState(0);
   const [seleccionadaId, setSeleccionadaId] = useState<string | null>(null);
 
-  const handlePress = (id: string) => {
+  const handleSelect = (id: string) => {
     const next = seleccionadaId === id ? null : id;
     setSeleccionadaId(next);
     onSelect?.(next);
@@ -75,14 +75,34 @@ export const GraficaPastel = ({ datos, onSelect }: Props) => {
   const cx = size / 2;
   const cy = size / 2;
   const r = size / 2 - 10;
+  const innerR = r * 0.45;
 
   let currentAngle = 0;
   const slices = items.map(item => {
     const angle = (item.total / total) * 360;
-    const path = slicePath(cx, cy, r, currentAngle, currentAngle + angle);
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + angle;
+    const path = slicePath(cx, cy, r, startAngle, endAngle);
     currentAngle += angle;
-    return { ...item, path };
+    return { ...item, path, startAngle, endAngle };
   });
+
+  const handleSvgPress = (event: GestureResponderEvent) => {
+    const { locationX, locationY } = event.nativeEvent;
+    const dx = locationX - cx;
+    const dy = locationY - cy;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Ignorar si toca el hueco central o fuera del pie
+    if (distance < innerR || distance > r) return;
+
+    // Calcular ángulo desde el centro (0° = arriba, sentido horario)
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+    if (angle < 0) angle += 360;
+
+    const slice = slices.find(s => angle >= s.startAngle && angle < s.endAngle);
+    if (slice) handleSelect(slice.categoriaId);
+  };
 
   return (
     <View
@@ -90,8 +110,12 @@ export const GraficaPastel = ({ datos, onSelect }: Props) => {
       onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}
     >
       {containerWidth > 0 && (
-        <Svg width={size} height={size}>
-          <G>
+        <TouchableOpacity
+          onPress={handleSvgPress}
+          activeOpacity={1}
+          style={{ width: size, height: size }}
+        >
+          <Svg width={size} height={size}>
             {slices.map((slice, i) => {
               const seleccionada = seleccionadaId === slice.categoriaId;
               return (
@@ -100,23 +124,26 @@ export const GraficaPastel = ({ datos, onSelect }: Props) => {
                   d={slice.path}
                   fill={slice.color}
                   stroke={seleccionada ? '#fff' : tema.colores.fondoSecundario}
-                  strokeWidth={seleccionada ? 4 : 2}
-                  onPress={() => handlePress(slice.categoriaId)}
+                  strokeWidth={seleccionada ? 2 : 1}
                 />
               );
             })}
-            {/* Círculo interior para efecto dona — tapa las colitas del centro */}
-            <Circle cx={cx} cy={cy} r={r * 0.45} fill={tema.colores.fondoSecundario} />
-          </G>
-        </Svg>
+            <Circle cx={cx} cy={cy} r={innerR} fill={tema.colores.fondoSecundario} />
+          </Svg>
+        </TouchableOpacity>
       )}
 
-      {/* Leyenda en grid de 2 columnas */}
+      {/* Leyenda — también tappable como alternativa */}
       <View style={styles.leyenda}>
         {items.map((item, index) => {
           const seleccionada = seleccionadaId === item.categoriaId;
           return (
-            <View key={index} style={styles.leyendaItem}>
+            <TouchableOpacity
+              key={index}
+              style={styles.leyendaItem}
+              onPress={() => handleSelect(item.categoriaId)}
+              activeOpacity={0.7}
+            >
               <View style={[styles.leyendaDot, { backgroundColor: item.color }]} />
               <View style={styles.leyendaTextos}>
                 <Text
@@ -130,7 +157,7 @@ export const GraficaPastel = ({ datos, onSelect }: Props) => {
                   {simbolo}{item.total.toFixed(2)} · {item.porcentaje.toFixed(1)}%
                 </Text>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>

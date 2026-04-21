@@ -107,7 +107,7 @@ export const PerfilScreen = () => {
               Copia de Seguridad
             </Text>
             <Text style={[styles.menuDescripcion, { color: tema.colores.textoSecundario }]}>
-              Guarda todos tus datos de forma segura
+              Gastos, metas, presupuestos, tarjetas y más
             </Text>
           </View>
           <Text style={[styles.menuFlecha, { color: tema.colores.textoSecundario }]}>›</Text>

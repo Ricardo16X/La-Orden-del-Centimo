@@ -67,7 +67,7 @@ export const ResumenPorMoneda = () => {
     return { subtotalesPorMoneda: subtotales, totalEnMonedaBase: total };
   }, [gastos, monedas, monedaBase, convertirAMonedaBase]);
 
-  if (subtotalesPorMoneda.length === 0) {
+  if (monedas.length <= 1 || subtotalesPorMoneda.length === 0) {
     return null;
   }
 
