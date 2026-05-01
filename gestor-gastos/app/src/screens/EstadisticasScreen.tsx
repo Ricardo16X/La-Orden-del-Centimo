@@ -7,6 +7,7 @@ import { useMonedas } from '../context/MonedasContext';
 import { useEstadisticas } from '../hooks';
 import { GraficaPastel } from '../components/GraficaPastel';
 import { GraficaLineas } from '../components/GraficaLineas';
+import { ProximoMesPanel } from '../components/ProximoMesPanel';
 import { LineChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
@@ -187,7 +188,10 @@ export const EstadisticasScreen = () => {
           </View>
         )}
 
-        {/* ── 2. Tendencia últimos 7 días ── */}
+        {/* ── 2. Compromisos del mes siguiente ── */}
+        <ProximoMesPanel />
+
+        {/* ── 3. Tendencia últimos 7 días ── */}
         {gastos.length > 0 && (
           <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
             <View style={styles.cardHeader}>

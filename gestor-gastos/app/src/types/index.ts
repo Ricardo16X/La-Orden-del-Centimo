@@ -199,6 +199,7 @@ export interface GastoRecurrente {
   proximaFecha: string; // ISO format - próxima fecha para generar el gasto
   activo: boolean;
   fechaCreacion: string; // ISO format
+  tarjetaId?: string; // Si se carga a una tarjeta de crédito
 }
 
 /**

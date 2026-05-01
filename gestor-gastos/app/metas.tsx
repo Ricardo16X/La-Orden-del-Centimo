@@ -1,4 +1,7 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View, Text, ScrollView, StyleSheet, TouchableOpacity,
+  TextInput, Modal, KeyboardAvoidingView, Platform, Alert,
+} from 'react-native';
 import { useState } from 'react';
 import { useTema } from './src/context/TemaContext';
 import { useToast } from './src/context/ToastContext';
@@ -6,577 +9,541 @@ import { EstadoVacio } from './src/components/EstadoVacio';
 import { BotonAnimado } from './src/components/BotonAnimado';
 import { useMetas } from './src/context/MetasContext';
 import { useBalance } from './src/context/BalanceContext';
-import { formatearTiempoRestante, formatearAhorroRequerido } from './src/utils/date';
 import { useMonedas } from './src/context/MonedasContext';
+import { Meta } from './src/types';
 
-const ICONOS_DISPONIBLES = ['🎯', '🏖️', '🚗', '🏠', '💍', '🎓', '💻', '🎮', '📱', '✈️'];
-const COLORES_DISPONIBLES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const ICONOS = ['🎯', '🏖️', '🚗', '🏠', '💍', '🎓', '💻', '🎮', '📱', '✈️', '🏋️', '🎸'];
+const COLORES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
 export default function MetasScreen() {
   const { tema } = useTema();
+  const c = tema.colores;
   const { showToast } = useToast();
   const { metas, agregarMeta, eliminarMeta, aportarAMeta, retirarDeMeta, obtenerEstadisticasMeta } = useMetas();
   const { balance } = useBalance();
+  const { monedas, monedaBase } = useMonedas();
 
-  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  // ─── Form state ───────────────────────────────────────────────────────────────
+  const [formVisible, setFormVisible] = useState(false);
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [montoObjetivo, setMontoObjetivo] = useState('');
-  const [duracionMeta, setDuracionMeta] = useState('1');
-  const [unidadTiempo, setUnidadTiempo] = useState<'dias' | 'meses' | 'años'>('meses');
-  const [iconoSeleccionado, setIconoSeleccionado] = useState(ICONOS_DISPONIBLES[0]);
-  const [colorSeleccionado, setColorSeleccionado] = useState(COLORES_DISPONIBLES[0]);
+  const [duracion, setDuracion] = useState('6');
+  const [unidad, setUnidad] = useState<'dias' | 'meses' | 'años'>('meses');
+  const [icono, setIcono] = useState(ICONOS[0]);
+  const [color, setColor] = useState(COLORES[0]);
+  const [monedaSel, setMonedaSel] = useState(monedaBase?.codigo || '');
 
-  // Estados para aportar/retirar
-  const [modalAportarVisible, setModalAportarVisible] = useState(false);
-  const [metaSeleccionada, setMetaSeleccionada] = useState<string | null>(null);
-  const [montoAportar, setMontoAportar] = useState('');
+  // ─── Modal aportar/retirar ────────────────────────────────────────────────────
+  const [modalAporte, setModalAporte] = useState(false);
+  const [metaAporteId, setMetaAporteId] = useState<string | null>(null);
+  const [montoAporte, setMontoAporte] = useState('');
   const [esRetiro, setEsRetiro] = useState(false);
 
-  // Monedas
-  const { monedas, monedaBase } = useMonedas();
-  const [monedaSeleccionada, setMonedaSeleccionada] = useState<string>('');
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+  const simboloMoneda = (cod: string) =>
+    monedas.find(m => m.codigo === cod)?.simbolo || monedaBase?.simbolo || '$';
 
-  // Función para obtener símbolo de moneda por código
-  const obtenerSimboloMoneda = (monedaCodigo: string): string => {
-    const moneda = monedas.find(m => m.codigo === monedaCodigo);
-    return moneda?.simbolo || monedaBase?.simbolo || '$';
+  const resetForm = () => {
+    setNombre(''); setDescripcion(''); setMontoObjetivo('');
+    setDuracion('6'); setUnidad('meses');
+    setIcono(ICONOS[0]); setColor(COLORES[0]);
+    setMonedaSel(monedaBase?.codigo || '');
   };
 
-  const limpiarFormulario = () => {
-    setNombre('');
-    setDescripcion('');
-    setMontoObjetivo('');
-    setDuracionMeta('1');
-    setUnidadTiempo('meses');
-    setIconoSeleccionado(ICONOS_DISPONIBLES[0]);
-    setColorSeleccionado(COLORES_DISPONIBLES[0]);
-    setMonedaSeleccionada(monedaBase?.codigo || '');
+  const calcularFechaLimite = (): string => {
+    const d = parseInt(duracion) || 1;
+    const f = new Date();
+    if (unidad === 'dias')  f.setDate(f.getDate() + d);
+    if (unidad === 'meses') f.setMonth(f.getMonth() + d);
+    if (unidad === 'años')  f.setFullYear(f.getFullYear() + d);
+    return f.toISOString();
   };
 
   const handleAgregar = () => {
-    if (!nombre.trim() || !montoObjetivo) {
-      Alert.alert('Error', 'Completa nombre y monto objetivo');
-      return;
-    }
-
+    if (!nombre.trim()) { Alert.alert('Error', 'Ingresa un nombre'); return; }
     const monto = parseFloat(montoObjetivo);
-    if (isNaN(monto) || monto <= 0) {
-      Alert.alert('Error', 'Monto inválido');
-      return;
-    }
-
-    const duracion = parseInt(duracionMeta);
-    if (isNaN(duracion) || duracion <= 0) {
-      Alert.alert('Error', 'Duración inválida');
-      return;
-    }
-
-    const ahora = new Date();
-    const fechaLimite = new Date();
-
-    switch (unidadTiempo) {
-      case 'dias':
-        fechaLimite.setDate(ahora.getDate() + duracion);
-        break;
-      case 'meses':
-        fechaLimite.setMonth(ahora.getMonth() + duracion);
-        break;
-      case 'años':
-        fechaLimite.setFullYear(ahora.getFullYear() + duracion);
-        break;
-    }
+    if (isNaN(monto) || monto <= 0) { Alert.alert('Error', 'Ingresa un monto válido'); return; }
+    const dur = parseInt(duracion);
+    if (isNaN(dur) || dur <= 0) { Alert.alert('Error', 'Ingresa una duración válida'); return; }
 
     agregarMeta({
       nombre: nombre.trim(),
       descripcion: descripcion.trim(),
       montoObjetivo: monto,
-      monedaId: monedaSeleccionada || monedaBase?.codigo || '',
-      fechaInicio: ahora.toISOString(),
-      fechaLimite: fechaLimite.toISOString(),
-      icono: iconoSeleccionado,
-      color: colorSeleccionado,
+      monedaId: monedaSel || monedaBase?.codigo || '',
+      fechaInicio: new Date().toISOString(),
+      fechaLimite: calcularFechaLimite(),
+      icono, color,
     });
 
-    limpiarFormulario();
-    setMostrarFormulario(false);
+    resetForm();
+    setFormVisible(false);
+    showToast('Meta creada');
   };
 
-  const handleAportar = (metaId: string) => {
-    setMetaSeleccionada(metaId);
-    setEsRetiro(false);
-    setMontoAportar('');
-    setModalAportarVisible(true);
-  };
-
-  const handleRetirar = (metaId: string) => {
-    setMetaSeleccionada(metaId);
-    setEsRetiro(true);
-    setMontoAportar('');
-    setModalAportarVisible(true);
+  const abrirAporte = (metaId: string, retiro = false) => {
+    setMetaAporteId(metaId);
+    setEsRetiro(retiro);
+    setMontoAporte('');
+    setModalAporte(true);
   };
 
   const confirmarAporte = async () => {
-    if (!metaSeleccionada) return;
+    if (!metaAporteId) return;
+    const monto = parseFloat(montoAporte);
+    if (isNaN(monto) || monto <= 0) { Alert.alert('Error', 'Monto inválido'); return; }
 
-    const monto = parseFloat(montoAportar);
-    if (isNaN(monto) || monto <= 0) {
-      Alert.alert('Error', 'Monto inválido');
-      return;
-    }
-
-    // Nota: La validación de balance solo aplica si la meta está en moneda base
-    const metaActual = metas.find(m => m.id === metaSeleccionada);
-    const esMonedaBase = metaActual?.monedaId === monedaBase?.codigo;
-
-    if (!esRetiro && esMonedaBase && monto > balance.balanceDisponible) {
+    const meta = metas.find(m => m.id === metaAporteId);
+    if (!esRetiro && meta?.monedaId === monedaBase?.codigo && monto > balance.balanceDisponible) {
       Alert.alert(
         'Balance insuficiente',
-        `No tienes suficiente balance disponible.\n\nDisponible: ${monedaBase?.simbolo}${balance.balanceDisponible.toFixed(2)}\nRequerido: ${monedaBase?.simbolo}${monto.toFixed(2)}`
+        `Disponible: ${monedaBase?.simbolo}${balance.balanceDisponible.toFixed(2)}`
       );
       return;
     }
 
     const resultado = esRetiro
-      ? await retirarDeMeta(metaSeleccionada, monto)
-      : await aportarAMeta(metaSeleccionada, monto);
+      ? await retirarDeMeta(metaAporteId, monto)
+      : await aportarAMeta(metaAporteId, monto);
 
-    if (!resultado.exito && resultado.mensaje) {
+    if (!resultado.exito) {
       Alert.alert('Error', resultado.mensaje);
     } else {
-      setModalAportarVisible(false);
-      setMontoAportar('');
-      setMetaSeleccionada(null);
+      setModalAporte(false);
+      showToast(esRetiro ? 'Retiro realizado' : '¡Aporte registrado!');
     }
   };
 
-  const handleEliminar = (metaId: string, nombre: string) => {
+  const handleEliminar = (meta: Meta) => {
     Alert.alert(
       'Eliminar meta',
-      `¿Seguro de eliminar "${nombre}"?`,
+      `¿Seguro de eliminar "${meta.nombre}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => eliminarMeta(metaId),
-        },
+        { text: 'Eliminar', style: 'destructive', onPress: () => { eliminarMeta(meta.id); showToast('Meta eliminada'); } },
       ]
     );
   };
 
-  return (
-    <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      {!mostrarFormulario && (
-        <BotonAnimado
-          style={[styles.botonNuevo, { backgroundColor: tema.colores.primario }]}
-          onPress={() => setMostrarFormulario(true)}
-        >
-          <Text style={styles.textoBotonNuevo}>+ Nueva Meta</Text>
-        </BotonAnimado>
-      )}
+  const obtenerRitmo = (pctCompletado: number, pctTiempo: number) => {
+    if (pctCompletado >= 100) return null;
+    const diff = pctCompletado - pctTiempo;
+    if (diff >= 0)   return { label: 'En tiempo',  color: '#10b981', emoji: '✓' };
+    if (diff >= -15) return { label: 'Ligeramente atrasado', color: '#f59e0b', emoji: '⚠️' };
+    return               { label: 'Atrasado',   color: '#ef4444', emoji: '🔴' };
+  };
 
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {!mostrarFormulario ? (
-          <>
-            {/* Lista de metas */}
-            {metas.length > 0 ? (
-              <View style={styles.lista}>
-                {metas.map(meta => {
-                  const porcentaje = (meta.montoActual / meta.montoObjetivo) * 100;
-                  const estadisticas = obtenerEstadisticasMeta(meta.id);
+  // ─── Agrupar metas ────────────────────────────────────────────────────────────
+  const metasActivas    = metas.filter(m => m.estado === 'en_progreso');
+  const metasCompletadas = metas.filter(m => m.estado === 'completada');
+  const metasVencidas   = metas.filter(m => m.estado === 'vencida');
 
-                  return (
-                    <View
-                      key={meta.id}
-                      style={[
-                        styles.metaCard,
-                        {
-                          backgroundColor: tema.colores.fondoSecundario,
-                          borderColor: meta.color,
-                        },
-                      ]}
-                    >
-                      {/* Header de la meta */}
-                      <View style={styles.metaHeader}>
-                        <View style={styles.metaTitulo}>
-                          <Text style={styles.metaIcono}>{meta.icono}</Text>
-                          <View style={styles.metaInfo}>
-                            <Text style={[styles.metaNombre, { color: tema.colores.texto }]}>
-                              {meta.nombre}
-                            </Text>
-                            {meta.descripcion && (
-                              <Text style={[styles.metaDescripcion, { color: tema.colores.textoSecundario }]}>
-                                {meta.descripcion}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-                        <TouchableOpacity
-                          onPress={() => handleEliminar(meta.id, meta.nombre)}
-                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                          <Text style={[styles.botonEliminar, { color: tema.colores.textoSecundario }]}>×</Text>
-                        </TouchableOpacity>
-                      </View>
+  // ─── Render card ─────────────────────────────────────────────────────────────
+  const renderCard = (meta: Meta) => {
+    const stats = obtenerEstadisticasMeta(meta.id);
+    if (!stats) return null;
 
-                      {/* Monto y progreso */}
-                      <View style={styles.montoContainer}>
-                        <Text style={[styles.montoActual, { color: meta.color }]}>
-                          {obtenerSimboloMoneda(meta.monedaId)}{meta.montoActual.toFixed(2)}
-                        </Text>
-                        <Text style={[styles.montoObjetivo, { color: tema.colores.textoSecundario }]}>
-                          de {obtenerSimboloMoneda(meta.monedaId)}{meta.montoObjetivo.toFixed(2)}
-                        </Text>
-                      </View>
+    const pctCompletado = Math.min(stats.porcentajeCompletado, 100);
 
-                      {/* Barra de progreso */}
-                      <View style={[styles.barraProgreso, { backgroundColor: tema.colores.bordes }]}>
-                        <View
-                          style={[
-                            styles.barraProgresoFill,
-                            {
-                              backgroundColor: meta.color,
-                              width: `${Math.min(porcentaje, 100)}%`,
-                            },
-                          ]}
-                        />
-                      </View>
-                      <Text style={[styles.porcentajeTexto, { color: tema.colores.texto }]}>
-                        {porcentaje.toFixed(1)}% completado
-                      </Text>
+    const diasTotales = Math.max(1, Math.floor(
+      (new Date(meta.fechaLimite).getTime() - new Date(meta.fechaInicio).getTime()) / 86400000
+    ));
+    const diasTranscurridos = Math.floor(
+      (Date.now() - new Date(meta.fechaInicio).getTime()) / 86400000
+    );
+    const pctTiempo = Math.min((diasTranscurridos / diasTotales) * 100, 100);
 
-                      {/* Estadísticas */}
-                      <View style={styles.estadisticas}>
-                        <View style={styles.estadistica}>
-                          <Text style={[styles.estadisticaLabel, { color: tema.colores.textoSecundario }]}>
-                            Tiempo restante
-                          </Text>
-                          <Text style={[styles.estadisticaValor, { color: tema.colores.texto }]}>
-                            {formatearTiempoRestante(estadisticas.diasRestantes)}
-                          </Text>
-                        </View>
-                        <View style={styles.estadistica}>
-                          <Text style={[styles.estadisticaLabel, { color: tema.colores.textoSecundario }]}>
-                            Ahorro requerido
-                          </Text>
-                          <Text style={[styles.estadisticaValor, { color: tema.colores.texto }]}>
-                            {obtenerSimboloMoneda(meta.monedaId)}{formatearAhorroRequerido(
-                              estadisticas.diasRestantes,
-                              estadisticas.ahorroRequeridoDiario,
-                              estadisticas.ahorroRequeridoMensual
-                            )}
-                          </Text>
-                        </View>
-                      </View>
+    const ritmo = meta.estado === 'en_progreso' ? obtenerRitmo(pctCompletado, pctTiempo) : null;
+    const sim = simboloMoneda(meta.monedaId);
 
-                      {/* Botones */}
-                      <View style={styles.botonesMeta}>
-                        <TouchableOpacity
-                          style={[styles.botonAportar, { backgroundColor: meta.color }]}
-                          onPress={() => handleAportar(meta.id)}
-                        >
-                          <Text style={styles.textoBotonAportar}>💰 Aportar</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.botonRetirar, {
-                            backgroundColor: tema.colores.fondoSecundario,
-                            borderColor: tema.colores.bordes,
-                          }]}
-                          onPress={() => handleRetirar(meta.id)}
-                          disabled={meta.montoActual === 0}
-                        >
-                          <Text style={[styles.textoBotonRetirar, { color: tema.colores.texto }]}>
-                            ↩️ Retirar
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
+    const fechaLimiteStr = new Date(meta.fechaLimite).toLocaleDateString('es', {
+      day: 'numeric', month: 'short', year: 'numeric',
+    });
 
-                      {/* Estado */}
-                      {meta.estado === 'completada' && (
-                        <View style={[styles.badge, { backgroundColor: '#10b981' }]}>
-                          <Text style={styles.badgeTexto}>✓ Completada</Text>
-                        </View>
-                      )}
-                      {meta.estado === 'vencida' && (
-                        <View style={[styles.badge, { backgroundColor: '#ef4444' }]}>
-                          <Text style={styles.badgeTexto}>⚠ Vencida</Text>
-                        </View>
-                      )}
-                    </View>
-                  );
-                })}
+    return (
+      <View key={meta.id} style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+        {/* Acento lateral */}
+        <View style={[styles.cardAccent, { backgroundColor: meta.color }]} />
+
+        <View style={styles.cardBody}>
+          {/* Header */}
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardIcono}>{meta.icono}</Text>
+            <View style={styles.cardHeaderTexto}>
+              <Text style={[styles.cardNombre, { color: c.texto }]} numberOfLines={1}>
+                {meta.nombre}
+              </Text>
+              {meta.descripcion ? (
+                <Text style={[styles.cardDescripcion, { color: c.textoSecundario }]} numberOfLines={1}>
+                  {meta.descripcion}
+                </Text>
+              ) : null}
+            </View>
+            {meta.estado === 'completada' && (
+              <View style={[styles.estadoBadge, { backgroundColor: '#10b98120', borderColor: '#10b981' }]}>
+                <Text style={[styles.estadoBadgeTexto, { color: '#10b981' }]}>✓ Completada</Text>
               </View>
-            ) : (
-              <EstadoVacio
-                emoji="🎯"
-                titulo="No tienes metas de ahorro aún"
-                subtitulo="Crea tu primera meta y empieza a ahorrar"
-              />
             )}
-          </>
+            {meta.estado === 'vencida' && (
+              <View style={[styles.estadoBadge, { backgroundColor: '#ef444420', borderColor: '#ef4444' }]}>
+                <Text style={[styles.estadoBadgeTexto, { color: '#ef4444' }]}>Vencida</Text>
+              </View>
+            )}
+            <TouchableOpacity
+              onPress={() => handleEliminar(meta)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.btnEliminar}
+            >
+              <Text style={[styles.btnEliminarTexto, { color: c.textoSecundario }]}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Montos + barra */}
+          <View style={styles.montosRow}>
+            <Text style={[styles.montoActual, { color: meta.color }]}>
+              {sim}{meta.montoActual.toFixed(2)}
+            </Text>
+            <Text style={[styles.montoSep, { color: c.textoSecundario }]}> / </Text>
+            <Text style={[styles.montoObjetivo, { color: c.textoSecundario }]}>
+              {sim}{meta.montoObjetivo.toFixed(2)}
+            </Text>
+            <Text style={[styles.pctTexto, { color: meta.color }]}>
+              {pctCompletado.toFixed(0)}%
+            </Text>
+          </View>
+
+          <View style={[styles.barraTrack, { backgroundColor: c.bordes }]}>
+            <View style={[styles.barraFill, { width: `${pctCompletado}%`, backgroundColor: meta.color }]} />
+            {meta.estado === 'en_progreso' && (
+              <View style={[styles.barraRitmoLinea, { left: `${pctTiempo}%` }]} />
+            )}
+          </View>
+
+          {/* Stats */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={[styles.statLabel, { color: c.textoSecundario }]}>Vence</Text>
+              <Text style={[styles.statValor, { color: c.texto }]}>{fechaLimiteStr}</Text>
+            </View>
+            {meta.estado === 'en_progreso' && stats.diasRestantes > 0 && (
+              <View style={styles.statItem}>
+                <Text style={[styles.statLabel, { color: c.textoSecundario }]}>Faltan</Text>
+                <Text style={[styles.statValor, { color: c.texto }]}>
+                  {stats.diasRestantes > 30
+                    ? `${Math.round(stats.diasRestantes / 30)} meses`
+                    : `${stats.diasRestantes} días`}
+                </Text>
+              </View>
+            )}
+            {meta.estado === 'en_progreso' && stats.montoFaltante > 0 && (
+              <View style={styles.statItem}>
+                <Text style={[styles.statLabel, { color: c.textoSecundario }]}>Mensual</Text>
+                <Text style={[styles.statValor, { color: c.texto }]}>
+                  {sim}{stats.ahorroRequeridoMensual.toFixed(0)}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Ritmo */}
+          {ritmo && (
+            <View style={[styles.ritmoRow, { backgroundColor: `${ritmo.color}18` }]}>
+              <Text style={[styles.ritmoTexto, { color: ritmo.color }]}>
+                {ritmo.emoji} {ritmo.label}
+              </Text>
+            </View>
+          )}
+
+          {/* Botones */}
+          {meta.estado === 'en_progreso' && (
+            <View style={styles.botonesRow}>
+              <BotonAnimado
+                style={[styles.btnAportar, { backgroundColor: meta.color }]}
+                onPress={() => abrirAporte(meta.id)}
+              >
+                <Text style={styles.btnAportarTexto}>💰 Aportar</Text>
+              </BotonAnimado>
+              <TouchableOpacity
+                style={[styles.btnRetirar, { borderColor: c.bordes }]}
+                onPress={() => abrirAporte(meta.id, true)}
+                disabled={meta.montoActual === 0}
+              >
+                <Text style={[styles.btnRetirarTexto, { color: meta.montoActual > 0 ? c.texto : c.textoSecundario }]}>
+                  ↩ Retirar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
+  return (
+    <View style={[styles.container, { backgroundColor: c.fondo }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+
+        {metas.length === 0 ? (
+          <EstadoVacio
+            emoji="🎯"
+            titulo="No tienes metas de ahorro"
+            subtitulo='Toca "+" para crear tu primera meta'
+          />
         ) : (
           <>
-            {/* Formulario crear meta */}
-            <View style={[styles.formulario, { backgroundColor: tema.colores.fondoSecundario, borderColor: tema.colores.bordes }]}>
-              <Text style={[styles.subtitulo, { color: tema.colores.primario }]}>Nueva Meta de Ahorro</Text>
+            {/* Metas activas */}
+            {metasActivas.length > 0 && (
+              <View style={styles.grupo}>
+                {metasActivas.map(renderCard)}
+              </View>
+            )}
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Nombre de la meta</Text>
+            {/* Metas completadas */}
+            {metasCompletadas.length > 0 && (
+              <View style={styles.grupo}>
+                <Text style={[styles.grupoTitulo, { color: '#10b981' }]}>
+                  ✓ Completadas ({metasCompletadas.length})
+                </Text>
+                {metasCompletadas.map(renderCard)}
+              </View>
+            )}
+
+            {/* Metas vencidas */}
+            {metasVencidas.length > 0 && (
+              <View style={styles.grupo}>
+                <Text style={[styles.grupoTitulo, { color: '#ef4444' }]}>
+                  Vencidas ({metasVencidas.length})
+                </Text>
+                {metasVencidas.map(renderCard)}
+              </View>
+            )}
+          </>
+        )}
+      </ScrollView>
+
+      {/* FAB */}
+      <BotonAnimado
+        style={[styles.fab, { backgroundColor: c.primario }]}
+        onPress={() => { resetForm(); setFormVisible(true); }}
+      >
+        <Text style={styles.fabTexto}>+</Text>
+      </BotonAnimado>
+
+      {/* ── Bottom sheet: formulario ── */}
+      <Modal visible={formVisible} transparent animationType="slide" onRequestClose={() => setFormVisible(false)}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.modalContainer, { backgroundColor: c.fondo }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: c.bordes }]}>
+              <Text style={[styles.modalTitulo, { color: c.primario }]}>🎯 Nueva Meta</Text>
+              <TouchableOpacity onPress={() => setFormVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={[styles.modalCerrar, { color: c.textoSecundario }]}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScroll}
+            >
+              {/* Nombre */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Nombre</Text>
               <TextInput
-                style={[styles.input, {
-                  backgroundColor: tema.colores.fondo,
-                  borderColor: tema.colores.bordes,
-                  color: tema.colores.texto,
-                }]}
-                placeholder="Ej: Vacaciones"
-                placeholderTextColor={tema.colores.textoSecundario}
+                style={[styles.formInput, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto }]}
+                placeholder="Ej: Vacaciones, Auto nuevo…"
+                placeholderTextColor={c.textoSecundario}
                 value={nombre}
                 onChangeText={setNombre}
               />
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Descripción (opcional)</Text>
+              {/* Descripción */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Descripción (opcional)</Text>
               <TextInput
-                style={[styles.input, {
-                  backgroundColor: tema.colores.fondo,
-                  borderColor: tema.colores.bordes,
-                  color: tema.colores.texto,
-                }]}
-                placeholder="Ej: Viaje a la playa"
-                placeholderTextColor={tema.colores.textoSecundario}
+                style={[styles.formInput, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto }]}
+                placeholder="Ej: Viaje a Europa en diciembre"
+                placeholderTextColor={c.textoSecundario}
                 value={descripcion}
                 onChangeText={setDescripcion}
               />
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Monto objetivo</Text>
-              <TextInput
-                style={[styles.input, {
-                  backgroundColor: tema.colores.fondo,
-                  borderColor: tema.colores.bordes,
-                  color: tema.colores.texto,
-                }]}
-                placeholder="0.00"
-                placeholderTextColor={tema.colores.textoSecundario}
-                keyboardType="numeric"
-                value={montoObjetivo}
-                onChangeText={setMontoObjetivo}
-              />
-
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Moneda</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monedasScroll}>
-                {monedas.map(moneda => (
-                  <TouchableOpacity
-                    key={moneda.codigo}
-                    style={[
-                      styles.monedaBoton,
-                      {
-                        backgroundColor: (monedaSeleccionada || monedaBase?.codigo) === moneda.codigo
-                          ? tema.colores.primario
-                          : tema.colores.fondo,
-                        borderColor: tema.colores.bordes,
-                      },
-                    ]}
-                    onPress={() => setMonedaSeleccionada(moneda.codigo)}
-                  >
-                    <Text style={[
-                      styles.monedaSimbolo,
-                      {
-                        color: (monedaSeleccionada || monedaBase?.codigo) === moneda.codigo
-                          ? '#fff'
-                          : tema.colores.texto,
-                      },
-                    ]}>
-                      {moneda.simbolo}
-                    </Text>
-                    <Text style={[
-                      styles.monedaCodigo,
-                      {
-                        color: (monedaSeleccionada || monedaBase?.codigo) === moneda.codigo
-                          ? '#fff'
-                          : tema.colores.textoSecundario,
-                      },
-                    ]}>
-                      {moneda.codigo}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              {/* Icono */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Icono</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.iconosRow}>
+                  {ICONOS.map(ic => (
+                    <TouchableOpacity
+                      key={ic}
+                      onPress={() => setIcono(ic)}
+                      style={[styles.iconoBtn, {
+                        backgroundColor: icono === ic ? c.primario : c.fondoSecundario,
+                        borderColor: icono === ic ? c.primario : c.bordes,
+                      }]}
+                    >
+                      <Text style={styles.iconoBtnTexto}>{ic}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </ScrollView>
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Duración</Text>
-              <View style={styles.duracionContainer}>
+              {/* Color */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Color</Text>
+              <View style={styles.coloresRow}>
+                {COLORES.map(col => (
+                  <TouchableOpacity
+                    key={col}
+                    onPress={() => setColor(col)}
+                    style={[styles.colorBtn, {
+                      backgroundColor: col,
+                      borderWidth: color === col ? 3 : 0,
+                      borderColor: c.texto,
+                    }]}
+                  />
+                ))}
+              </View>
+
+              {/* Monto objetivo */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Monto objetivo</Text>
+              <View style={[styles.formInputRow, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+                <Text style={[styles.formPrefijo, { color: c.primario }]}>
+                  {simboloMoneda(monedaSel || monedaBase?.codigo || '')}
+                </Text>
                 <TextInput
-                  style={[styles.inputDuracion, {
-                    backgroundColor: tema.colores.fondo,
-                    borderColor: tema.colores.bordes,
-                    color: tema.colores.texto,
-                  }]}
-                  placeholder="1"
-                  placeholderTextColor={tema.colores.textoSecundario}
-                  keyboardType="numeric"
-                  value={duracionMeta}
-                  onChangeText={setDuracionMeta}
+                  style={[styles.formInputInner, { color: c.texto }]}
+                  placeholder="0.00"
+                  placeholderTextColor={c.textoSecundario}
+                  keyboardType="decimal-pad"
+                  value={montoObjetivo}
+                  onChangeText={setMontoObjetivo}
                 />
-                <View style={styles.unidadesContainer}>
-                  {(['dias', 'meses', 'años'] as const).map(unidad => (
+              </View>
+
+              {/* Moneda (solo si hay más de una) */}
+              {monedas.length > 1 && (
+                <>
+                  <Text style={[styles.formLabel, { color: c.texto }]}>Moneda</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.chipsRow}>
+                      {monedas.map(mon => (
+                        <TouchableOpacity
+                          key={mon.codigo}
+                          onPress={() => setMonedaSel(mon.codigo)}
+                          style={[styles.chip, {
+                            backgroundColor: (monedaSel || monedaBase?.codigo) === mon.codigo ? c.primario : c.fondoSecundario,
+                            borderColor: c.bordes,
+                          }]}
+                        >
+                          <Text style={[styles.chipTexto, {
+                            color: (monedaSel || monedaBase?.codigo) === mon.codigo ? '#fff' : c.texto,
+                          }]}>
+                            {mon.simbolo} {mon.codigo}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </>
+              )}
+
+              {/* Duración */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Duración</Text>
+              <View style={styles.duracionRow}>
+                <TextInput
+                  style={[styles.formInputDuracion, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto }]}
+                  placeholder="6"
+                  placeholderTextColor={c.textoSecundario}
+                  keyboardType="number-pad"
+                  value={duracion}
+                  onChangeText={setDuracion}
+                />
+                <View style={styles.chipsRow}>
+                  {(['dias', 'meses', 'años'] as const).map(u => (
                     <TouchableOpacity
-                      key={unidad}
-                      style={[
-                        styles.unidadBoton,
-                        {
-                          backgroundColor: unidadTiempo === unidad ? tema.colores.primario : tema.colores.fondo,
-                          borderColor: tema.colores.bordes,
-                        },
-                      ]}
-                      onPress={() => setUnidadTiempo(unidad)}
+                      key={u}
+                      onPress={() => setUnidad(u)}
+                      style={[styles.chip, {
+                        backgroundColor: unidad === u ? c.primario : c.fondoSecundario,
+                        borderColor: c.bordes,
+                      }]}
                     >
-                      <Text style={[
-                        styles.unidadTexto,
-                        {
-                          color: unidadTiempo === unidad ? '#fff' : tema.colores.texto,
-                        },
-                      ]}>
-                        {unidad.charAt(0).toUpperCase() + unidad.slice(1)}
+                      <Text style={[styles.chipTexto, { color: unidad === u ? '#fff' : c.texto }]}>
+                        {u.charAt(0).toUpperCase() + u.slice(1)}
                       </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </View>
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Icono</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.iconosScroll}>
-                {ICONOS_DISPONIBLES.map(icono => (
-                  <TouchableOpacity
-                    key={icono}
-                    style={[
-                      styles.iconoBoton,
-                      {
-                        backgroundColor: iconoSeleccionado === icono ? tema.colores.primario : tema.colores.fondo,
-                        borderColor: tema.colores.bordes,
-                      },
-                    ]}
-                    onPress={() => setIconoSeleccionado(icono)}
-                  >
-                    <Text style={styles.icono}>{icono}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <BotonAnimado
+                onPress={handleAgregar}
+                style={[styles.formBoton, { backgroundColor: c.primario }]}
+              >
+                <Text style={styles.formBotonTexto}>➕ Crear meta</Text>
+              </BotonAnimado>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
-              <Text style={[styles.label, { color: tema.colores.texto }]}>Color</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.coloresScroll}>
-                {COLORES_DISPONIBLES.map(color => (
-                  <TouchableOpacity
-                    key={color}
-                    style={[
-                      styles.colorBoton,
-                      {
-                        backgroundColor: color,
-                        borderColor: colorSeleccionado === color ? tema.colores.texto : 'transparent',
-                        borderWidth: colorSeleccionado === color ? 3 : 0,
-                      },
-                    ]}
-                    onPress={() => setColorSeleccionado(color)}
-                  />
-                ))}
-              </ScrollView>
-
-              <View style={styles.botonesFormulario}>
-                <TouchableOpacity
-                  style={[styles.botonCancelar, {
-                    backgroundColor: tema.colores.fondo,
-                    borderColor: tema.colores.bordes,
-                  }]}
-                  onPress={() => {
-                    setMostrarFormulario(false);
-                    limpiarFormulario();
-                  }}
-                >
-                  <Text style={[styles.textoBotonCancelar, { color: tema.colores.texto }]}>
-                    Cancelar
-                  </Text>
-                </TouchableOpacity>
-
-                <BotonAnimado
-                  style={[styles.botonGuardar, { backgroundColor: tema.colores.primario }]}
-                  onPress={handleAgregar}
-                >
-                  <Text style={styles.textoBotonGuardar}>Crear Meta</Text>
-                </BotonAnimado>
-              </View>
-            </View>
-          </>
-        )}
-      </ScrollView>
-
-      {/* Modal para Aportar/Retirar */}
-      <Modal
-        visible={modalAportarVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalAportarVisible(false)}
-      >
+      {/* ── Modal aportar/retirar ── */}
+      <Modal visible={modalAporte} transparent animationType="fade" onRequestClose={() => setModalAporte(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardAvoid}
+          style={styles.modalOverlay}
         >
-          <View style={styles.overlay}>
-            <View style={[styles.modalAportar, { backgroundColor: tema.colores.fondo }]}>
-              <Text style={[styles.tituloModal, { color: tema.colores.primario }]}>
-                {esRetiro ? '↩️ Retirar de Meta' : '💰 Aportar a Meta'}
-              </Text>
-
-              {!esRetiro && metaSeleccionada && (
-                <Text style={[styles.infoBalance, { color: tema.colores.textoSecundario }]}>
-                  {metas.find(m => m.id === metaSeleccionada)?.monedaId === monedaBase?.codigo
-                    ? `Balance disponible: ${monedaBase?.simbolo}${balance.balanceDisponible.toFixed(2)}`
-                    : `Moneda: ${obtenerSimboloMoneda(metas.find(m => m.id === metaSeleccionada)?.monedaId || '')}`
-                  }
-                </Text>
-              )}
-
-              {esRetiro && metaSeleccionada && (
-                <Text style={[styles.infoBalance, { color: tema.colores.textoSecundario }]}>
-                  Aportado: {obtenerSimboloMoneda(metas.find(m => m.id === metaSeleccionada)?.monedaId || '')}{metas.find(m => m.id === metaSeleccionada)?.montoActual.toFixed(2)}
-                </Text>
-              )}
-
-              <TextInput
-                style={[styles.input, {
-                  backgroundColor: tema.colores.fondoSecundario,
-                  color: tema.colores.texto,
-                  borderColor: tema.colores.bordes,
-                }]}
-                placeholder="Monto"
-                placeholderTextColor={tema.colores.textoSecundario}
-                keyboardType="numeric"
-                value={montoAportar}
-                onChangeText={setMontoAportar}
-                autoFocus
-              />
-
-              <View style={styles.botonesAportar}>
-                <TouchableOpacity
-                  style={[styles.botonCancelarAporte, {
-                    backgroundColor: tema.colores.fondoSecundario,
-                    borderColor: tema.colores.bordes,
-                  }]}
-                  onPress={() => setModalAportarVisible(false)}
-                >
-                  <Text style={[styles.textoBotonCancelar, { color: tema.colores.texto }]}>
-                    Cancelar
+          <View style={[styles.aportarContainer, { backgroundColor: c.fondo }]}>
+            {(() => {
+              const meta = metas.find(m => m.id === metaAporteId);
+              if (!meta) return null;
+              const sim = simboloMoneda(meta.monedaId);
+              return (
+                <>
+                  <View style={[styles.aportarAccent, { backgroundColor: meta.color }]} />
+                  <Text style={[styles.aportarTitulo, { color: c.texto }]}>
+                    {esRetiro ? '↩ Retirar de' : '💰 Aportar a'} {meta.icono} {meta.nombre}
                   </Text>
-                </TouchableOpacity>
-
-                <BotonAnimado
-                  style={[styles.botonConfirmarAporte, {
-                    backgroundColor: tema.colores.primario,
-                  }]}
-                  onPress={confirmarAporte}
-                >
-                  <Text style={styles.textoBotonConfirmar}>
-                    {esRetiro ? 'Retirar' : 'Aportar'}
+                  <Text style={[styles.aportarInfo, { color: c.textoSecundario }]}>
+                    {esRetiro
+                      ? `Aportado: ${sim}${meta.montoActual.toFixed(2)}`
+                      : meta.monedaId === monedaBase?.codigo
+                        ? `Balance disponible: ${monedaBase?.simbolo}${balance.balanceDisponible.toFixed(2)}`
+                        : `Moneda: ${sim}`
+                    }
                   </Text>
-                </BotonAnimado>
-              </View>
-            </View>
+                  <View style={[styles.formInputRow, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, marginBottom: 20 }]}>
+                    <Text style={[styles.formPrefijo, { color: meta.color }]}>{sim}</Text>
+                    <TextInput
+                      style={[styles.formInputInner, { color: c.texto }]}
+                      placeholder="0.00"
+                      placeholderTextColor={c.textoSecundario}
+                      keyboardType="decimal-pad"
+                      value={montoAporte}
+                      onChangeText={setMontoAporte}
+                      autoFocus
+                    />
+                  </View>
+                  <View style={styles.aportarBotones}>
+                    <TouchableOpacity
+                      style={[styles.aportarBtnCancelar, { borderColor: c.bordes }]}
+                      onPress={() => setModalAporte(false)}
+                    >
+                      <Text style={[styles.aportarBtnTexto, { color: c.textoSecundario }]}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <BotonAnimado
+                      style={[styles.aportarBtnConfirmar, { backgroundColor: meta.color }]}
+                      onPress={confirmarAporte}
+                    >
+                      <Text style={styles.aportarBtnConfirmarTexto}>
+                        {esRetiro ? 'Retirar' : 'Aportar'}
+                      </Text>
+                    </BotonAnimado>
+                  </View>
+                </>
+              );
+            })()}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -585,313 +552,132 @@ export default function MetasScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 10,
-    paddingHorizontal: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  botonNuevo: {
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  textoBotonNuevo: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  lista: {
-    gap: 15,
-  },
-  metaCard: {
-    padding: 15,
-    borderRadius: 15,
+  container: { flex: 1 },
+  scrollContent: { paddingTop: 16, paddingHorizontal: 16, paddingBottom: 100 },
+
+  grupo: { marginBottom: 8 },
+  grupoTitulo: { fontSize: 13, fontWeight: '700', marginBottom: 10, marginTop: 4, letterSpacing: 0.5 },
+
+  // ── Card ──
+  card: {
+    borderRadius: 16,
     borderWidth: 2,
-  },
-  metaHeader: {
+    marginBottom: 12,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  metaTitulo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  metaIcono: {
-    fontSize: 32,
-    marginRight: 10,
-  },
-  metaInfo: {
-    flex: 1,
-  },
-  metaNombre: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
-  metaDescripcion: {
-    fontSize: 13,
-  },
-  botonEliminar: {
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  montoContainer: {
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  montoActual: {
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  montoObjetivo: {
-    fontSize: 14,
-    marginTop: 2,
-  },
-  barraProgreso: {
-    height: 8,
-    borderRadius: 4,
     overflow: 'hidden',
-    marginVertical: 10,
   },
-  barraProgresoFill: {
-    height: '100%',
-    borderRadius: 4,
+  cardAccent: { width: 5 },
+  cardBody: { flex: 1, padding: 14 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
+  cardIcono: { fontSize: 28 },
+  cardHeaderTexto: { flex: 1 },
+  cardNombre: { fontSize: 16, fontWeight: 'bold' },
+  cardDescripcion: { fontSize: 12, marginTop: 1 },
+  estadoBadge: {
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 8, borderWidth: 1,
   },
-  porcentajeTexto: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 10,
+  estadoBadgeTexto: { fontSize: 11, fontWeight: '700' },
+  btnEliminar: { padding: 4 },
+  btnEliminarTexto: { fontSize: 16, fontWeight: 'bold' },
+
+  montosRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 8 },
+  montoActual: { fontSize: 22, fontWeight: 'bold' },
+  montoSep: { fontSize: 14 },
+  montoObjetivo: { fontSize: 14, flex: 1 },
+  pctTexto: { fontSize: 16, fontWeight: 'bold' },
+
+  barraTrack: {
+    height: 8, borderRadius: 4, overflow: 'visible',
+    position: 'relative', marginBottom: 12,
   },
-  estadisticas: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginVertical: 10,
+  barraFill: { height: 8, borderRadius: 4 },
+  barraRitmoLinea: {
+    position: 'absolute', top: -3, width: 2, height: 14,
+    backgroundColor: 'rgba(0,0,0,0.3)', marginLeft: -1, borderRadius: 1,
   },
-  estadistica: {
-    alignItems: 'center',
+
+  statsRow: { flexDirection: 'row', gap: 16, marginBottom: 8 },
+  statItem: {},
+  statLabel: { fontSize: 11, marginBottom: 2 },
+  statValor: { fontSize: 13, fontWeight: '600' },
+
+  ritmoRow: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 10 },
+  ritmoTexto: { fontSize: 12, fontWeight: '600' },
+
+  botonesRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  btnAportar: { flex: 1, paddingVertical: 11, borderRadius: 10, alignItems: 'center' },
+  btnAportarTexto: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+  btnRetirar: {
+    paddingHorizontal: 16, paddingVertical: 11,
+    borderRadius: 10, borderWidth: 2, alignItems: 'center',
   },
-  estadisticaLabel: {
-    fontSize: 11,
-    marginBottom: 4,
+  btnRetirarTexto: { fontSize: 14, fontWeight: '600' },
+
+  // ── FAB ──
+  fab: {
+    position: 'absolute', bottom: 24, right: 24,
+    width: 60, height: 60, borderRadius: 30,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 5,
   },
-  estadisticaValor: {
-    fontSize: 14,
-    fontWeight: '600',
+  fabTexto: { color: '#fff', fontSize: 32, fontWeight: '300', lineHeight: 36 },
+
+  // ── Modal formulario ──
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContainer: { borderTopLeftRadius: 25, borderTopRightRadius: 25, maxHeight: '92%', paddingBottom: 20 },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 20, borderBottomWidth: 2,
   },
-  botonesMeta: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
+  modalTitulo: { fontSize: 20, fontWeight: 'bold' },
+  modalCerrar: { fontSize: 24, fontWeight: 'bold' },
+  modalScroll: { padding: 20, paddingBottom: 10 },
+
+  formLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 14 },
+  formInput: { borderWidth: 2, borderRadius: 12, padding: 13, fontSize: 16 },
+  formInputRow: {
+    flexDirection: 'row', alignItems: 'center',
+    borderWidth: 2, borderRadius: 12, paddingHorizontal: 14,
   },
-  botonAportar: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 10,
-    alignItems: 'center',
+  formPrefijo: { fontSize: 18, fontWeight: 'bold', marginRight: 8 },
+  formInputInner: { flex: 1, paddingVertical: 13, fontSize: 16 },
+  formInputDuracion: { borderWidth: 2, borderRadius: 12, padding: 13, fontSize: 16, width: 80 },
+  formBoton: { marginTop: 20, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
+  formBotonTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
+  iconosRow: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+  iconoBtn: { width: 48, height: 48, borderRadius: 10, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
+  iconoBtnTexto: { fontSize: 22 },
+
+  coloresRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  colorBtn: { width: 36, height: 36, borderRadius: 18 },
+
+  chipsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 2 },
+  chipTexto: { fontSize: 13, fontWeight: '600' },
+
+  duracionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+
+  // ── Modal aportar/retirar ──
+  aportarContainer: {
+    margin: 20, borderRadius: 20, padding: 20,
+    overflow: 'hidden', alignSelf: 'center', width: '90%',
+    elevation: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8,
   },
-  textoBotonAportar: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+  aportarAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: 4 },
+  aportarTitulo: { fontSize: 18, fontWeight: 'bold', marginTop: 8, marginBottom: 6 },
+  aportarInfo: { fontSize: 13, marginBottom: 16 },
+  aportarBotones: { flexDirection: 'row', gap: 10 },
+  aportarBtnCancelar: {
+    flex: 1, paddingVertical: 13, borderRadius: 12,
+    borderWidth: 2, alignItems: 'center',
   },
-  botonRetirar: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  textoBotonRetirar: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  badge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeTexto: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  formulario: {
-    padding: 20,
-    borderRadius: 15,
-    borderWidth: 2,
-  },
-  subtitulo: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 15,
-  },
-  input: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    fontSize: 16,
-  },
-  duracionContainer: {
-    gap: 10,
-  },
-  inputDuracion: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    fontSize: 16,
-  },
-  unidadesContainer: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  unidadBoton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  unidadTexto: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  iconosScroll: {
-    maxHeight: 60,
-  },
-  iconoBoton: {
-    width: 50,
-    height: 50,
-    borderRadius: 10,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  icono: {
-    fontSize: 24,
-  },
-  coloresScroll: {
-    maxHeight: 50,
-  },
-  colorBoton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
-  },
-  monedasScroll: {
-    maxHeight: 60,
-  },
-  monedaBoton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 2,
-    marginRight: 10,
-    alignItems: 'center',
-    minWidth: 70,
-  },
-  monedaSimbolo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  monedaCodigo: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  botonesFormulario: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 25,
-  },
-  botonCancelar: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  textoBotonCancelar: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  botonGuardar: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  textoBotonGuardar: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalAportar: {
-    width: '85%',
-    padding: 20,
-    borderRadius: 20,
-  },
-  tituloModal: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  infoBalance: {
-    fontSize: 13,
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  botonesAportar: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 20,
-  },
-  botonCancelarAporte: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  botonConfirmarAporte: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  textoBotonConfirmar: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  aportarBtnTexto: { fontSize: 15, fontWeight: '600' },
+  aportarBtnConfirmar: { flex: 1, paddingVertical: 13, borderRadius: 12, alignItems: 'center' },
+  aportarBtnConfirmarTexto: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
 });

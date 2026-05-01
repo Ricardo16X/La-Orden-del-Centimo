@@ -53,6 +53,7 @@ export const useGeneradorGastosRecurrentes = () => {
             categoria: gr.categoriaId,
             tipo: 'gasto',
             moneda: gr.moneda,
+            ...(gr.tarjetaId && { tarjetaId: gr.tarjetaId }),
           });
 
           // Avanzar a la siguiente fecha (previene duplicados)

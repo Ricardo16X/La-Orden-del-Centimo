@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, Alert, Modal } from 'react-native';
 import { useState } from 'react';
 import { useTema } from './src/context/TemaContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
@@ -6,6 +6,7 @@ import { BotonAnimado } from './src/components/BotonAnimado';
 import { useGastosRecurrentes } from './src/context/GastosRecurrentesContext';
 import { useCategorias } from './src/context/CategoriasContext';
 import { useMonedas } from './src/context/MonedasContext';
+import { useTarjetas } from './src/context/TarjetasContext';
 import { GastoRecurrente, FrecuenciaGastoRecurrente } from './src/types';
 
 export default function GastosRecurrentesScreen() {
@@ -13,6 +14,7 @@ export default function GastosRecurrentesScreen() {
   const { gastosRecurrentes, agregarGastoRecurrente, eliminarGastoRecurrente, toggleGastoRecurrente } = useGastosRecurrentes();
   const { categorias } = useCategorias();
   const { monedas, monedaBase, convertirAMonedaBase } = useMonedas();
+  const { tarjetas } = useTarjetas();
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [descripcion, setDescripcion] = useState('');
@@ -20,8 +22,9 @@ export default function GastosRecurrentesScreen() {
   const [categoriaId, setCategoriaId] = useState(categorias[0]?.id || '');
   const [moneda, setMoneda] = useState(monedaBase?.codigo || '');
   const [frecuencia, setFrecuencia] = useState<FrecuenciaGastoRecurrente>('mensual');
-  const [diaSemana, setDiaSemana] = useState(2); // Lunes
+  const [diaSemana, setDiaSemana] = useState(2);
   const [diaMes, setDiaMes] = useState('');
+  const [tarjetaId, setTarjetaId] = useState<string | undefined>(undefined);
 
   const limpiarFormulario = () => {
     setDescripcion('');
@@ -31,6 +34,7 @@ export default function GastosRecurrentesScreen() {
     setFrecuencia('mensual');
     setDiaSemana(2);
     setDiaMes('');
+    setTarjetaId(undefined);
   };
 
   const calcularProximaFecha = (): string => {
@@ -42,8 +46,7 @@ export default function GastosRecurrentesScreen() {
         manana.setDate(hoy.getDate() + 1);
         return manana.toISOString();
       case 'semanal': {
-        // Encontrar el próximo día de la semana seleccionado
-        const diaActual = hoy.getDay() + 1; // 1=Domingo, 7=Sábado
+        const diaActual = hoy.getDay() + 1;
         let diasHasta = diaSemana - diaActual;
         if (diasHasta <= 0) diasHasta += 7;
         const proxima = new Date(hoy);
@@ -51,7 +54,6 @@ export default function GastosRecurrentesScreen() {
         return proxima.toISOString();
       }
       case 'mensual': {
-        // Próximo mes en el día seleccionado
         const diaNum = parseInt(diaMes) || 1;
         const proxima = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
         const ultimoDia = new Date(proxima.getFullYear(), proxima.getMonth() + 1, 0).getDate();
@@ -66,13 +68,11 @@ export default function GastosRecurrentesScreen() {
       Alert.alert('Error', 'Ingresa una descripción');
       return;
     }
-
     const montoNum = parseFloat(monto);
     if (isNaN(montoNum) || montoNum <= 0) {
       Alert.alert('Error', 'Ingresa un monto válido');
       return;
     }
-
     if (!categoriaId) {
       Alert.alert('Error', 'Selecciona una categoría');
       return;
@@ -88,6 +88,7 @@ export default function GastosRecurrentesScreen() {
       proximaFecha: calcularProximaFecha(),
       ...(frecuencia === 'semanal' && { diaSemana }),
       ...(frecuencia === 'mensual' && { diaMes: parseInt(diaMes) || 1 }),
+      ...(tarjetaId && { tarjetaId }),
     });
 
     limpiarFormulario();
@@ -100,20 +101,16 @@ export default function GastosRecurrentesScreen() {
       `¿Estás seguro de eliminar "${gr.descripcion}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () => eliminarGastoRecurrente(gr.id),
-        },
+        { text: 'Eliminar', style: 'destructive', onPress: () => eliminarGastoRecurrente(gr.id) },
       ]
     );
   };
 
   const obtenerEtiquetaFrecuencia = (freq: FrecuenciaGastoRecurrente): string => {
     switch (freq) {
-      case 'diario': return 'Diario';
-      case 'semanal': return 'Semanal';
-      case 'mensual': return 'Mensual';
+      case 'diario':  return '📅 Diario';
+      case 'semanal': return '🗓️ Semanal';
+      case 'mensual': return '📆 Mensual';
     }
   };
 
@@ -127,9 +124,8 @@ export default function GastosRecurrentesScreen() {
     return m?.simbolo || monedaBase?.simbolo || '$';
   };
 
-  const obtenerCategoria = (catId: string) => {
-    return categorias.find(c => c.id === catId);
-  };
+  const obtenerCategoria = (catId: string) => categorias.find(c => c.id === catId);
+  const obtenerTarjeta = (tId: string) => tarjetas.find(t => t.id === tId);
 
   const DIAS_SEMANA = [
     { valor: 1, nombre: 'Dom' },
@@ -141,16 +137,14 @@ export default function GastosRecurrentesScreen() {
     { valor: 7, nombre: 'Sáb' },
   ];
 
-  // Calcular equivalente mensual de un gasto recurrente
   const calcularEquivalenteMensual = (gr: GastoRecurrente): number => {
     switch (gr.frecuencia) {
-      case 'diario': return gr.monto * 30;
+      case 'diario':  return gr.monto * 30;
       case 'semanal': return gr.monto * 52 / 12;
       case 'mensual': return gr.monto;
     }
   };
 
-  // Agrupar activos por moneda y calcular total en moneda base
   const activos = gastosRecurrentes.filter(gr => gr.activo);
   const porMoneda: Record<string, { monto: number; count: number; simbolo: string }> = {};
   let totalEnBase = 0;
@@ -166,11 +160,9 @@ export default function GastosRecurrentesScreen() {
   const monedasUsadas = Object.entries(porMoneda);
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: tema.colores.fondo }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
         {/* Resumen mensual */}
         {activos.length > 0 && (
           <View style={[styles.resumen, {
@@ -178,20 +170,15 @@ export default function GastosRecurrentesScreen() {
             borderColor: tema.colores.bordes,
           }]}>
             <Text style={[styles.resumenLabel, { color: tema.colores.textoSecundario }]}>
-              Estimado mensual · {activos.length} activos
+              Estimado mensual · {activos.length} {activos.length === 1 ? 'activo' : 'activos'}
             </Text>
-
-            {/* Tarjetas por moneda */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.carruselMonedas}>
-              <View style={styles.carruselContenido}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', gap: 10, paddingBottom: 4 }}>
                 {monedasUsadas.map(([codigo, data]) => (
-                  <View
-                    key={codigo}
-                    style={[styles.tarjetaMoneda, {
-                      backgroundColor: tema.colores.fondo,
-                      borderColor: tema.colores.primario + '44',
-                    }]}
-                  >
+                  <View key={codigo} style={[styles.tarjetaMoneda, {
+                    backgroundColor: tema.colores.fondo,
+                    borderColor: tema.colores.primario + '44',
+                  }]}>
                     <Text style={[styles.tarjetaCodigo, { color: tema.colores.textoSecundario }]}>
                       {codigo}
                     </Text>
@@ -205,16 +192,14 @@ export default function GastosRecurrentesScreen() {
                 ))}
               </View>
             </ScrollView>
-
-            {/* Total en moneda base — solo si hay más de una moneda */}
             {monedasUsadas.length > 1 && (
               <>
-                <View style={[styles.resumenSeparador, { backgroundColor: tema.colores.bordes }]} />
-                <View style={styles.resumenTotalFila}>
-                  <Text style={[styles.resumenTotalLabel, { color: tema.colores.textoSecundario }]}>
+                <View style={[styles.separador, { backgroundColor: tema.colores.bordes }]} />
+                <View style={styles.totalFila}>
+                  <Text style={[styles.totalLabel, { color: tema.colores.textoSecundario }]}>
                     Total en {monedaBase?.codigo}
                   </Text>
-                  <Text style={[styles.resumenTotalValor, { color: tema.colores.primario }]}>
+                  <Text style={[styles.totalValor, { color: tema.colores.primario }]}>
                     ≈ {monedaBase?.simbolo}{totalEnBase.toFixed(2)}
                   </Text>
                 </View>
@@ -223,81 +208,133 @@ export default function GastosRecurrentesScreen() {
           </View>
         )}
 
-        {!mostrarFormulario ? (
-          <>
-            {/* Lista */}
-            {gastosRecurrentes.length > 0 ? (
-              <View style={styles.lista}>
-                {gastosRecurrentes.map(gr => {
-                  const cat = obtenerCategoria(gr.categoriaId);
-                  const simbolo = obtenerSimboloMoneda(gr.moneda);
-                  const proximaFecha = new Date(gr.proximaFecha).toLocaleDateString('es');
+        {/* Lista */}
+        {gastosRecurrentes.length > 0 ? (
+          <View style={styles.lista}>
+            {gastosRecurrentes.map(gr => {
+              const cat = obtenerCategoria(gr.categoriaId);
+              const tarjeta = gr.tarjetaId ? obtenerTarjeta(gr.tarjetaId) : undefined;
+              const simbolo = obtenerSimboloMoneda(gr.moneda);
+              const proximaFecha = new Date(gr.proximaFecha).toLocaleDateString('es');
+              const accentColor = tarjeta ? tarjeta.color : (cat ? tema.colores.primario : tema.colores.bordes);
 
-                  return (
-                    <View
-                      key={gr.id}
-                      style={[styles.item, {
-                        backgroundColor: tema.colores.fondoSecundario,
-                        borderColor: tema.colores.bordes,
-                        opacity: gr.activo ? 1 : 0.5,
-                      }]}
-                    >
-                      <Text style={styles.itemEmoji}>{cat?.emoji || '💸'}</Text>
-                      <View style={styles.itemInfo}>
-                        <Text style={[styles.itemTitulo, { color: tema.colores.texto }]}>
+              return (
+                <View
+                  key={gr.id}
+                  style={[styles.card, {
+                    backgroundColor: tema.colores.fondoSecundario,
+                    borderColor: tema.colores.bordes,
+                    opacity: gr.activo ? 1 : 0.55,
+                  }]}
+                >
+                  <View style={[styles.cardAccent, { backgroundColor: accentColor }]} />
+                  <View style={styles.cardBody}>
+                    <View style={styles.cardHeader}>
+                      <Text style={styles.cardEmoji}>{cat?.emoji || '💸'}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.cardTitulo, { color: tema.colores.texto }]} numberOfLines={1}>
                           {gr.descripcion}
                         </Text>
-                        <Text style={[styles.itemMonto, { color: tema.colores.primario }]}>
-                          {simbolo}{gr.monto.toFixed(2)}
-                        </Text>
-                        <Text style={[styles.itemDetalle, { color: tema.colores.textoSecundario }]}>
-                          {obtenerEtiquetaFrecuencia(gr.frecuencia)}
-                          {gr.frecuencia === 'semanal' && gr.diaSemana && ` • ${obtenerNombreDiaSemana(gr.diaSemana)}`}
-                          {gr.frecuencia === 'mensual' && gr.diaMes && ` • Día ${gr.diaMes}`}
-                          {` • Próximo: ${proximaFecha}`}
+                        <Text style={[styles.cardCategoria, { color: tema.colores.textoSecundario }]}>
+                          {cat?.nombre || 'Sin categoría'}
                         </Text>
                       </View>
-                      <View style={styles.itemAcciones}>
+                      <View style={styles.cardAcciones}>
                         <Switch
                           value={gr.activo}
                           onValueChange={() => toggleGastoRecurrente(gr.id)}
                           trackColor={{ false: tema.colores.bordes, true: tema.colores.primarioClaro }}
                           thumbColor={gr.activo ? tema.colores.primario : tema.colores.texto}
                         />
-                        <TouchableOpacity
-                          onPress={() => handleEliminar(gr)}
-                          style={styles.botonEliminar}
-                        >
-                          <Text style={{ fontSize: 20 }}>🗑️</Text>
+                        <TouchableOpacity onPress={() => handleEliminar(gr)} style={{ marginTop: 6 }}>
+                          <Text style={{ fontSize: 18 }}>🗑️</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
-                  );
-                })}
-              </View>
-            ) : (
-              <EstadoVacio
-                emoji="🔁"
-                titulo="Sin gastos recurrentes"
-                subtitulo="Agrega tus suscripciones y gastos fijos para que se registren automáticamente"
-              />
-            )}
-
-            <BotonAnimado
-              style={[styles.botonAgregar, { backgroundColor: tema.colores.primario }]}
-              onPress={() => setMostrarFormulario(true)}
-            >
-              <Text style={styles.botonAgregarTexto}>+ Nuevo Gasto Recurrente</Text>
-            </BotonAnimado>
-          </>
+                    <View style={styles.cardFooter}>
+                      <Text style={[styles.cardMonto, { color: tema.colores.primario }]}>
+                        {simbolo}{gr.monto.toFixed(2)}
+                      </Text>
+                      <View style={styles.cardBadges}>
+                        <View style={[styles.badge, { backgroundColor: tema.colores.primario + '22' }]}>
+                          <Text style={[styles.badgeText, { color: tema.colores.primario }]}>
+                            {obtenerEtiquetaFrecuencia(gr.frecuencia)}
+                            {gr.frecuencia === 'semanal' && gr.diaSemana ? ` · ${obtenerNombreDiaSemana(gr.diaSemana)}` : ''}
+                            {gr.frecuencia === 'mensual' && gr.diaMes ? ` · Día ${gr.diaMes}` : ''}
+                          </Text>
+                        </View>
+                        <View style={[styles.badge, { backgroundColor: tema.colores.bordes + '55' }]}>
+                          <Text style={[styles.badgeText, { color: tema.colores.textoSecundario }]}>
+                            🔔 {proximaFecha}
+                          </Text>
+                        </View>
+                        {tarjeta && (
+                          <View style={[styles.badge, { backgroundColor: tarjeta.color + '33' }]}>
+                            <Text style={[styles.badgeText, { color: tarjeta.color }]}>
+                              💳 {tarjeta.nombre}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
         ) : (
-          <>
-            {/* Formulario */}
-            <View style={styles.formulario}>
+          <EstadoVacio
+            emoji="🔁"
+            titulo="Sin gastos recurrentes"
+            subtitulo="Agrega tus suscripciones y gastos fijos para que se registren automáticamente"
+          />
+        )}
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+
+      {/* FAB */}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: tema.colores.primario }]}
+        onPress={() => {
+          limpiarFormulario();
+          setMostrarFormulario(true);
+        }}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.fabTexto}>＋</Text>
+      </TouchableOpacity>
+
+      {/* Bottom sheet modal — formulario */}
+      <Modal
+        visible={mostrarFormulario}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMostrarFormulario(false)}
+      >
+        <TouchableOpacity
+          style={styles.overlay}
+          activeOpacity={1}
+          onPress={() => setMostrarFormulario(false)}
+        />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.sheetWrapper}
+        >
+          <View style={[styles.sheet, { backgroundColor: tema.colores.fondoSecundario }]}>
+            {/* Handle */}
+            <View style={[styles.handle, { backgroundColor: tema.colores.bordes }]} />
+
+            <Text style={[styles.sheetTitulo, { color: tema.colores.texto }]}>
+              Nuevo gasto recurrente
+            </Text>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
               <Text style={[styles.label, { color: tema.colores.texto }]}>Descripción</Text>
               <TextInput
                 style={[styles.input, {
-                  backgroundColor: tema.colores.fondoSecundario,
+                  backgroundColor: tema.colores.fondo,
                   borderColor: tema.colores.bordes,
                   color: tema.colores.texto,
                 }]}
@@ -310,7 +347,7 @@ export default function GastosRecurrentesScreen() {
               <Text style={[styles.label, { color: tema.colores.texto }]}>Monto</Text>
               <TextInput
                 style={[styles.input, {
-                  backgroundColor: tema.colores.fondoSecundario,
+                  backgroundColor: tema.colores.fondo,
                   borderColor: tema.colores.bordes,
                   color: tema.colores.texto,
                 }]}
@@ -321,21 +358,20 @@ export default function GastosRecurrentesScreen() {
                 keyboardType="decimal-pad"
               />
 
-              {/* Selector de categoría */}
               <Text style={[styles.label, { color: tema.colores.texto }]}>Categoría</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriasScroll}>
-                <View style={styles.categoriasContainer}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 60 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
                   {categorias.map(cat => (
                     <TouchableOpacity
                       key={cat.id}
-                      style={[styles.categoriaBoton, {
-                        backgroundColor: categoriaId === cat.id ? tema.colores.primario : tema.colores.fondoSecundario,
-                        borderColor: tema.colores.bordes,
+                      style={[styles.chip, {
+                        backgroundColor: categoriaId === cat.id ? tema.colores.primario : tema.colores.fondo,
+                        borderColor: categoriaId === cat.id ? tema.colores.primario : tema.colores.bordes,
                       }]}
                       onPress={() => setCategoriaId(cat.id)}
                     >
-                      <Text style={styles.categoriaEmoji}>{cat.emoji}</Text>
-                      <Text style={[styles.categoriaTexto, {
+                      <Text style={{ fontSize: 16 }}>{cat.emoji}</Text>
+                      <Text style={[styles.chipTexto, {
                         color: categoriaId === cat.id ? '#fff' : tema.colores.texto,
                       }]} numberOfLines={1}>
                         {cat.nombre}
@@ -345,21 +381,22 @@ export default function GastosRecurrentesScreen() {
                 </View>
               </ScrollView>
 
-              {/* Selector de moneda */}
               {monedas.length > 1 && (
                 <>
                   <Text style={[styles.label, { color: tema.colores.texto }]}>Moneda</Text>
-                  <View style={styles.monedasContainer}>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
                     {monedas.map(m => (
                       <TouchableOpacity
                         key={m.codigo}
-                        style={[styles.monedaBoton, {
-                          backgroundColor: moneda === m.codigo ? tema.colores.primario : tema.colores.fondoSecundario,
-                          borderColor: tema.colores.bordes,
+                        style={[styles.chip, {
+                          flex: 1,
+                          justifyContent: 'center',
+                          backgroundColor: moneda === m.codigo ? tema.colores.primario : tema.colores.fondo,
+                          borderColor: moneda === m.codigo ? tema.colores.primario : tema.colores.bordes,
                         }]}
                         onPress={() => setMoneda(m.codigo)}
                       >
-                        <Text style={[styles.monedaTexto, {
+                        <Text style={[styles.chipTexto, {
                           color: moneda === m.codigo ? '#fff' : tema.colores.texto,
                         }]}>
                           {m.simbolo} {m.codigo}
@@ -370,43 +407,83 @@ export default function GastosRecurrentesScreen() {
                 </>
               )}
 
-              {/* Frecuencia */}
+              {tarjetas.length > 0 && (
+                <>
+                  <Text style={[styles.label, { color: tema.colores.texto }]}>Tarjeta de crédito</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 60 }}>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {/* Opción "Sin tarjeta" */}
+                      <TouchableOpacity
+                        style={[styles.chip, {
+                          backgroundColor: !tarjetaId ? tema.colores.primario : tema.colores.fondo,
+                          borderColor: !tarjetaId ? tema.colores.primario : tema.colores.bordes,
+                        }]}
+                        onPress={() => setTarjetaId(undefined)}
+                      >
+                        <Text style={{ fontSize: 16 }}>💵</Text>
+                        <Text style={[styles.chipTexto, { color: !tarjetaId ? '#fff' : tema.colores.texto }]}>
+                          Efectivo
+                        </Text>
+                      </TouchableOpacity>
+                      {tarjetas.map(t => (
+                        <TouchableOpacity
+                          key={t.id}
+                          style={[styles.chip, {
+                            backgroundColor: tarjetaId === t.id ? t.color : tema.colores.fondo,
+                            borderColor: tarjetaId === t.id ? t.color : tema.colores.bordes,
+                          }]}
+                          onPress={() => setTarjetaId(t.id)}
+                        >
+                          <Text style={{ fontSize: 16 }}>💳</Text>
+                          <Text style={[styles.chipTexto, {
+                            color: tarjetaId === t.id ? '#fff' : tema.colores.texto,
+                          }]} numberOfLines={1}>
+                            {t.nombre}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </>
+              )}
+
               <Text style={[styles.label, { color: tema.colores.texto }]}>Frecuencia</Text>
-              <View style={styles.frecuenciaOpciones}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
                 {(['diario', 'semanal', 'mensual'] as FrecuenciaGastoRecurrente[]).map(freq => (
                   <TouchableOpacity
                     key={freq}
-                    style={[styles.frecuenciaBoton, {
-                      backgroundColor: frecuencia === freq ? tema.colores.primario : tema.colores.fondoSecundario,
-                      borderColor: tema.colores.bordes,
+                    style={[styles.chip, {
+                      flex: 1,
+                      justifyContent: 'center',
+                      backgroundColor: frecuencia === freq ? tema.colores.primario : tema.colores.fondo,
+                      borderColor: frecuencia === freq ? tema.colores.primario : tema.colores.bordes,
                     }]}
                     onPress={() => setFrecuencia(freq)}
                   >
-                    <Text style={[styles.frecuenciaTexto, {
+                    <Text style={[styles.chipTexto, {
                       color: frecuencia === freq ? '#fff' : tema.colores.texto,
                     }]}>
-                      {obtenerEtiquetaFrecuencia(freq)}
+                      {freq === 'diario' ? '📅 Diario' : freq === 'semanal' ? '🗓️ Semanal' : '📆 Mensual'}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              {/* Día de la semana (semanal) */}
               {frecuencia === 'semanal' && (
                 <>
                   <Text style={[styles.label, { color: tema.colores.texto }]}>Día de la semana</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.diasScroll}>
-                    <View style={styles.diasContainer}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 50 }}>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
                       {DIAS_SEMANA.map(dia => (
                         <TouchableOpacity
                           key={dia.valor}
-                          style={[styles.diaBoton, {
-                            backgroundColor: diaSemana === dia.valor ? tema.colores.primario : tema.colores.fondoSecundario,
-                            borderColor: tema.colores.bordes,
+                          style={[styles.chipDia, {
+                            backgroundColor: diaSemana === dia.valor ? tema.colores.primario : tema.colores.fondo,
+                            borderColor: diaSemana === dia.valor ? tema.colores.primario : tema.colores.bordes,
                           }]}
                           onPress={() => setDiaSemana(dia.valor)}
                         >
-                          <Text style={[styles.diaTexto, {
+                          <Text style={[styles.chipTexto, {
                             color: diaSemana === dia.valor ? '#fff' : tema.colores.texto,
                           }]}>
                             {dia.nombre}
@@ -418,13 +495,12 @@ export default function GastosRecurrentesScreen() {
                 </>
               )}
 
-              {/* Día del mes (mensual) */}
               {frecuencia === 'mensual' && (
                 <>
                   <Text style={[styles.label, { color: tema.colores.texto }]}>Día del mes</Text>
                   <TextInput
                     style={[styles.input, {
-                      backgroundColor: tema.colores.fondoSecundario,
+                      backgroundColor: tema.colores.fondo,
                       borderColor: tema.colores.bordes,
                       color: tema.colores.texto,
                     }]}
@@ -436,9 +512,7 @@ export default function GastosRecurrentesScreen() {
                         setDiaMes('');
                       } else {
                         const dia = parseInt(text);
-                        if (!isNaN(dia) && dia >= 1 && dia <= 31) {
-                          setDiaMes(text);
-                        }
+                        if (!isNaN(dia) && dia >= 1 && dia <= 31) setDiaMes(text);
                       }
                     }}
                     keyboardType="numeric"
@@ -452,7 +526,7 @@ export default function GastosRecurrentesScreen() {
               <View style={styles.botonesFormulario}>
                 <TouchableOpacity
                   style={[styles.botonCancelar, {
-                    backgroundColor: tema.colores.fondoSecundario,
+                    backgroundColor: tema.colores.fondo,
                     borderColor: tema.colores.bordes,
                   }]}
                   onPress={() => {
@@ -460,11 +534,8 @@ export default function GastosRecurrentesScreen() {
                     setMostrarFormulario(false);
                   }}
                 >
-                  <Text style={[styles.botonCancelarTexto, { color: tema.colores.texto }]}>
-                    Cancelar
-                  </Text>
+                  <Text style={[styles.botonCancelarTexto, { color: tema.colores.texto }]}>Cancelar</Text>
                 </TouchableOpacity>
-
                 <BotonAnimado
                   style={[styles.botonGuardar, { backgroundColor: tema.colores.primario }]}
                   onPress={handleAgregar}
@@ -472,52 +543,33 @@ export default function GastosRecurrentesScreen() {
                   <Text style={styles.botonGuardarTexto}>Guardar</Text>
                 </BotonAnimado>
               </View>
-            </View>
-          </>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+              <View style={{ height: 20 }} />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scroll: {
     paddingTop: 10,
     paddingHorizontal: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
   },
   resumen: {
     padding: 15,
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1,
     marginBottom: 15,
-    alignItems: 'center',
   },
   resumenLabel: {
     fontSize: 13,
-    marginBottom: 4,
-  },
-  resumenValor: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  resumenCantidad: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  carruselMonedas: {
-    marginTop: 10,
-  },
-  carruselContenido: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingBottom: 4,
+    fontWeight: '600',
   },
   tarjetaMoneda: {
     borderWidth: 1,
@@ -542,75 +594,132 @@ const styles = StyleSheet.create({
   tarjetaCount: {
     fontSize: 11,
   },
-  resumenSeparador: {
+  separador: {
     height: 1,
     marginVertical: 10,
   },
-  resumenTotalFila: {
+  totalFila: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  resumenTotalLabel: {
+  totalLabel: {
     fontSize: 13,
     fontWeight: '600',
   },
-  resumenTotalValor: {
+  totalValor: {
     fontSize: 18,
     fontWeight: 'bold',
   },
   lista: {
+    gap: 10,
     marginBottom: 15,
   },
-  item: {
+  card: {
     flexDirection: 'row',
-    padding: 15,
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cardAccent: {
+    width: 5,
+  },
+  cardBody: {
+    flex: 1,
+    padding: 14,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 10,
+  },
+  cardEmoji: {
+    fontSize: 26,
+  },
+  cardTitulo: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cardCategoria: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  cardAcciones: {
     alignItems: 'center',
   },
-  itemEmoji: {
-    fontSize: 28,
-    marginRight: 12,
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  itemInfo: {
-    flex: 1,
-  },
-  itemTitulo: {
+  cardMonto: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 2,
   },
-  itemMonto: {
-    fontSize: 16,
+  cardBadges: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  badgeText: {
+    fontSize: 11,
     fontWeight: '600',
-    marginBottom: 2,
   },
-  itemDetalle: {
-    fontSize: 12,
-  },
-  itemAcciones: {
-    justifyContent: 'space-between',
+  fab: {
+    position: 'absolute',
+    bottom: 28,
+    right: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
   },
-  botonEliminar: {
-    marginTop: 8,
-  },
-  botonAgregar: {
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 30,
-  },
-  botonAgregarTexto: {
+  fabTexto: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 28,
+    lineHeight: 32,
   },
-  formulario: {
-    marginBottom: 15,
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sheetWrapper: {
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 0,
+    maxHeight: '88%',
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+  sheetTitulo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
   },
   label: {
     fontSize: 13,
@@ -619,81 +728,31 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   input: {
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderRadius: 10,
     padding: 12,
     fontSize: 16,
   },
-  categoriasScroll: {
-    maxHeight: 60,
-  },
-  categoriasContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  categoriaBoton: {
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderRadius: 10,
-    borderWidth: 2,
+    borderWidth: 1.5,
     gap: 6,
   },
-  categoriaEmoji: {
-    fontSize: 18,
-  },
-  categoriaTexto: {
+  chipTexto: {
     fontSize: 13,
     fontWeight: '600',
-    maxWidth: 80,
   },
-  monedasContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  monedaBoton: {
-    flex: 1,
-    padding: 12,
+  chipDia: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 10,
-    borderWidth: 2,
+    borderWidth: 1.5,
+    minWidth: 50,
     alignItems: 'center',
-  },
-  monedaTexto: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  frecuenciaOpciones: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  frecuenciaBoton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  frecuenciaTexto: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  diasScroll: {
-    maxHeight: 50,
-  },
-  diasContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  diaBoton: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    minWidth: 55,
-    alignItems: 'center',
-  },
-  diaTexto: {
-    fontSize: 13,
-    fontWeight: '600',
   },
   ayuda: {
     fontSize: 11,
@@ -704,28 +763,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 20,
-    marginBottom: 30,
   },
   botonCancelar: {
     flex: 1,
-    padding: 15,
+    padding: 14,
     borderRadius: 12,
-    borderWidth: 2,
+    borderWidth: 1.5,
     alignItems: 'center',
   },
   botonCancelarTexto: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   botonGuardar: {
     flex: 1,
-    padding: 15,
+    padding: 14,
     borderRadius: 12,
     alignItems: 'center',
   },
   botonGuardarTexto: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

@@ -19,7 +19,7 @@ export default function TarjetasScreen() {
   const { showToast } = useToast();
   const { tarjetas, eliminarTarjeta, obtenerEstadoTarjeta, editarTarjeta } = useTarjetas();
   const { obtenerEstadisticasTarjeta, eliminarCuota, registrarPagoCuota } = useCuotas();
-  const { monedaBase } = useMonedas();
+  const { monedas, monedaBase } = useMonedas();
   const simbolo = monedaBase?.simbolo ?? tema.moneda;
   const c = tema.colores;
 
@@ -118,6 +118,24 @@ export default function TarjetasScreen() {
         return tipo === 'pendiente' ? f > cortePrevio && f <= ultimoCorte : f > ultimoCorte;
       })
       .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  };
+
+  const obtenerSimboloMoneda = (codigo: string) =>
+    monedas.find(m => m.codigo === codigo)?.simbolo ?? monedaBase?.simbolo ?? '$';
+
+  // Agrupa los gastos de un ciclo por moneda original (para mostrar GTQ + USD separados)
+  const obtenerResumenPorMoneda = (tarjeta: TarjetaCredito, tipo: 'pendiente' | 'actual') => {
+    const items = obtenerGastosDesglose(tarjeta, tipo);
+    const porMoneda: Record<string, { monto: number; simbolo: string }> = {};
+    let totalEnBase = 0;
+    items.forEach(g => {
+      const cod = g.moneda || monedaBase?.codigo || 'GTQ';
+      const sim = obtenerSimboloMoneda(cod);
+      if (!porMoneda[cod]) porMoneda[cod] = { monto: 0, simbolo: sim };
+      porMoneda[cod].monto += g.monto;
+      totalEnBase += g.montoEnMonedaBase ?? g.monto;
+    });
+    return { porMoneda, totalEnBase, entries: Object.entries(porMoneda) };
   };
 
   // ─── Urgencia de chips ───────────────────────────────────────────────────────
@@ -294,32 +312,43 @@ export default function TarjetasScreen() {
               <View style={[styles.panel, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
 
                 {/* Fila: A pagar */}
-                {consumoPendientePago > 0 && (
-                  <View style={[styles.panelFila, { borderBottomColor: c.bordes }]}>
-                    <View style={styles.panelFilaLeft}>
-                      <View style={[styles.panelDot, { backgroundColor: '#ef4444' }]} />
-                      <View>
-                        <Text style={[styles.panelEtiqueta, { color: c.textoSecundario }]}>A pagar este ciclo</Text>
-                        {diasHastaPago !== null && (
-                          <Text style={[styles.panelSubetiqueta, { color: diasHastaPago <= 3 ? '#ef4444' : '#f59e0b' }]}>
-                            {diasHastaPago < 0
-                              ? `Venció hace ${Math.abs(diasHastaPago)} día${Math.abs(diasHastaPago) !== 1 ? 's' : ''}`
-                              : diasHastaPago === 0 ? '⚠ Vence hoy'
-                              : `⏰ Vence en ${diasHastaPago} día${diasHastaPago !== 1 ? 's' : ''}`}
+                {consumoPendientePago > 0 && (() => {
+                  const { entries, totalEnBase } = obtenerResumenPorMoneda(tarjetaActiva, 'pendiente');
+                  const multiMoneda = entries.length > 1;
+                  return (
+                    <View style={[styles.panelFila, { borderBottomColor: c.bordes }]}>
+                      <View style={styles.panelFilaLeft}>
+                        <View style={[styles.panelDot, { backgroundColor: '#ef4444' }]} />
+                        <View>
+                          <Text style={[styles.panelEtiqueta, { color: c.textoSecundario }]}>A pagar este ciclo</Text>
+                          {diasHastaPago !== null && (
+                            <Text style={[styles.panelSubetiqueta, { color: diasHastaPago <= 3 ? '#ef4444' : '#f59e0b' }]}>
+                              {diasHastaPago < 0
+                                ? `Venció hace ${Math.abs(diasHastaPago)} día${Math.abs(diasHastaPago) !== 1 ? 's' : ''}`
+                                : diasHastaPago === 0 ? '⚠ Vence hoy'
+                                : `⏰ Vence en ${diasHastaPago} día${diasHastaPago !== 1 ? 's' : ''}`}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                      <View style={styles.panelFilaRight}>
+                        {entries.map(([cod, data]) => (
+                          <Text key={cod} style={[styles.panelMonto, { color: '#ef4444' }]}>
+                            {data.simbolo}{data.monto.toFixed(2)}
+                          </Text>
+                        ))}
+                        {multiMoneda && (
+                          <Text style={[styles.panelSubetiqueta, { color: c.textoSecundario }]}>
+                            ≈ {simbolo}{totalEnBase.toFixed(2)}
                           </Text>
                         )}
+                        <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjetaActiva); setDesgloseTipo('pendiente'); setModalDesglose(true); }}>
+                          <Text style={[styles.panelDetalle, { color: c.primario }]}>Ver →</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                    <View style={styles.panelFilaRight}>
-                      <Text style={[styles.panelMonto, { color: '#ef4444' }]}>
-                        {simbolo}{consumoPendientePago.toFixed(2)}
-                      </Text>
-                      <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjetaActiva); setDesgloseTipo('pendiente'); setModalDesglose(true); }}>
-                        <Text style={[styles.panelDetalle, { color: c.primario }]}>Ver →</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
+                  );
+                })()}
 
                 {/* Pagado confirmado */}
                 {yaPageado && consumoPendientePago === 0 && (
@@ -332,27 +361,38 @@ export default function TarjetasScreen() {
                 )}
 
                 {/* Fila: Ciclo actual */}
-                {consumoCicloActual > 0 && (
-                  <View style={[styles.panelFila, { borderBottomColor: c.bordes }]}>
-                    <View style={styles.panelFilaLeft}>
-                      <View style={[styles.panelDot, { backgroundColor: c.primario }]} />
-                      <View>
-                        <Text style={[styles.panelEtiqueta, { color: c.textoSecundario }]}>Ciclo en curso</Text>
-                        <Text style={[styles.panelSubetiqueta, { color: c.textoSecundario }]}>
-                          Corta el día {tarjetaActiva.diaCorte}
-                        </Text>
+                {consumoCicloActual > 0 && (() => {
+                  const { entries, totalEnBase } = obtenerResumenPorMoneda(tarjetaActiva, 'actual');
+                  const multiMoneda = entries.length > 1;
+                  return (
+                    <View style={[styles.panelFila, { borderBottomColor: c.bordes }]}>
+                      <View style={styles.panelFilaLeft}>
+                        <View style={[styles.panelDot, { backgroundColor: c.primario }]} />
+                        <View>
+                          <Text style={[styles.panelEtiqueta, { color: c.textoSecundario }]}>Ciclo en curso</Text>
+                          <Text style={[styles.panelSubetiqueta, { color: c.textoSecundario }]}>
+                            Corta el día {tarjetaActiva.diaCorte}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.panelFilaRight}>
+                        {entries.map(([cod, data]) => (
+                          <Text key={cod} style={[styles.panelMonto, { color: c.primario }]}>
+                            {data.simbolo}{data.monto.toFixed(2)}
+                          </Text>
+                        ))}
+                        {multiMoneda && (
+                          <Text style={[styles.panelSubetiqueta, { color: c.textoSecundario }]}>
+                            ≈ {simbolo}{totalEnBase.toFixed(2)}
+                          </Text>
+                        )}
+                        <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjetaActiva); setDesgloseTipo('actual'); setModalDesglose(true); }}>
+                          <Text style={[styles.panelDetalle, { color: c.primario }]}>Ver →</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                    <View style={styles.panelFilaRight}>
-                      <Text style={[styles.panelMonto, { color: c.primario }]}>
-                        {simbolo}{consumoCicloActual.toFixed(2)}
-                      </Text>
-                      <TouchableOpacity onPress={() => { setDesgloseTarjeta(tarjetaActiva); setDesgloseTipo('actual'); setModalDesglose(true); }}>
-                        <Text style={[styles.panelDetalle, { color: c.primario }]}>Ver →</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
+                  );
+                })()}
 
                 {/* Barra de utilización */}
                 {tarjetaActiva.limiteCredito && tarjetaActiva.limiteCredito > 0 && (() => {
@@ -376,16 +416,25 @@ export default function TarjetasScreen() {
                 })()}
 
                 {/* Botón pagar */}
-                {consumoPendientePago > 0 && (
-                  <BotonAnimado
-                    onPress={() => handleRegistrarPagoCiclo(tarjetaActiva)}
-                    style={[styles.botonPagar, { backgroundColor: '#10b981' }]}
-                  >
-                    <Text style={styles.botonPagarTexto}>
-                      ✓ Registrar pago · {simbolo}{consumoPendientePago.toFixed(2)}
-                    </Text>
-                  </BotonAnimado>
-                )}
+                {consumoPendientePago > 0 && (() => {
+                  const { entries, totalEnBase } = obtenerResumenPorMoneda(tarjetaActiva, 'pendiente');
+                  const multiMoneda = entries.length > 1;
+                  const resumenBtn = multiMoneda
+                    ? `≈ ${simbolo}${totalEnBase.toFixed(2)}`
+                    : entries.length === 1
+                      ? `${entries[0][1].simbolo}${entries[0][1].monto.toFixed(2)}`
+                      : `${simbolo}${consumoPendientePago.toFixed(2)}`;
+                  return (
+                    <BotonAnimado
+                      onPress={() => handleRegistrarPagoCiclo(tarjetaActiva)}
+                      style={[styles.botonPagar, { backgroundColor: '#10b981' }]}
+                    >
+                      <Text style={styles.botonPagarTexto}>
+                        ✓ Registrar pago · {resumenBtn}
+                      </Text>
+                    </BotonAnimado>
+                  );
+                })()}
               </View>
             );
           })()}
@@ -539,25 +588,53 @@ export default function TarjetasScreen() {
                 const total = items.reduce((s, g) => s + (g.montoEnMonedaBase ?? g.monto), 0);
                 return (
                   <>
-                    {items.map(g => (
-                      <View key={g.id} style={[styles.desgloseItem, { borderBottomColor: c.bordes }]}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.desgloseItemDesc, { color: c.texto }]}>{g.descripcion}</Text>
-                          <Text style={[styles.desgloseItemFecha, { color: c.textoSecundario }]}>
-                            {g.categoria} · {new Date(g.fecha).toLocaleDateString('es-GT', { day: 'numeric', month: 'short' })}
-                          </Text>
+                    {items.map(g => {
+                      const codMoneda = g.moneda || monedaBase?.codigo || 'GTQ';
+                      const simOriginal = obtenerSimboloMoneda(codMoneda);
+                      const esDivisa = codMoneda !== (monedaBase?.codigo ?? 'GTQ');
+                      return (
+                        <View key={g.id} style={[styles.desgloseItem, { borderBottomColor: c.bordes }]}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={[styles.desgloseItemDesc, { color: c.texto }]}>{g.descripcion}</Text>
+                            <Text style={[styles.desgloseItemFecha, { color: c.textoSecundario }]}>
+                              {g.categoria} · {new Date(g.fecha).toLocaleDateString('es-GT', { day: 'numeric', month: 'short' })}
+                            </Text>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={[styles.desgloseItemMonto, { color: c.texto }]}>
+                              {simOriginal}{g.monto.toFixed(2)}
+                            </Text>
+                            {esDivisa && g.montoEnMonedaBase != null && (
+                              <Text style={[styles.desgloseItemFecha, { color: c.textoSecundario }]}>
+                                ≈ {simbolo}{g.montoEnMonedaBase.toFixed(2)}
+                              </Text>
+                            )}
+                          </View>
                         </View>
-                        <Text style={[styles.desgloseItemMonto, { color: c.texto }]}>
-                          {simbolo}{(g.montoEnMonedaBase ?? g.monto).toFixed(2)}
-                        </Text>
-                      </View>
-                    ))}
-                    <View style={[styles.desgloseTotalFila, { borderTopColor: c.bordes }]}>
-                      <Text style={[styles.desgloseTotalLabel, { color: c.textoSecundario }]}>Total</Text>
-                      <Text style={[styles.desgloseTotalMonto, { color: desgloseTipo === 'pendiente' ? '#ef4444' : c.primario }]}>
-                        {simbolo}{total.toFixed(2)}
-                      </Text>
-                    </View>
+                      );
+                    })}
+                    {/* Totales por moneda al pie del desglose */}
+                    {(() => {
+                      const { entries, totalEnBase } = obtenerResumenPorMoneda(desgloseTarjeta!, desgloseTipo);
+                      const color = desgloseTipo === 'pendiente' ? '#ef4444' : c.primario;
+                      return (
+                        <View style={[styles.desgloseTotalFila, { borderTopColor: c.bordes }]}>
+                          <Text style={[styles.desgloseTotalLabel, { color: c.textoSecundario }]}>Total</Text>
+                          <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                            {entries.map(([cod, data]) => (
+                              <Text key={cod} style={[styles.desgloseTotalMonto, { color }]}>
+                                {data.simbolo}{data.monto.toFixed(2)}
+                              </Text>
+                            ))}
+                            {entries.length > 1 && (
+                              <Text style={[styles.desgloseItemFecha, { color: c.textoSecundario }]}>
+                                ≈ {simbolo}{totalEnBase.toFixed(2)}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })()}
                   </>
                 );
               })()}

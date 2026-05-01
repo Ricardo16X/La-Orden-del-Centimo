@@ -1,5 +1,8 @@
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch } from 'react-native';
-import { useState, useEffect } from 'react';
+import {
+  View, Text, ScrollView, StyleSheet, TouchableOpacity,
+  TextInput, Switch, Modal, KeyboardAvoidingView, Platform, Alert,
+} from 'react-native';
+import { useState } from 'react';
 import { useTema } from './src/context/TemaContext';
 import { useToast } from './src/context/ToastContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
@@ -8,495 +11,420 @@ import { useRecordatorios } from './src/context/RecordatoriosContext';
 import { useNotificaciones } from './src/hooks/useNotificaciones';
 import { Recordatorio, FrecuenciaRecordatorio } from './src/types';
 
+const FRECUENCIAS: { id: FrecuenciaRecordatorio; label: string; emoji: string }[] = [
+  { id: 'diario',   label: 'Diario',   emoji: '📅' },
+  { id: 'semanal',  label: 'Semanal',  emoji: '🗓️' },
+  { id: 'mensual',  label: 'Mensual',  emoji: '📆' },
+];
+
+const DIAS_SEMANA = [
+  { valor: 1, corto: 'Dom', largo: 'Domingo' },
+  { valor: 2, corto: 'Lun', largo: 'Lunes' },
+  { valor: 3, corto: 'Mar', largo: 'Martes' },
+  { valor: 4, corto: 'Mié', largo: 'Miércoles' },
+  { valor: 5, corto: 'Jue', largo: 'Jueves' },
+  { valor: 6, corto: 'Vie', largo: 'Viernes' },
+  { valor: 7, corto: 'Sáb', largo: 'Sábado' },
+];
+
 export default function RecordatoriosScreen() {
   const { tema } = useTema();
+  const c = tema.colores;
   const { showToast } = useToast();
   const { recordatorios, agregarRecordatorio, editarRecordatorio, eliminarRecordatorio, toggleRecordatorio } = useRecordatorios();
   const { programarNotificacion, cancelarNotificacion, permisoConcedido } = useNotificaciones();
 
-  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [formVisible, setFormVisible] = useState(false);
   const [titulo, setTitulo] = useState('');
   const [mensaje, setMensaje] = useState('');
-  const [hora, setHora] = useState('09:00');
+  const [horaHH, setHoraHH] = useState('09');
+  const [horaMM, setHoraMM] = useState('00');
   const [frecuencia, setFrecuencia] = useState<FrecuenciaRecordatorio>('diario');
-  const [diaSemana, setDiaSemana] = useState(2); // Lunes por defecto
-  const [diaMes, setDiaMes] = useState(1); // Día 1 por defecto
+  const [diaSemana, setDiaSemana] = useState(2);
+  const [diaMes, setDiaMes] = useState('1');
 
-  const limpiarFormulario = () => {
-    setTitulo('');
-    setMensaje('');
-    setHora('09:00');
-    setFrecuencia('diario');
-    setDiaSemana(2);
-    setDiaMes(1);
+  const resetForm = () => {
+    setTitulo(''); setMensaje('');
+    setHoraHH('09'); setHoraMM('00');
+    setFrecuencia('diario'); setDiaSemana(2); setDiaMes('1');
   };
 
   const handleAgregar = async () => {
     if (!titulo.trim() || !mensaje.trim()) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+      Alert.alert('Error', 'Completa el título y el mensaje');
       return;
     }
-
-    // Validar formato de hora (HH:MM)
-    const horaRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (!horaRegex.test(hora)) {
-      Alert.alert('Error', 'Formato de hora inválido. Usa HH:MM (ej: 09:00)');
+    const hh = parseInt(horaHH);
+    const mm = parseInt(horaMM);
+    if (isNaN(hh) || hh < 0 || hh > 23 || isNaN(mm) || mm < 0 || mm > 59) {
+      Alert.alert('Error', 'Hora inválida');
       return;
     }
+    const hora = `${horaHH.padStart(2, '0')}:${horaMM.padStart(2, '0')}`;
 
-    const nuevoRecordatorio = agregarRecordatorio({
-      titulo,
-      mensaje,
+    const nuevo = agregarRecordatorio({
+      titulo: titulo.trim(),
+      mensaje: mensaje.trim(),
       hora,
       frecuencia,
       activo: true,
       ...(frecuencia === 'semanal' && { diaSemana }),
-      ...(frecuencia === 'mensual' && { diaMes }),
+      ...(frecuencia === 'mensual' && { diaMes: parseInt(diaMes) || 1 }),
     });
 
-    // Programar la notificación
-    const notificationId = await programarNotificacion(nuevoRecordatorio);
-    if (notificationId) {
-      editarRecordatorio(nuevoRecordatorio.id, { notificationId });
-    }
+    const notificationId = await programarNotificacion(nuevo);
+    if (notificationId) editarRecordatorio(nuevo.id, { notificationId });
 
-    limpiarFormulario();
-    setMostrarFormulario(false);
+    resetForm();
+    setFormVisible(false);
+    showToast('Recordatorio creado');
   };
 
-  const handleToggle = async (recordatorio: Recordatorio) => {
-    if (recordatorio.activo) {
-      // Desactivar: cancelar notificación
-      if (recordatorio.notificationId) {
-        await cancelarNotificacion(recordatorio.notificationId);
-      }
-      toggleRecordatorio(recordatorio.id);
+  const handleToggle = async (r: Recordatorio) => {
+    if (r.activo) {
+      if (r.notificationId) await cancelarNotificacion(r.notificationId);
+      toggleRecordatorio(r.id);
     } else {
-      // Activar: programar notificación
-      const notificationId = await programarNotificacion({ ...recordatorio, activo: true });
-      if (notificationId) {
-        editarRecordatorio(recordatorio.id, { notificationId });
-      }
-      toggleRecordatorio(recordatorio.id);
+      const notificationId = await programarNotificacion({ ...r, activo: true });
+      if (notificationId) editarRecordatorio(r.id, { notificationId });
+      toggleRecordatorio(r.id);
     }
   };
 
-  const handleEliminar = async (recordatorio: Recordatorio) => {
+  const handleEliminar = async (r: Recordatorio) => {
     Alert.alert(
       'Eliminar recordatorio',
-      `¿Estás seguro de eliminar "${recordatorio.titulo}"?`,
+      `¿Eliminar "${r.titulo}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Eliminar',
-          style: 'destructive',
+          text: 'Eliminar', style: 'destructive',
           onPress: async () => {
-            if (recordatorio.notificationId) {
-              await cancelarNotificacion(recordatorio.notificationId);
-            }
-            eliminarRecordatorio(recordatorio.id);
+            if (r.notificationId) await cancelarNotificacion(r.notificationId);
+            eliminarRecordatorio(r.id);
+            showToast('Recordatorio eliminado');
           },
         },
       ]
     );
   };
 
-  const obtenerEtiquetaFrecuencia = (freq: FrecuenciaRecordatorio): string => {
-    switch (freq) {
-      case 'diario':
-        return 'Diario';
-      case 'semanal':
-        return 'Semanal';
-      case 'mensual':
-        return 'Mensual';
-    }
+  const etiquetaFrecuencia = (r: Recordatorio): string => {
+    let base = FRECUENCIAS.find(f => f.id === r.frecuencia)?.label ?? '';
+    if (r.frecuencia === 'semanal' && r.diaSemana)
+      base += ` · ${DIAS_SEMANA.find(d => d.valor === r.diaSemana)?.largo ?? ''}`;
+    if (r.frecuencia === 'mensual' && r.diaMes)
+      base += ` · Día ${r.diaMes}`;
+    return base;
   };
-
-  const obtenerNombreDiaSemana = (dia: number): string => {
-    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    return dias[dia - 1] || 'Lunes';
-  };
-
-  const DIAS_SEMANA = [
-    { valor: 1, nombre: 'Domingo' },
-    { valor: 2, nombre: 'Lunes' },
-    { valor: 3, nombre: 'Martes' },
-    { valor: 4, nombre: 'Miércoles' },
-    { valor: 5, nombre: 'Jueves' },
-    { valor: 6, nombre: 'Viernes' },
-    { valor: 7, nombre: 'Sábado' },
-  ];
 
   return (
-    <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-            {!permisoConcedido && (
-            <View style={[styles.alerta, {
-              backgroundColor: `${tema.colores.acento}20`,
-              borderColor: tema.colores.acento,
-            }]}>
-              <Text style={[styles.alertaTexto, { color: tema.colores.acento }]}>
-                ⚠️ Los permisos de notificación no están concedidos. Actívalos en configuración.
-              </Text>
-            </View>
-          )}
+    <View style={[styles.container, { backgroundColor: c.fondo }]}>
+      {/* Banner de permisos */}
+      {!permisoConcedido && (
+        <View style={[styles.permisoBanner, { backgroundColor: `${c.acento}20`, borderColor: c.acento }]}>
+          <Text style={[styles.permisoTexto, { color: c.acento }]}>
+            ⚠️ Activa los permisos de notificación para que los recordatorios funcionen
+          </Text>
+        </View>
+      )}
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {!mostrarFormulario ? (
-              <>
-                {/* Lista de recordatorios */}
-                {recordatorios.length > 0 ? (
-                  <View style={styles.lista}>
-                    {recordatorios.map(recordatorio => (
-                      <View
-                        key={recordatorio.id}
-                        style={[styles.recordatorioItem, {
-                          backgroundColor: tema.colores.fondoSecundario,
-                          borderColor: tema.colores.bordes,
-                        }]}
-                      >
-                        <View style={styles.recordatorioInfo}>
-                          <Text style={[styles.recordatorioTitulo, { color: tema.colores.texto }]}>
-                            {recordatorio.titulo}
-                          </Text>
-                          <Text style={[styles.recordatorioDetalle, { color: tema.colores.textoSecundario }]}>
-                            {`${recordatorio.hora} • ${obtenerEtiquetaFrecuencia(recordatorio.frecuencia)}`}
-                            {recordatorio.frecuencia === 'semanal' && recordatorio.diaSemana && ` • ${obtenerNombreDiaSemana(recordatorio.diaSemana)}`}
-                            {recordatorio.frecuencia === 'mensual' && recordatorio.diaMes && ` • Día ${recordatorio.diaMes}`}
-                          </Text>
-                          <Text style={[styles.recordatorioMensaje, { color: tema.colores.textoSecundario }]}>
-                            {recordatorio.mensaje}
-                          </Text>
-                        </View>
-                        <View style={styles.recordatorioAcciones}>
-                          <Switch
-                            value={recordatorio.activo}
-                            onValueChange={() => handleToggle(recordatorio)}
-                            trackColor={{ false: tema.colores.bordes, true: tema.colores.primarioClaro }}
-                            thumbColor={recordatorio.activo ? tema.colores.primario : tema.colores.texto}
-                          />
-                          <TouchableOpacity
-                            onPress={() => handleEliminar(recordatorio)}
-                            style={styles.botonEliminar}
-                          >
-                            <Text style={{ fontSize: 20 }}>🗑️</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <EstadoVacio
-                    emoji="🔔"
-                    titulo="No tienes recordatorios configurados"
-                    subtitulo="Agrega un recordatorio para no olvidar tus pagos"
-                  />
-                )}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {recordatorios.length === 0 ? (
+          <EstadoVacio
+            emoji="🔔"
+            titulo="Sin recordatorios"
+            subtitulo='Toca "+" para crear tu primer recordatorio'
+          />
+        ) : (
+          <View style={styles.lista}>
+            {recordatorios.map(r => (
+              <View
+                key={r.id}
+                style={[styles.card, {
+                  backgroundColor: c.fondoSecundario,
+                  borderColor: c.bordes,
+                  opacity: r.activo ? 1 : 0.55,
+                }]}
+              >
+                {/* Acento lateral según estado */}
+                <View style={[styles.cardAccent, { backgroundColor: r.activo ? c.primario : c.bordes }]} />
 
-                {/* Botón agregar */}
-                <BotonAnimado
-                  style={[styles.botonAgregar, { backgroundColor: tema.colores.primario }]}
-                  onPress={() => setMostrarFormulario(true)}
-                >
-                  <Text style={styles.botonAgregarTexto}>+ Nuevo Recordatorio</Text>
-                </BotonAnimado>
-              </>
-            ) : (
-              <>
-                {/* Formulario */}
-                <View style={styles.formulario}>
-                  <Text style={[styles.label, { color: tema.colores.texto }]}>Título</Text>
-                  <TextInput
-                    style={[styles.input, {
-                      backgroundColor: tema.colores.fondoSecundario,
-                      borderColor: tema.colores.bordes,
-                      color: tema.colores.texto,
-                    }]}
-                    placeholder="Ej: Registrar gastos"
-                    placeholderTextColor={tema.colores.textoSecundario}
-                    value={titulo}
-                    onChangeText={setTitulo}
-                  />
-
-                  <Text style={[styles.label, { color: tema.colores.texto }]}>Mensaje</Text>
-                  <TextInput
-                    style={[styles.input, styles.inputMultiline, {
-                      backgroundColor: tema.colores.fondoSecundario,
-                      borderColor: tema.colores.bordes,
-                      color: tema.colores.texto,
-                    }]}
-                    placeholder="Ej: ¡Recuerda anotar tus gastos del día!"
-                    placeholderTextColor={tema.colores.textoSecundario}
-                    value={mensaje}
-                    onChangeText={setMensaje}
-                    multiline
-                    numberOfLines={3}
-                  />
-
-                  <Text style={[styles.label, { color: tema.colores.texto }]}>
-                    {`Hora (formato 24h: HH:MM)`}
-                  </Text>
-                  <TextInput
-                    style={[styles.input, {
-                      backgroundColor: tema.colores.fondoSecundario,
-                      borderColor: tema.colores.bordes,
-                      color: tema.colores.texto,
-                    }]}
-                    placeholder="09:00"
-                    placeholderTextColor={tema.colores.textoSecundario}
-                    value={hora}
-                    onChangeText={setHora}
-                    keyboardType="numbers-and-punctuation"
-                  />
-
-                  <Text style={[styles.label, { color: tema.colores.texto }]}>Frecuencia</Text>
-                  <View style={styles.frecuenciaOpciones}>
-                    {(['diario', 'semanal', 'mensual'] as FrecuenciaRecordatorio[]).map(freq => (
-                      <TouchableOpacity
-                        key={freq}
-                        style={[styles.frecuenciaBoton, {
-                          backgroundColor: frecuencia === freq ? tema.colores.primario : tema.colores.fondoSecundario,
-                          borderColor: tema.colores.bordes,
-                        }]}
-                        onPress={() => setFrecuencia(freq)}
-                      >
-                        <Text style={[styles.frecuenciaTexto, {
-                          color: frecuencia === freq ? '#fff' : tema.colores.texto,
-                        }]}>
-                          {obtenerEtiquetaFrecuencia(freq)}
+                <View style={styles.cardBody}>
+                  <View style={styles.cardTop}>
+                    <View style={styles.cardTextos}>
+                      {/* Hora grande */}
+                      <Text style={[styles.cardHora, { color: r.activo ? c.primario : c.textoSecundario }]}>
+                        🕐 {r.hora}
+                      </Text>
+                      <Text style={[styles.cardTitulo, { color: c.texto }]} numberOfLines={1}>
+                        {r.titulo}
+                      </Text>
+                      <Text style={[styles.cardFrecuencia, { color: c.textoSecundario }]}>
+                        {etiquetaFrecuencia(r)}
+                      </Text>
+                      {r.mensaje ? (
+                        <Text style={[styles.cardMensaje, { color: c.textoSecundario }]} numberOfLines={2}>
+                          {r.mensaje}
                         </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  {/* Selector de día de la semana para recordatorios semanales */}
-                  {frecuencia === 'semanal' && (
-                    <>
-                      <Text style={[styles.label, { color: tema.colores.texto }]}>Día de la semana</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.diasScroll}>
-                        <View style={styles.diasContainer}>
-                          {DIAS_SEMANA.map(dia => (
-                            <TouchableOpacity
-                              key={dia.valor}
-                              style={[styles.diaBoton, {
-                                backgroundColor: diaSemana === dia.valor ? tema.colores.primario : tema.colores.fondoSecundario,
-                                borderColor: tema.colores.bordes,
-                              }]}
-                              onPress={() => setDiaSemana(dia.valor)}
-                            >
-                              <Text style={[styles.diaTexto, {
-                                color: diaSemana === dia.valor ? '#fff' : tema.colores.texto,
-                              }]}>
-                                {dia.nombre}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </ScrollView>
-                    </>
-                  )}
-
-                  {/* Selector de día del mes para recordatorios mensuales */}
-                  {frecuencia === 'mensual' && (
-                    <>
-                      <Text style={[styles.label, { color: tema.colores.texto }]}>Día del mes</Text>
-                      <TextInput
-                        style={[styles.input, {
-                          backgroundColor: tema.colores.fondoSecundario,
-                          borderColor: tema.colores.bordes,
-                          color: tema.colores.texto,
-                        }]}
-                        placeholder="1-31"
-                        placeholderTextColor={tema.colores.textoSecundario}
-                        value={diaMes.toString()}
-                        onChangeText={(text) => {
-                          const dia = parseInt(text);
-                          if (!isNaN(dia) && dia >= 1 && dia <= 31) {
-                            setDiaMes(dia);
-                          } else if (text === '') {
-                            setDiaMes(1);
-                          }
-                        }}
-                        keyboardType="numeric"
+                      ) : null}
+                    </View>
+                    <View style={styles.cardAcciones}>
+                      <Switch
+                        value={r.activo}
+                        onValueChange={() => handleToggle(r)}
+                        trackColor={{ false: c.bordes, true: `${c.primario}80` }}
+                        thumbColor={r.activo ? c.primario : c.texto}
                       />
-                      <Text style={[styles.ayuda, { color: tema.colores.textoSecundario }]}>
-                        💡 Si el mes no tiene este día, se programará para el último día del mes
-                      </Text>
-                    </>
-                  )}
-
-                  <View style={styles.botonesFormulario}>
-                    <TouchableOpacity
-                      style={[styles.botonCancelar, {
-                        backgroundColor: tema.colores.fondoSecundario,
-                        borderColor: tema.colores.bordes,
-                      }]}
-                      onPress={() => {
-                        limpiarFormulario();
-                        setMostrarFormulario(false);
-                      }}
-                    >
-                      <Text style={[styles.botonCancelarTexto, { color: tema.colores.texto }]}>
-                        Cancelar
-                      </Text>
-                    </TouchableOpacity>
-
-                    <BotonAnimado
-                      style={[styles.botonGuardar, { backgroundColor: tema.colores.primario }]}
-                      onPress={handleAgregar}
-                    >
-                      <Text style={styles.botonGuardarTexto}>Guardar</Text>
-                    </BotonAnimado>
+                      <TouchableOpacity
+                        onPress={() => handleEliminar(r)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={styles.btnEliminar}
+                      >
+                        <Text style={styles.btnEliminarTexto}>🗑️</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              </>
-            )}
-          </ScrollView>
+              </View>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+
+      {/* FAB */}
+      <BotonAnimado
+        style={[styles.fab, { backgroundColor: c.primario }]}
+        onPress={() => { resetForm(); setFormVisible(true); }}
+      >
+        <Text style={styles.fabTexto}>+</Text>
+      </BotonAnimado>
+
+      {/* ── Bottom sheet: formulario ── */}
+      <Modal visible={formVisible} transparent animationType="slide" onRequestClose={() => setFormVisible(false)}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.modalContainer, { backgroundColor: c.fondo }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: c.bordes }]}>
+              <Text style={[styles.modalTitulo, { color: c.primario }]}>🔔 Nuevo Recordatorio</Text>
+              <TouchableOpacity onPress={() => setFormVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={[styles.modalCerrar, { color: c.textoSecundario }]}>✕</Text>
+              </TouchableOpacity>
             </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.modalScroll}
+            >
+              {/* Título */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Título</Text>
+              <TextInput
+                style={[styles.formInput, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto }]}
+                placeholder="Ej: Registrar gastos del día"
+                placeholderTextColor={c.textoSecundario}
+                value={titulo}
+                onChangeText={setTitulo}
+              />
+
+              {/* Mensaje */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Mensaje de la notificación</Text>
+              <TextInput
+                style={[styles.formInput, styles.formInputMulti, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto }]}
+                placeholder="Ej: ¡No olvides anotar tus gastos!"
+                placeholderTextColor={c.textoSecundario}
+                value={mensaje}
+                onChangeText={setMensaje}
+                multiline
+                numberOfLines={2}
+              />
+
+              {/* Hora — picker HH : MM */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Hora</Text>
+              <View style={styles.horaRow}>
+                <TextInput
+                  style={[styles.horaInput, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto }]}
+                  placeholder="09"
+                  placeholderTextColor={c.textoSecundario}
+                  value={horaHH}
+                  onChangeText={v => setHoraHH(v.replace(/\D/g, '').slice(0, 2))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  textAlign="center"
+                />
+                <Text style={[styles.horaSep, { color: c.texto }]}>:</Text>
+                <TextInput
+                  style={[styles.horaInput, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto }]}
+                  placeholder="00"
+                  placeholderTextColor={c.textoSecundario}
+                  value={horaMM}
+                  onChangeText={v => setHoraMM(v.replace(/\D/g, '').slice(0, 2))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  textAlign="center"
+                />
+                <Text style={[styles.horaHint, { color: c.textoSecundario }]}>formato 24h</Text>
+              </View>
+
+              {/* Frecuencia */}
+              <Text style={[styles.formLabel, { color: c.texto }]}>Frecuencia</Text>
+              <View style={styles.frecuenciasRow}>
+                {FRECUENCIAS.map(f => (
+                  <TouchableOpacity
+                    key={f.id}
+                    onPress={() => setFrecuencia(f.id)}
+                    style={[styles.frecuenciaBtn, {
+                      backgroundColor: frecuencia === f.id ? c.primario : c.fondoSecundario,
+                      borderColor: c.bordes,
+                    }]}
+                  >
+                    <Text style={styles.frecuenciaBtnEmoji}>{f.emoji}</Text>
+                    <Text style={[styles.frecuenciaBtnTexto, { color: frecuencia === f.id ? '#fff' : c.texto }]}>
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Día semana */}
+              {frecuencia === 'semanal' && (
+                <>
+                  <Text style={[styles.formLabel, { color: c.texto }]}>Día de la semana</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.diasRow}>
+                      {DIAS_SEMANA.map(d => (
+                        <TouchableOpacity
+                          key={d.valor}
+                          onPress={() => setDiaSemana(d.valor)}
+                          style={[styles.diaBtn, {
+                            backgroundColor: diaSemana === d.valor ? c.primario : c.fondoSecundario,
+                            borderColor: c.bordes,
+                          }]}
+                        >
+                          <Text style={[styles.diaBtnTexto, { color: diaSemana === d.valor ? '#fff' : c.texto }]}>
+                            {d.corto}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                </>
+              )}
+
+              {/* Día mes */}
+              {frecuencia === 'mensual' && (
+                <>
+                  <Text style={[styles.formLabel, { color: c.texto }]}>Día del mes</Text>
+                  <TextInput
+                    style={[styles.formInput, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto, width: 100 }]}
+                    placeholder="1"
+                    placeholderTextColor={c.textoSecundario}
+                    value={diaMes}
+                    onChangeText={v => setDiaMes(v.replace(/\D/g, ''))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                  />
+                  <Text style={[styles.formHint, { color: c.textoSecundario }]}>
+                    Si el mes no tiene ese día, se usará el último día del mes
+                  </Text>
+                </>
+              )}
+
+              <BotonAnimado
+                onPress={handleAgregar}
+                style={[styles.formBoton, { backgroundColor: c.primario }]}
+              >
+                <Text style={styles.formBotonTexto}>➕ Crear recordatorio</Text>
+              </BotonAnimado>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 10,
-    paddingHorizontal: 20,
+  container: { flex: 1 },
+  scrollContent: { paddingTop: 16, paddingHorizontal: 16, paddingBottom: 100 },
+
+  permisoBanner: {
+    marginHorizontal: 16, marginTop: 12,
+    padding: 12, borderRadius: 10, borderWidth: 1,
   },
-  alerta: {
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 15,
+  permisoTexto: { fontSize: 13, textAlign: 'center' },
+
+  lista: { gap: 10 },
+
+  // ── Card ──
+  card: {
+    borderRadius: 14, borderWidth: 2,
+    flexDirection: 'row', overflow: 'hidden',
   },
-  alertaTexto: {
-    fontSize: 13,
-    textAlign: 'center',
+  cardAccent: { width: 5 },
+  cardBody: { flex: 1, padding: 14 },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start' },
+  cardTextos: { flex: 1 },
+  cardHora: { fontSize: 22, fontWeight: 'bold', marginBottom: 4 },
+  cardTitulo: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  cardFrecuencia: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  cardMensaje: { fontSize: 12, fontStyle: 'italic' },
+  cardAcciones: { alignItems: 'center', gap: 8, marginLeft: 8 },
+  btnEliminar: { marginTop: 4 },
+  btnEliminarTexto: { fontSize: 18 },
+
+  // ── FAB ──
+  fab: {
+    position: 'absolute', bottom: 24, right: 24,
+    width: 60, height: 60, borderRadius: 30,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 5,
   },
-  lista: {
-    marginBottom: 15,
+  fabTexto: { color: '#fff', fontSize: 32, fontWeight: '300', lineHeight: 36 },
+
+  // ── Modal ──
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContainer: { borderTopLeftRadius: 25, borderTopRightRadius: 25, maxHeight: '90%', paddingBottom: 20 },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 20, borderBottomWidth: 2,
   },
-  recordatorioItem: {
-    flexDirection: 'row',
-    padding: 15,
-    borderRadius: 12,
-    borderWidth: 2,
-    marginBottom: 10,
+  modalTitulo: { fontSize: 20, fontWeight: 'bold' },
+  modalCerrar: { fontSize: 24, fontWeight: 'bold' },
+  modalScroll: { padding: 20, paddingBottom: 10 },
+
+  formLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 14 },
+  formInput: { borderWidth: 2, borderRadius: 12, padding: 13, fontSize: 16 },
+  formInputMulti: { height: 80, textAlignVertical: 'top' },
+  formHint: { fontSize: 11, marginTop: 4, fontStyle: 'italic' },
+  formBoton: { marginTop: 20, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
+  formBotonTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+
+  horaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  horaInput: {
+    borderWidth: 2, borderRadius: 12,
+    width: 64, paddingVertical: 13,
+    fontSize: 24, fontWeight: 'bold',
   },
-  recordatorioInfo: {
-    flex: 1,
+  horaSep: { fontSize: 28, fontWeight: 'bold' },
+  horaHint: { fontSize: 12, flex: 1, marginLeft: 4 },
+
+  frecuenciasRow: { flexDirection: 'row', gap: 8 },
+  frecuenciaBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 12,
+    borderRadius: 12, borderWidth: 2,
   },
-  recordatorioTitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
+  frecuenciaBtnEmoji: { fontSize: 20, marginBottom: 4 },
+  frecuenciaBtnTexto: { fontSize: 12, fontWeight: '600' },
+
+  diasRow: { flexDirection: 'row', gap: 8, paddingBottom: 4 },
+  diaBtn: {
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderRadius: 10, borderWidth: 2, minWidth: 52, alignItems: 'center',
   },
-  recordatorioDetalle: {
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  recordatorioMensaje: {
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  recordatorioAcciones: {
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  botonEliminar: {
-    marginTop: 8,
-  },
-  botonAgregar: {
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  botonAgregarTexto: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  formulario: {
-    marginBottom: 15,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  input: {
-    borderWidth: 2,
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 16,
-  },
-  inputMultiline: {
-    height: 80,
-    textAlignVertical: 'top',
-  },
-  frecuenciaOpciones: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  frecuenciaBoton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  frecuenciaTexto: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  botonesFormulario: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 20,
-  },
-  botonCancelar: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  botonCancelarTexto: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  botonGuardar: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  botonGuardarTexto: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  diasScroll: {
-    maxHeight: 50,
-  },
-  diasContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  diaBoton: {
-    padding: 12,
-    borderRadius: 10,
-    borderWidth: 2,
-    minWidth: 90,
-    alignItems: 'center',
-  },
-  diaTexto: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  ayuda: {
-    fontSize: 11,
-    marginTop: 4,
-    fontStyle: 'italic',
-  },
+  diaBtnTexto: { fontSize: 13, fontWeight: '600' },
 });
