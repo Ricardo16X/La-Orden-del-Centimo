@@ -19,7 +19,7 @@ export default function MetasScreen() {
   const { tema } = useTema();
   const c = tema.colores;
   const { showToast } = useToast();
-  const { metas, agregarMeta, eliminarMeta, aportarAMeta, retirarDeMeta, obtenerEstadisticasMeta } = useMetas();
+  const { metas, agregarMeta, editarMeta, eliminarMeta, aportarAMeta, retirarDeMeta, obtenerEstadisticasMeta } = useMetas();
   const { balance } = useBalance();
   const { monedas, monedaBase } = useMonedas();
 
@@ -33,6 +33,7 @@ export default function MetasScreen() {
   const [icono, setIcono] = useState(ICONOS[0]);
   const [color, setColor] = useState(COLORES[0]);
   const [monedaSel, setMonedaSel] = useState(monedaBase?.codigo || '');
+  const [editandoMeta, setEditandoMeta] = useState<Meta | null>(null);
 
   // ─── Modal aportar/retirar ────────────────────────────────────────────────────
   const [modalAporte, setModalAporte] = useState(false);
@@ -49,6 +50,34 @@ export default function MetasScreen() {
     setDuracion('6'); setUnidad('meses');
     setIcono(ICONOS[0]); setColor(COLORES[0]);
     setMonedaSel(monedaBase?.codigo || '');
+    setEditandoMeta(null);
+  };
+
+  const abrirEdicion = (meta: Meta) => {
+    const remaining = new Date(meta.fechaLimite).getTime() - Date.now();
+    const diasRestantes = Math.max(1, Math.floor(remaining / 86400000));
+    let durVal: string;
+    let unidadVal: 'dias' | 'meses' | 'años';
+    if (diasRestantes >= 365) {
+      unidadVal = 'años';
+      durVal = Math.max(1, Math.round(diasRestantes / 365)).toString();
+    } else if (diasRestantes >= 30) {
+      unidadVal = 'meses';
+      durVal = Math.max(1, Math.round(diasRestantes / 30)).toString();
+    } else {
+      unidadVal = 'dias';
+      durVal = diasRestantes.toString();
+    }
+    setEditandoMeta(meta);
+    setNombre(meta.nombre);
+    setDescripcion(meta.descripcion);
+    setMontoObjetivo(meta.montoObjetivo.toString());
+    setMonedaSel(meta.monedaId);
+    setIcono(meta.icono);
+    setColor(meta.color);
+    setDuracion(durVal);
+    setUnidad(unidadVal);
+    setFormVisible(true);
   };
 
   const calcularFechaLimite = (): string => {
@@ -67,19 +96,31 @@ export default function MetasScreen() {
     const dur = parseInt(duracion);
     if (isNaN(dur) || dur <= 0) { Alert.alert('Error', 'Ingresa una duración válida'); return; }
 
-    agregarMeta({
-      nombre: nombre.trim(),
-      descripcion: descripcion.trim(),
-      montoObjetivo: monto,
-      monedaId: monedaSel || monedaBase?.codigo || '',
-      fechaInicio: new Date().toISOString(),
-      fechaLimite: calcularFechaLimite(),
-      icono, color,
-    });
+    if (editandoMeta) {
+      editarMeta(editandoMeta.id, {
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim(),
+        montoObjetivo: monto,
+        monedaId: monedaSel || monedaBase?.codigo || '',
+        fechaLimite: calcularFechaLimite(),
+        icono, color,
+      });
+      showToast('Meta actualizada');
+    } else {
+      agregarMeta({
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim(),
+        montoObjetivo: monto,
+        monedaId: monedaSel || monedaBase?.codigo || '',
+        fechaInicio: new Date().toISOString(),
+        fechaLimite: calcularFechaLimite(),
+        icono, color,
+      });
+      showToast('Meta creada');
+    }
 
     resetForm();
     setFormVisible(false);
-    showToast('Meta creada');
   };
 
   const abrirAporte = (metaId: string, retiro = false) => {
@@ -190,6 +231,13 @@ export default function MetasScreen() {
                 <Text style={[styles.estadoBadgeTexto, { color: '#ef4444' }]}>Vencida</Text>
               </View>
             )}
+            <TouchableOpacity
+              onPress={() => abrirEdicion(meta)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={{ padding: 4, marginRight: 2 }}
+            >
+              <Text style={{ fontSize: 16, color: c.primario }}>✏️</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => handleEliminar(meta)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -339,8 +387,8 @@ export default function MetasScreen() {
         >
           <View style={[styles.modalContainer, { backgroundColor: c.fondo }]}>
             <View style={[styles.modalHeader, { borderBottomColor: c.bordes }]}>
-              <Text style={[styles.modalTitulo, { color: c.primario }]}>🎯 Nueva Meta</Text>
-              <TouchableOpacity onPress={() => setFormVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={[styles.modalTitulo, { color: c.primario }]}>{editandoMeta ? '✏️ Editar Meta' : '🎯 Nueva Meta'}</Text>
+              <TouchableOpacity onPress={() => { resetForm(); setFormVisible(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={[styles.modalCerrar, { color: c.textoSecundario }]}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -481,7 +529,7 @@ export default function MetasScreen() {
                 onPress={handleAgregar}
                 style={[styles.formBoton, { backgroundColor: c.primario }]}
               >
-                <Text style={styles.formBotonTexto}>➕ Crear meta</Text>
+                <Text style={styles.formBotonTexto}>{editandoMeta ? '💾 Guardar cambios' : '➕ Crear meta'}</Text>
               </BotonAnimado>
             </ScrollView>
           </View>

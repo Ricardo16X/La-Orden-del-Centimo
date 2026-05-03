@@ -35,6 +35,7 @@ export default function RecordatoriosScreen() {
   const { programarNotificacion, cancelarNotificacion, permisoConcedido } = useNotificaciones();
 
   const [formVisible, setFormVisible] = useState(false);
+  const [editandoRecordatorio, setEditandoRecordatorio] = useState<Recordatorio | null>(null);
   const [titulo, setTitulo] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [horaHH, setHoraHH] = useState('09');
@@ -47,6 +48,20 @@ export default function RecordatoriosScreen() {
     setTitulo(''); setMensaje('');
     setHoraHH('09'); setHoraMM('00');
     setFrecuencia('diario'); setDiaSemana(2); setDiaMes('1');
+    setEditandoRecordatorio(null);
+  };
+
+  const abrirEdicion = (r: Recordatorio) => {
+    const [hh, mm] = r.hora.split(':');
+    setEditandoRecordatorio(r);
+    setTitulo(r.titulo);
+    setMensaje(r.mensaje);
+    setHoraHH(hh);
+    setHoraMM(mm);
+    setFrecuencia(r.frecuencia);
+    setDiaSemana(r.diaSemana ?? 2);
+    setDiaMes(r.diaMes?.toString() ?? '1');
+    setFormVisible(true);
   };
 
   const handleAgregar = async () => {
@@ -62,22 +77,40 @@ export default function RecordatoriosScreen() {
     }
     const hora = `${horaHH.padStart(2, '0')}:${horaMM.padStart(2, '0')}`;
 
-    const nuevo = agregarRecordatorio({
-      titulo: titulo.trim(),
-      mensaje: mensaje.trim(),
-      hora,
-      frecuencia,
-      activo: true,
-      ...(frecuencia === 'semanal' && { diaSemana }),
-      ...(frecuencia === 'mensual' && { diaMes: parseInt(diaMes) || 1 }),
-    });
-
-    const notificationId = await programarNotificacion(nuevo);
-    if (notificationId) editarRecordatorio(nuevo.id, { notificationId });
-
-    resetForm();
-    setFormVisible(false);
-    showToast('Recordatorio creado');
+    if (editandoRecordatorio) {
+      if (editandoRecordatorio.notificationId) {
+        await cancelarNotificacion(editandoRecordatorio.notificationId);
+      }
+      const datosActualizados: Partial<Omit<Recordatorio, 'id'>> = {
+        titulo: titulo.trim(),
+        mensaje: mensaje.trim(),
+        hora,
+        frecuencia,
+        diaSemana: frecuencia === 'semanal' ? diaSemana : undefined,
+        diaMes: frecuencia === 'mensual' ? (parseInt(diaMes) || 1) : undefined,
+      };
+      editarRecordatorio(editandoRecordatorio.id, datosActualizados);
+      const notificationId = await programarNotificacion({ ...editandoRecordatorio, ...datosActualizados });
+      if (notificationId) editarRecordatorio(editandoRecordatorio.id, { notificationId });
+      resetForm();
+      setFormVisible(false);
+      showToast('Recordatorio actualizado');
+    } else {
+      const nuevo = agregarRecordatorio({
+        titulo: titulo.trim(),
+        mensaje: mensaje.trim(),
+        hora,
+        frecuencia,
+        activo: true,
+        ...(frecuencia === 'semanal' && { diaSemana }),
+        ...(frecuencia === 'mensual' && { diaMes: parseInt(diaMes) || 1 }),
+      });
+      const notificationId = await programarNotificacion(nuevo);
+      if (notificationId) editarRecordatorio(nuevo.id, { notificationId });
+      resetForm();
+      setFormVisible(false);
+      showToast('Recordatorio creado');
+    }
   };
 
   const handleToggle = async (r: Recordatorio) => {
@@ -177,6 +210,12 @@ export default function RecordatoriosScreen() {
                         thumbColor={r.activo ? c.primario : c.texto}
                       />
                       <TouchableOpacity
+                        onPress={() => abrirEdicion(r)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Text style={{ fontSize: 18 }}>✏️</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
                         onPress={() => handleEliminar(r)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         style={styles.btnEliminar}
@@ -208,8 +247,8 @@ export default function RecordatoriosScreen() {
         >
           <View style={[styles.modalContainer, { backgroundColor: c.fondo }]}>
             <View style={[styles.modalHeader, { borderBottomColor: c.bordes }]}>
-              <Text style={[styles.modalTitulo, { color: c.primario }]}>🔔 Nuevo Recordatorio</Text>
-              <TouchableOpacity onPress={() => setFormVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={[styles.modalTitulo, { color: c.primario }]}>{editandoRecordatorio ? '✏️ Editar Recordatorio' : '🔔 Nuevo Recordatorio'}</Text>
+              <TouchableOpacity onPress={() => { resetForm(); setFormVisible(false); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={[styles.modalCerrar, { color: c.textoSecundario }]}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -336,7 +375,7 @@ export default function RecordatoriosScreen() {
                 onPress={handleAgregar}
                 style={[styles.formBoton, { backgroundColor: c.primario }]}
               >
-                <Text style={styles.formBotonTexto}>➕ Crear recordatorio</Text>
+                <Text style={styles.formBotonTexto}>{editandoRecordatorio ? '💾 Guardar cambios' : '➕ Crear recordatorio'}</Text>
               </BotonAnimado>
             </ScrollView>
           </View>

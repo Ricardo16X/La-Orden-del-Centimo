@@ -1,12 +1,9 @@
-/**
- * Hook para auto-generar gastos de suscripciones/gastos recurrentes
- * Se ejecuta en cada render y verifica si hay gastos recurrentes que necesitan
- * generar un gasto basado en su próxima fecha programada.
- */
-
 import { useEffect } from 'react';
+import * as Notifications from 'expo-notifications';
 import { useGastosRecurrentes } from '../context/GastosRecurrentesContext';
 import { useGastos } from '../context/GastosContext';
+import { useMonedas } from '../context/MonedasContext';
+import { useTarjetas } from '../context/TarjetasContext';
 import { GastoRecurrente } from '../types';
 
 function calcularSiguienteFecha(gr: GastoRecurrente): string {
@@ -34,19 +31,22 @@ function calcularSiguienteFecha(gr: GastoRecurrente): string {
 export const useGeneradorGastosRecurrentes = () => {
   const { gastosRecurrentes, actualizarProximaFecha } = useGastosRecurrentes();
   const { agregarGasto } = useGastos();
+  const { monedas, monedaBase } = useMonedas();
+  const { tarjetas } = useTarjetas();
 
   useEffect(() => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    const ejecutar = async () => {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
 
-    gastosRecurrentes
-      .filter(gr => gr.activo)
-      .forEach(gr => {
+      const { status } = await Notifications.getPermissionsAsync();
+      const puedeNotificar = status === 'granted';
+
+      for (const gr of gastosRecurrentes.filter(g => g.activo)) {
         const proximaFecha = new Date(gr.proximaFecha);
         proximaFecha.setHours(0, 0, 0, 0);
 
         if (proximaFecha <= hoy) {
-          // Generar gasto automático
           agregarGasto({
             monto: gr.monto,
             descripcion: `${gr.descripcion} (recurrente)`,
@@ -56,11 +56,33 @@ export const useGeneradorGastosRecurrentes = () => {
             ...(gr.tarjetaId && { tarjetaId: gr.tarjetaId }),
           });
 
-          // Avanzar a la siguiente fecha (previene duplicados)
-          const siguiente = calcularSiguienteFecha(gr);
-          actualizarProximaFecha(gr.id, siguiente);
+          actualizarProximaFecha(gr.id, calcularSiguienteFecha(gr));
+
+          if (puedeNotificar) {
+            const simbolo = monedas.find(m => m.codigo === gr.moneda)?.simbolo
+              ?? monedaBase?.simbolo ?? '$';
+            const tarjeta = gr.tarjetaId
+              ? tarjetas.find(t => t.id === gr.tarjetaId)
+              : undefined;
+            const cuerpo = tarjeta
+              ? `${gr.descripcion} · ${simbolo}${gr.monto.toFixed(2)} en ${tarjeta.nombre}`
+              : `${gr.descripcion} · ${simbolo}${gr.monto.toFixed(2)}`;
+
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: '🔁 Gasto registrado',
+                body: cuerpo,
+                sound: true,
+                data: { type: 'gasto_recurrente', gastoRecurrenteId: gr.id },
+              },
+              trigger: null, // inmediata
+            });
+          }
         }
-      });
+      }
+    };
+
+    ejecutar();
   }, [gastosRecurrentes]);
 
   return {};

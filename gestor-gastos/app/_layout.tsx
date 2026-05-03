@@ -22,12 +22,14 @@ import { CuotasProvider } from './src/context/CuotasContext';
 import { MonedasProvider } from './src/context/MonedasContext';
 import { GastosRecurrentesProvider } from './src/context/GastosRecurrentesContext';
 import { useGeneradorGastosRecurrentes } from './src/hooks/useGeneradorGastosRecurrentes';
+import { useNotificacionesGastosRecurrentes } from './src/hooks/useNotificacionesGastosRecurrentes';
 
 SplashScreen.preventAutoHideAsync();
 
 function NavigationContent() {
   const { tema } = useTema();
   useGeneradorGastosRecurrentes();
+  useNotificacionesGastosRecurrentes();
 
   return (
     <View style={{ flex: 1, backgroundColor: tema.colores.fondo }}>

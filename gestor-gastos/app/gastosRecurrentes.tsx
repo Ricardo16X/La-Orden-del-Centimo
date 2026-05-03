@@ -11,7 +11,7 @@ import { GastoRecurrente, FrecuenciaGastoRecurrente } from './src/types';
 
 export default function GastosRecurrentesScreen() {
   const { tema } = useTema();
-  const { gastosRecurrentes, agregarGastoRecurrente, eliminarGastoRecurrente, toggleGastoRecurrente } = useGastosRecurrentes();
+  const { gastosRecurrentes, agregarGastoRecurrente, editarGastoRecurrente, eliminarGastoRecurrente, toggleGastoRecurrente } = useGastosRecurrentes();
   const { categorias } = useCategorias();
   const { monedas, monedaBase, convertirAMonedaBase } = useMonedas();
   const { tarjetas } = useTarjetas();
@@ -25,6 +25,7 @@ export default function GastosRecurrentesScreen() {
   const [diaSemana, setDiaSemana] = useState(2);
   const [diaMes, setDiaMes] = useState('');
   const [tarjetaId, setTarjetaId] = useState<string | undefined>(undefined);
+  const [editandoGR, setEditandoGR] = useState<GastoRecurrente | null>(null);
 
   const limpiarFormulario = () => {
     setDescripcion('');
@@ -35,6 +36,20 @@ export default function GastosRecurrentesScreen() {
     setDiaSemana(2);
     setDiaMes('');
     setTarjetaId(undefined);
+    setEditandoGR(null);
+  };
+
+  const abrirEdicion = (gr: GastoRecurrente) => {
+    setEditandoGR(gr);
+    setDescripcion(gr.descripcion);
+    setMonto(gr.monto.toString());
+    setCategoriaId(gr.categoriaId);
+    setMoneda(gr.moneda);
+    setFrecuencia(gr.frecuencia);
+    setDiaSemana(gr.diaSemana ?? 2);
+    setDiaMes(gr.diaMes?.toString() ?? '');
+    setTarjetaId(gr.tarjetaId);
+    setMostrarFormulario(true);
   };
 
   const calcularProximaFecha = (): string => {
@@ -55,7 +70,10 @@ export default function GastosRecurrentesScreen() {
       }
       case 'mensual': {
         const diaNum = parseInt(diaMes) || 1;
-        const proxima = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+        // Si el día objetivo aún no ha llegado este mes, usar este mes; si ya pasó, el siguiente
+        const usarEsteMes = hoy.getDate() <= diaNum;
+        const mesObjetivo = usarEsteMes ? hoy.getMonth() : hoy.getMonth() + 1;
+        const proxima = new Date(hoy.getFullYear(), mesObjetivo, 1);
         const ultimoDia = new Date(proxima.getFullYear(), proxima.getMonth() + 1, 0).getDate();
         proxima.setDate(Math.min(diaNum, ultimoDia));
         return proxima.toISOString();
@@ -78,18 +96,37 @@ export default function GastosRecurrentesScreen() {
       return;
     }
 
-    agregarGastoRecurrente({
-      descripcion,
-      monto: montoNum,
-      categoriaId,
-      moneda: moneda || monedaBase?.codigo || '',
-      frecuencia,
-      activo: true,
-      proximaFecha: calcularProximaFecha(),
-      ...(frecuencia === 'semanal' && { diaSemana }),
-      ...(frecuencia === 'mensual' && { diaMes: parseInt(diaMes) || 1 }),
-      ...(tarjetaId && { tarjetaId }),
-    });
+    if (editandoGR) {
+      const frecuenciaCambio =
+        frecuencia !== editandoGR.frecuencia ||
+        (frecuencia === 'semanal' && diaSemana !== (editandoGR.diaSemana ?? 2)) ||
+        (frecuencia === 'mensual' && (parseInt(diaMes) || 1) !== (editandoGR.diaMes ?? 1));
+
+      editarGastoRecurrente(editandoGR.id, {
+        descripcion: descripcion.trim(),
+        monto: montoNum,
+        categoriaId,
+        moneda: moneda || monedaBase?.codigo || '',
+        frecuencia,
+        diaSemana: frecuencia === 'semanal' ? diaSemana : undefined,
+        diaMes: frecuencia === 'mensual' ? (parseInt(diaMes) || 1) : undefined,
+        tarjetaId: tarjetaId || undefined,
+        ...(frecuenciaCambio && { proximaFecha: calcularProximaFecha() }),
+      });
+    } else {
+      agregarGastoRecurrente({
+        descripcion,
+        monto: montoNum,
+        categoriaId,
+        moneda: moneda || monedaBase?.codigo || '',
+        frecuencia,
+        activo: true,
+        proximaFecha: calcularProximaFecha(),
+        ...(frecuencia === 'semanal' && { diaSemana }),
+        ...(frecuencia === 'mensual' && { diaMes: parseInt(diaMes) || 1 }),
+        ...(tarjetaId && { tarjetaId }),
+      });
+    }
 
     limpiarFormulario();
     setMostrarFormulario(false);
@@ -126,6 +163,20 @@ export default function GastosRecurrentesScreen() {
 
   const obtenerCategoria = (catId: string) => categorias.find(c => c.id === catId);
   const obtenerTarjeta = (tId: string) => tarjetas.find(t => t.id === tId);
+
+  const obtenerEtiquetaProximaFecha = (fechaISO: string): string => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const fecha = new Date(fechaISO);
+    fecha.setHours(0, 0, 0, 0);
+    const dias = Math.round((fecha.getTime() - hoy.getTime()) / 86400000);
+    if (dias <= 0) return 'Hoy';
+    if (dias === 1) return 'Mañana';
+    if (dias < 7) return `En ${dias} días`;
+    if (dias < 14) return 'La semana que viene';
+    if (dias < 31) return `En ${Math.round(dias / 7)} sem.`;
+    return fecha.toLocaleDateString('es', { day: 'numeric', month: 'short' });
+  };
 
   const DIAS_SEMANA = [
     { valor: 1, nombre: 'Dom' },
@@ -215,8 +266,14 @@ export default function GastosRecurrentesScreen() {
               const cat = obtenerCategoria(gr.categoriaId);
               const tarjeta = gr.tarjetaId ? obtenerTarjeta(gr.tarjetaId) : undefined;
               const simbolo = obtenerSimboloMoneda(gr.moneda);
-              const proximaFecha = new Date(gr.proximaFecha).toLocaleDateString('es');
-              const accentColor = tarjeta ? tarjeta.color : (cat ? tema.colores.primario : tema.colores.bordes);
+              const accentColor = tarjeta ? tarjeta.color : tema.colores.primario;
+              const etiqFrecuencia =
+                gr.frecuencia === 'semanal' && gr.diaSemana
+                  ? `Semanal · ${obtenerNombreDiaSemana(gr.diaSemana)}`
+                  : gr.frecuencia === 'mensual' && gr.diaMes
+                    ? `Mensual · Día ${gr.diaMes}`
+                    : 'Diario';
+              const etiqFecha = obtenerEtiquetaProximaFecha(gr.proximaFecha);
 
               return (
                 <View
@@ -229,52 +286,41 @@ export default function GastosRecurrentesScreen() {
                 >
                   <View style={[styles.cardAccent, { backgroundColor: accentColor }]} />
                   <View style={styles.cardBody}>
-                    <View style={styles.cardHeader}>
+                    {/* Fila principal */}
+                    <View style={styles.cardMain}>
                       <Text style={styles.cardEmoji}>{cat?.emoji || '💸'}</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={[styles.cardTitulo, { color: tema.colores.texto }]} numberOfLines={1}>
                           {gr.descripcion}
                         </Text>
-                        <Text style={[styles.cardCategoria, { color: tema.colores.textoSecundario }]}>
-                          {cat?.nombre || 'Sin categoría'}
+                        <Text style={[styles.cardMeta, { color: tema.colores.textoSecundario }]} numberOfLines={1}>
+                          {cat?.nombre || 'Sin categoría'} · {etiqFrecuencia}
                         </Text>
                       </View>
-                      <View style={styles.cardAcciones}>
+                      <View style={styles.cardDerecha}>
+                        <Text style={[styles.cardMonto, { color: tema.colores.primario }]}>
+                          {simbolo}{gr.monto.toFixed(2)}
+                        </Text>
                         <Switch
                           value={gr.activo}
                           onValueChange={() => toggleGastoRecurrente(gr.id)}
                           trackColor={{ false: tema.colores.bordes, true: tema.colores.primarioClaro }}
                           thumbColor={gr.activo ? tema.colores.primario : tema.colores.texto}
                         />
-                        <TouchableOpacity onPress={() => handleEliminar(gr)} style={{ marginTop: 6 }}>
-                          <Text style={{ fontSize: 18 }}>🗑️</Text>
-                        </TouchableOpacity>
                       </View>
                     </View>
-                    <View style={styles.cardFooter}>
-                      <Text style={[styles.cardMonto, { color: tema.colores.primario }]}>
-                        {simbolo}{gr.monto.toFixed(2)}
+                    {/* Footer */}
+                    <View style={[styles.cardFooterRow, { borderTopColor: tema.colores.bordes + '60' }]}>
+                      <Text style={[styles.cardFechaTexto, { color: tema.colores.textoSecundario }]} numberOfLines={1}>
+                        🔔 {etiqFecha}{tarjeta ? ` · 💳 ${tarjeta.nombre}` : ''}
                       </Text>
-                      <View style={styles.cardBadges}>
-                        <View style={[styles.badge, { backgroundColor: tema.colores.primario + '22' }]}>
-                          <Text style={[styles.badgeText, { color: tema.colores.primario }]}>
-                            {obtenerEtiquetaFrecuencia(gr.frecuencia)}
-                            {gr.frecuencia === 'semanal' && gr.diaSemana ? ` · ${obtenerNombreDiaSemana(gr.diaSemana)}` : ''}
-                            {gr.frecuencia === 'mensual' && gr.diaMes ? ` · Día ${gr.diaMes}` : ''}
-                          </Text>
-                        </View>
-                        <View style={[styles.badge, { backgroundColor: tema.colores.bordes + '55' }]}>
-                          <Text style={[styles.badgeText, { color: tema.colores.textoSecundario }]}>
-                            🔔 {proximaFecha}
-                          </Text>
-                        </View>
-                        {tarjeta && (
-                          <View style={[styles.badge, { backgroundColor: tarjeta.color + '33' }]}>
-                            <Text style={[styles.badgeText, { color: tarjeta.color }]}>
-                              💳 {tarjeta.nombre}
-                            </Text>
-                          </View>
-                        )}
+                      <View style={styles.cardAcciones}>
+                        <TouchableOpacity onPress={() => abrirEdicion(gr)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Text style={{ fontSize: 15 }}>✏️</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleEliminar(gr)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                          <Text style={{ fontSize: 15 }}>🗑️</Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
                   </View>
@@ -315,7 +361,7 @@ export default function GastosRecurrentesScreen() {
         <TouchableOpacity
           style={styles.overlay}
           activeOpacity={1}
-          onPress={() => setMostrarFormulario(false)}
+          onPress={() => { limpiarFormulario(); setMostrarFormulario(false); }}
         />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -326,7 +372,7 @@ export default function GastosRecurrentesScreen() {
             <View style={[styles.handle, { backgroundColor: tema.colores.bordes }]} />
 
             <Text style={[styles.sheetTitulo, { color: tema.colores.texto }]}>
-              Nuevo gasto recurrente
+              {editandoGR ? 'Editar gasto recurrente' : 'Nuevo gasto recurrente'}
             </Text>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -409,41 +455,58 @@ export default function GastosRecurrentesScreen() {
 
               {tarjetas.length > 0 && (
                 <>
-                  <Text style={[styles.label, { color: tema.colores.texto }]}>Tarjeta de crédito</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 60 }}>
-                    <View style={{ flexDirection: 'row', gap: 8 }}>
-                      {/* Opción "Sin tarjeta" */}
-                      <TouchableOpacity
-                        style={[styles.chip, {
-                          backgroundColor: !tarjetaId ? tema.colores.primario : tema.colores.fondo,
-                          borderColor: !tarjetaId ? tema.colores.primario : tema.colores.bordes,
-                        }]}
-                        onPress={() => setTarjetaId(undefined)}
-                      >
-                        <Text style={{ fontSize: 16 }}>💵</Text>
-                        <Text style={[styles.chipTexto, { color: !tarjetaId ? '#fff' : tema.colores.texto }]}>
-                          Efectivo
+                  <TouchableOpacity
+                    style={[styles.tarjetaToggleRow, {
+                      backgroundColor: tarjetaId
+                        ? (obtenerTarjeta(tarjetaId)?.color ?? tema.colores.primario) + '18'
+                        : tema.colores.fondo,
+                      borderColor: tarjetaId
+                        ? (obtenerTarjeta(tarjetaId)?.color ?? tema.colores.primario) + '66'
+                        : tema.colores.bordes,
+                    }]}
+                    onPress={() => setTarjetaId(tarjetaId ? undefined : tarjetas[0]?.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <Text style={{ fontSize: 20 }}>💳</Text>
+                      <View>
+                        <Text style={[styles.tarjetaToggleLabel, { color: tema.colores.texto }]}>
+                          Cargar a tarjeta
                         </Text>
-                      </TouchableOpacity>
-                      {tarjetas.map(t => (
-                        <TouchableOpacity
-                          key={t.id}
-                          style={[styles.chip, {
-                            backgroundColor: tarjetaId === t.id ? t.color : tema.colores.fondo,
-                            borderColor: tarjetaId === t.id ? t.color : tema.colores.bordes,
-                          }]}
-                          onPress={() => setTarjetaId(t.id)}
-                        >
-                          <Text style={{ fontSize: 16 }}>💳</Text>
-                          <Text style={[styles.chipTexto, {
-                            color: tarjetaId === t.id ? '#fff' : tema.colores.texto,
-                          }]} numberOfLines={1}>
-                            {t.nombre}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                        <Text style={[styles.tarjetaToggleSub, { color: tema.colores.textoSecundario }]}>
+                          {tarjetaId ? obtenerTarjeta(tarjetaId)?.nombre : 'Efectivo / Sin tarjeta'}
+                        </Text>
+                      </View>
                     </View>
-                  </ScrollView>
+                    <Switch
+                      value={!!tarjetaId}
+                      onValueChange={val => setTarjetaId(val ? tarjetas[0]?.id : undefined)}
+                      trackColor={{ false: tema.colores.bordes, true: tema.colores.primarioClaro }}
+                      thumbColor={tarjetaId ? tema.colores.primario : tema.colores.texto}
+                    />
+                  </TouchableOpacity>
+                  {tarjetaId && tarjetas.length > 1 && (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 52, marginTop: 8 }}>
+                      <View style={{ flexDirection: 'row', gap: 8, paddingBottom: 4 }}>
+                        {tarjetas.map(t => (
+                          <TouchableOpacity
+                            key={t.id}
+                            style={[styles.chip, {
+                              backgroundColor: tarjetaId === t.id ? t.color : tema.colores.fondo,
+                              borderColor: tarjetaId === t.id ? t.color : tema.colores.bordes,
+                            }]}
+                            onPress={() => setTarjetaId(t.id)}
+                          >
+                            <Text style={[styles.chipTexto, {
+                              color: tarjetaId === t.id ? '#fff' : tema.colores.texto,
+                            }]} numberOfLines={1}>
+                              {t.nombre}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  )}
                 </>
               )}
 
@@ -540,7 +603,7 @@ export default function GastosRecurrentesScreen() {
                   style={[styles.botonGuardar, { backgroundColor: tema.colores.primario }]}
                   onPress={handleAgregar}
                 >
-                  <Text style={styles.botonGuardarTexto}>Guardar</Text>
+                  <Text style={styles.botonGuardarTexto}>{editandoGR ? 'Guardar cambios' : 'Guardar'}</Text>
                 </BotonAnimado>
               </View>
 
@@ -628,7 +691,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 14,
   },
-  cardHeader: {
+  cardMain: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -638,41 +701,37 @@ const styles = StyleSheet.create({
     fontSize: 26,
   },
   cardTitulo: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
   },
-  cardCategoria: {
+  cardMeta: {
     fontSize: 12,
-    marginTop: 1,
+    marginTop: 2,
   },
-  cardAcciones: {
-    alignItems: 'center',
+  cardDerecha: {
+    alignItems: 'flex-end',
+    gap: 2,
   },
-  cardFooter: {
+  cardMonto: {
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  cardFooterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: 6,
+    borderTopWidth: 1,
+    paddingTop: 8,
   },
-  cardMonto: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  cardFechaTexto: {
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1,
   },
-  cardBadges: {
+  cardAcciones: {
     flexDirection: 'row',
-    gap: 6,
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
+    gap: 14,
+    marginLeft: 10,
   },
   fab: {
     position: 'absolute',
@@ -724,8 +783,25 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 12,
+    marginBottom: 6,
+    marginTop: 10,
+  },
+  tarjetaToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 10,
+  },
+  tarjetaToggleLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  tarjetaToggleSub: {
+    fontSize: 12,
+    marginTop: 1,
   },
   input: {
     borderWidth: 1.5,
