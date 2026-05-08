@@ -3,11 +3,10 @@ import { useMemo } from 'react';
 import { useTema } from '../src/context/TemaContext';
 import { useGastos } from '../src/context/GastosContext';
 import { useMonedas } from '../src/context/MonedasContext';
-import { ResumenBalance } from '../src/components/ResumenBalance';
+import { PulsoMesCard } from '../src/components/PulsoMesCard';
+import { PendientesCard } from '../src/components/PendientesCard';
 import { ResumenPorMoneda } from '../src/components/ResumenPorMoneda';
-import { AlertasPresupuesto } from '../src/components/AlertasPresupuesto';
 import { ResumenMetas } from '../src/components/ResumenMetas';
-import { ResumenTarjetas } from '../src/components/ResumenTarjetas';
 import { TransaccionesRecientes } from '../src/components/TransaccionesRecientes';
 import { ModalAlertasDiarias } from '../src/components/ModalAlertasDiarias';
 import { useAlertasDiarias } from '../src/hooks/useAlertasDiarias';
@@ -44,7 +43,10 @@ const SaludoHeader = () => {
         <Text style={[saludoStyles.fecha, { color: tema.colores.textoSecundario }]}>{fecha}</Text>
       </View>
       {gastoHoy > 0 && (
-        <View style={[saludoStyles.hoyCard, { backgroundColor: tema.colores.fondoSecundario, borderColor: tema.colores.bordes }]}>
+        <View style={[saludoStyles.hoyCard, {
+          backgroundColor: tema.colores.fondoSecundario,
+          borderColor: tema.colores.bordes,
+        }]}>
           <Text style={[saludoStyles.hoyLabel, { color: tema.colores.textoSecundario }]}>Hoy</Text>
           <Text style={[saludoStyles.hoyMonto, { color: '#ef4444' }]}>
             -{simbolo}{gastoHoy.toFixed(2)}
@@ -61,38 +63,19 @@ const saludoStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 14,
-    marginBottom: 6,
+    marginBottom: 12,
     borderBottomWidth: 1,
   },
-  textos: {
-    flex: 1,
-  },
-  saludo: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  fecha: {
-    fontSize: 13,
-    marginTop: 2,
-    textTransform: 'capitalize',
-  },
+  textos: { flex: 1 },
+  saludo: { fontSize: 20, fontWeight: 'bold' },
+  fecha: { fontSize: 13, marginTop: 2, textTransform: 'capitalize' },
   hoyCard: {
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    alignItems: 'flex-end',
-    marginLeft: 12,
+    borderRadius: 10, borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 8,
+    alignItems: 'flex-end', marginLeft: 12,
   },
-  hoyLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  hoyMonto: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
+  hoyLabel: { fontSize: 11, fontWeight: '600' },
+  hoyMonto: { fontSize: 16, fontWeight: 'bold', marginTop: 2 },
 });
 
 export default function ResumenScreen() {
@@ -102,20 +85,23 @@ export default function ResumenScreen() {
   useGeneradorCuotas();
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: tema.colores.fondo }]}
+      showsVerticalScrollIndicator={false}
+    >
       <SaludoHeader />
 
-      <ResumenBalance />
+      <PulsoMesCard />
 
-      <AlertasPresupuesto soloExcedidos />
-
-      <ResumenTarjetas />
+      <PendientesCard />
 
       <ResumenMetas />
 
       <ResumenPorMoneda />
 
       <TransaccionesRecientes />
+
+      <View style={{ height: 32 }} />
 
       <ModalAlertasDiarias
         visible={modalVisible}

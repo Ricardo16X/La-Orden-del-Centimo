@@ -39,6 +39,7 @@ export const useGeneradorCuotas = () => {
             descripcion: `Cuota ${cuota.cuotasPagadas + 1}/${cuota.cantidadCuotas}: ${cuota.descripcion}`,
             categoria: obtenerCategoriaTarjeta(cuota.tarjetaId),
             tipo: 'gasto',
+            tarjetaId: cuota.tarjetaId,
           });
 
           // Enviar notificación
