@@ -20,12 +20,14 @@ const EMOJIS_COMUNES = [
 ];
 
 type ModoFormulario = 'cerrado' | 'crear' | 'editar';
+type TabCategoria = 'gastos' | 'ingresos';
 
 export default function CategoriasScreen() {
   const { tema } = useTema();
   const { categorias, agregarCategoria, editarCategoria, eliminarCategoria } = useCategorias();
   const { showToast } = useToast();
 
+  const [tabActivo, setTabActivo] = useState<TabCategoria>('gastos');
   const [modo, setModo] = useState<ModoFormulario>('cerrado');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
@@ -33,14 +35,17 @@ export default function CategoriasScreen() {
   const [nombre, setNombre] = useState('');
   const [emoji, setEmoji] = useState('🎯');
   const [color, setColor] = useState('#ff6b6b');
+  const [tipoEdicion, setTipoEdicion] = useState<'gasto' | 'ingreso'>('gasto');
 
-  const predeterminadas = categorias.filter(c => !c.esPersonalizada);
-  const personalizadas = categorias.filter(c => c.esPersonalizada);
+  const tipoBuscado = tabActivo === 'gastos' ? 'gasto' : 'ingreso';
+  const predeterminadas = categorias.filter(c => !c.esPersonalizada && (c.tipo === tipoBuscado || c.tipo === 'ambos'));
+  const personalizadas = categorias.filter(c => c.esPersonalizada && (c.tipo === tipoBuscado || c.tipo === 'ambos'));
 
   const resetFormulario = () => {
     setNombre('');
     setEmoji('🎯');
     setColor('#ff6b6b');
+    setTipoEdicion(tipoBuscado as 'gasto' | 'ingreso');
     setEditandoId(null);
   };
 
@@ -54,6 +59,7 @@ export default function CategoriasScreen() {
     setNombre(cat.nombre);
     setEmoji(cat.emoji);
     setColor(cat.color);
+    setTipoEdicion(cat.tipo === 'ambos' ? 'gasto' : cat.tipo);
     setEditandoId(cat.id);
     setConfirmandoId(null);
     setModo('editar');
@@ -64,16 +70,22 @@ export default function CategoriasScreen() {
     setModo('cerrado');
   };
 
+  const cambiarTab = (tab: TabCategoria) => {
+    setTabActivo(tab);
+    cerrar();
+    setConfirmandoId(null);
+  };
+
   const handleGuardar = () => {
     if (!nombre.trim()) {
       showToast('Ingresa un nombre para la categoría', 'error');
       return;
     }
     if (modo === 'editar' && editandoId) {
-      editarCategoria(editandoId, { nombre: nombre.trim(), emoji, color });
+      editarCategoria(editandoId, { nombre: nombre.trim(), emoji, color, tipo: tipoEdicion });
       showToast('Categoría actualizada');
     } else {
-      agregarCategoria({ nombre: nombre.trim(), emoji, color });
+      agregarCategoria({ nombre: nombre.trim(), emoji, color, tipo: tipoEdicion });
       showToast('Categoría creada');
     }
     cerrar();
@@ -94,12 +106,27 @@ export default function CategoriasScreen() {
     >
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
+        {/* Tabs Gastos / Ingresos */}
+        <View style={[styles.tabsRow, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+          {(['gastos', 'ingresos'] as TabCategoria[]).map(tab => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, tabActivo === tab && { backgroundColor: c.primario }]}
+              onPress={() => cambiarTab(tab)}
+            >
+              <Text style={[styles.tabTexto, { color: tabActivo === tab ? '#fff' : c.textoSecundario }]}>
+                {tab === 'gastos' ? '📤 Gastos' : '📥 Ingresos'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Formulario crear / editar */}
         {modo !== 'cerrado' && (
           <View style={[styles.formulario, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
             <View style={styles.formularioHeader}>
               <Text style={[styles.formularioTitulo, { color: c.primario }]}>
-                {modo === 'editar' ? '✏️ Editar categoría' : '✨ Nueva categoría'}
+                {modo === 'editar' ? '✏️ Editar categoría' : `✨ Nueva categoría de ${tabActivo}`}
               </Text>
               <TouchableOpacity onPress={cerrar} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={[styles.cerrar, { color: c.textoSecundario }]}>✕</Text>
@@ -113,6 +140,21 @@ export default function CategoriasScreen() {
                 {nombre.trim() || 'Nombre de la categoría'}
               </Text>
               <View style={[styles.previewDot, { backgroundColor: color }]} />
+            </View>
+
+            <Text style={[styles.label, { color: c.texto }]}>Tipo</Text>
+            <View style={[styles.tipoRow, { backgroundColor: c.fondo, borderColor: c.bordes }]}>
+              {(['gasto', 'ingreso'] as const).map(t => (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.tipoBoton, tipoEdicion === t && { backgroundColor: c.primario }]}
+                  onPress={() => setTipoEdicion(t)}
+                >
+                  <Text style={[styles.tipoTexto, { color: tipoEdicion === t ? '#fff' : c.textoSecundario }]}>
+                    {t === 'gasto' ? '📤 Gasto' : '📥 Ingreso'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
             <Text style={[styles.label, { color: c.texto }]}>Nombre</Text>
@@ -202,6 +244,11 @@ export default function CategoriasScreen() {
               <View style={[styles.itemAccent, { backgroundColor: cat.color }]} />
               <Text style={styles.itemEmoji}>{cat.emoji}</Text>
               <Text style={[styles.itemNombre, { color: c.texto }]}>{cat.nombre}</Text>
+              {cat.tipo === 'ambos' && (
+                <View style={[styles.badge, { backgroundColor: c.primario + '22' }]}>
+                  <Text style={[styles.badgeTexto, { color: c.primario }]}>Ambos</Text>
+                </View>
+              )}
               <View style={[styles.badge, { backgroundColor: c.fondo }]}>
                 <Text style={[styles.badgeTexto, { color: c.textoSecundario }]}>Sistema</Text>
               </View>
@@ -219,7 +266,7 @@ export default function CategoriasScreen() {
           <EstadoVacio
             emoji="🏷️"
             titulo="Sin categorías personalizadas"
-            subtitulo='Toca el botón "+" para crear tu primera categoría'
+            subtitulo={`Toca "+" para crear una categoría de ${tabActivo}`}
           />
         ) : (
           <View style={[styles.lista, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
@@ -256,7 +303,6 @@ export default function CategoriasScreen() {
                     </View>
                   </View>
 
-                  {/* Confirmación inline de eliminación */}
                   {confirmando && (
                     <View
                       style={[
@@ -315,6 +361,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
+  // Tabs
+  tabsRow: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    borderWidth: 2,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  tabTexto: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
   // Formulario
   formulario: {
     borderRadius: 16,
@@ -329,8 +393,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   formularioTitulo: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
+    flex: 1,
   },
   cerrar: {
     fontSize: 24,
@@ -363,6 +428,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 16,
     marginBottom: 10,
+  },
+  tipoRow: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    borderWidth: 2,
+    overflow: 'hidden',
+  },
+  tipoBoton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  tipoTexto: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   input: {
     padding: 12,

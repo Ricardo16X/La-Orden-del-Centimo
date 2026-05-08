@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGastos } from '../src/context/GastosContext';
 import { useTema } from '../src/context/TemaContext';
 import { useFiltrosGastos } from '../src/hooks';
@@ -11,21 +11,25 @@ import { ModalAgregarIngreso } from '../src/components/ModalAgregarIngreso';
 import { ModalEditarGasto } from '../src/components/ModalEditarGasto';
 import { ModalSeleccionarTipo } from '../src/components/ModalSeleccionarTipo';
 import { ModalAlertasDiarias } from '../src/components/ModalAlertasDiarias';
-import { Filtros } from '../src/components/Filtros';
 import { useAlertasDiarias } from '../src/hooks/useAlertasDiarias';
 import { Gasto } from '../src/types';
+
+const TIPO_CHIPS: { label: string; value: 'todos' | 'gasto' | 'ingreso' }[] = [
+  { label: 'Todos', value: 'todos' },
+  { label: 'Gastos', value: 'gasto' },
+  { label: 'Ingresos', value: 'ingreso' },
+];
 
 export default function HomeScreen() {
   const { gastos, agregarGasto, editarGasto, eliminarGasto } = useGastos();
   const { tema } = useTema();
   const { modalVisible, descartarAlertas } = useAlertasDiarias();
 
-  const [modalSeleccionarTipoVisible, setModalSeleccionarTipoVisible] = useState<boolean>(false);
-  const [modalAgregarGastoVisible, setModalAgregarGastoVisible] = useState<boolean>(false);
-  const [modalAgregarIngresoVisible, setModalAgregarIngresoVisible] = useState<boolean>(false);
-  const [modalEditarVisible, setModalEditarVisible] = useState<boolean>(false);
+  const [modalSeleccionarTipoVisible, setModalSeleccionarTipoVisible] = useState(false);
+  const [modalAgregarGastoVisible, setModalAgregarGastoVisible] = useState(false);
+  const [modalAgregarIngresoVisible, setModalAgregarIngresoVisible] = useState(false);
+  const [modalEditarVisible, setModalEditarVisible] = useState(false);
   const [gastoAEditar, setGastoAEditar] = useState<Gasto | null>(null);
-  const [mostrarFiltros, setMostrarFiltros] = useState<boolean>(false);
 
   const {
     gastosFiltrados,
@@ -38,9 +42,6 @@ export default function HomeScreen() {
     irMesActual,
     tipoFiltro,
     setTipoFiltro,
-    limpiarFiltros,
-    hayFiltrosActivos,
-    totalFiltrados,
   } = useFiltrosGastos(gastos);
 
   const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string, tarjetaId?: string) => {
@@ -51,8 +52,8 @@ export default function HomeScreen() {
     agregarGasto({ monto, descripcion, categoria, tipo: 'ingreso', moneda, nota: nota || undefined, fecha });
   };
 
-  const handleEditar = (id: string, monto: number, descripcion: string, categoria: string, nota: string) => {
-    editarGasto(id, { monto, descripcion, categoria, nota: nota || undefined });
+  const handleEditar = (id: string, monto: number, descripcion: string, categoria: string, nota: string, fecha: string, moneda: string, tarjetaId?: string) => {
+    editarGasto(id, { monto, descripcion, categoria, nota: nota || undefined, fecha, moneda, tarjetaId });
   };
 
   const handleAbrirEditar = (gasto: Gasto) => {
@@ -61,66 +62,65 @@ export default function HomeScreen() {
   };
 
   const handleSeleccionarTipo = (tipo: 'gasto' | 'ingreso') => {
-    if (tipo === 'gasto') {
-      setModalAgregarGastoVisible(true);
-    } else {
-      setModalAgregarIngresoVisible(true);
-    }
+    if (tipo === 'gasto') setModalAgregarGastoVisible(true);
+    else setModalAgregarIngresoVisible(true);
   };
 
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          style={[styles.botonFiltro, {
-            backgroundColor: mostrarFiltros ? tema.colores.primario : tema.colores.fondoSecundario,
-            borderColor: tema.colores.bordes,
-          }]}
-          onPress={() => setMostrarFiltros(!mostrarFiltros)}
-        >
-          <Text style={[styles.botonFiltroTexto, {
-            color: mostrarFiltros ? '#fff' : tema.colores.texto
-          }]}>
-            {mostrarFiltros ? 'Ocultar' : 'Filtros'}
-          </Text>
-        </TouchableOpacity>
-      </View>
 
       {/* Navegador de mes */}
       <View style={[styles.navMes, { backgroundColor: tema.colores.fondoSecundario, borderColor: tema.colores.bordes }]}>
-        <TouchableOpacity onPress={irMesAnterior} style={styles.navMesBoton} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <TouchableOpacity onPress={irMesAnterior} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.navMesFlecha, { color: tema.colores.primario }]}>‹</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={irMesActual} disabled={esMesActual}>
-          <Text style={[styles.navMesEtiqueta, { color: tema.colores.texto }]}>
-            {etiquetaMes}
-          </Text>
+          <Text style={[styles.navMesEtiqueta, { color: tema.colores.texto }]}>{etiquetaMes}</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={irMesSiguiente}
-          style={styles.navMesBoton}
-          disabled={esMesActual}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
+        <TouchableOpacity onPress={irMesSiguiente} disabled={esMesActual} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Text style={[styles.navMesFlecha, { color: esMesActual ? tema.colores.bordes : tema.colores.primario }]}>›</Text>
         </TouchableOpacity>
       </View>
 
-      {mostrarFiltros && (
-        <Filtros
-          textoBusqueda={textoBusqueda}
-          onBusquedaChange={setTextoBusqueda}
-          tipoFiltro={tipoFiltro}
-          onTipoChange={setTipoFiltro}
-          hayFiltrosActivos={hayFiltrosActivos}
-          onLimpiarFiltros={limpiarFiltros}
-          totalFiltrados={totalFiltrados}
+      {/* Búsqueda + Chips tipo */}
+      <View style={styles.filtrosBar}>
+        <TextInput
+          style={[styles.searchInput, {
+            backgroundColor: tema.colores.fondoSecundario,
+            borderColor: tema.colores.bordes,
+            color: tema.colores.texto,
+          }]}
+          placeholder="🔍 Buscar..."
+          placeholderTextColor={tema.colores.textoSecundario}
+          value={textoBusqueda}
+          onChangeText={setTextoBusqueda}
         />
-      )}
+        <View style={styles.chipRow}>
+          {TIPO_CHIPS.map(chip => {
+            const activo = tipoFiltro === chip.value;
+            return (
+              <TouchableOpacity
+                key={chip.value}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: activo ? tema.colores.primario : tema.colores.fondoSecundario,
+                    borderColor: activo ? tema.colores.primario : tema.colores.bordes,
+                  },
+                ]}
+                onPress={() => setTipoFiltro(chip.value)}
+              >
+                <Text style={[styles.chipTexto, { color: activo ? '#fff' : tema.colores.textoSecundario }]}>
+                  {chip.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
 
       <ListaGastos
         gastos={gastosFiltrados}
-        onEliminar={eliminarGasto}
         onEditar={handleAbrirEditar}
       />
 
@@ -168,27 +168,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingHorizontal: 20,
   },
-  headerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  titulo: {
-    fontSize: 26,
-    fontWeight: 'bold',
-    flex: 1,
-  },
-  botonFiltro: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 2,
-  },
-  botonFiltroTexto: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
   navMes: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -197,10 +176,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  navMesBoton: {
-    padding: 4,
+    marginBottom: 10,
   },
   navMesFlecha: {
     fontSize: 26,
@@ -210,5 +186,31 @@ const styles = StyleSheet.create({
   navMesEtiqueta: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  filtrosBar: {
+    gap: 8,
+    marginBottom: 4,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 14,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  chip: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  chipTexto: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

@@ -1,41 +1,40 @@
 import { useMemo } from 'react';
-import { Gasto, Categoria } from '../types';
+import { Gasto, Categoria, TipoTransaccion } from '../types';
 
-/**
- * Hook para obtener las categorías más usadas
- * @param gastos - Array de gastos
- * @param categorias - Array de todas las categorías disponibles
- * @param limite - Número de categorías a retornar (default: 5)
- * @returns Array de IDs de categorías ordenadas por uso
- */
 export const useCategoriasPopulares = (
   gastos: Gasto[],
   categorias: Categoria[],
-  limite: number = 5
+  limite: number = 5,
+  tipoTransaccion?: TipoTransaccion,
 ): string[] => {
   return useMemo(() => {
-    // Contar usos por categoría
-    const conteo: Record<string, number> = {};
+    const categoriasFiltradas = tipoTransaccion
+      ? categorias.filter(c => c.tipo === tipoTransaccion || c.tipo === 'ambos')
+      : categorias;
 
-    gastos.forEach(gasto => {
-      conteo[gasto.categoria] = (conteo[gasto.categoria] || 0) + 1;
+    const gastosFiltrados = tipoTransaccion
+      ? gastos.filter(g => g.tipo === tipoTransaccion)
+      : gastos;
+
+    const conteo: Record<string, number> = {};
+    gastosFiltrados.forEach(g => {
+      conteo[g.categoria] = (conteo[g.categoria] || 0) + 1;
     });
 
-    // Ordenar categorías por uso (de mayor a menor)
-    const categoriasOrdenadas = Object.entries(conteo)
+    const idsValidos = new Set(categoriasFiltradas.map(c => c.id));
+    const ordenadas = Object.entries(conteo)
+      .filter(([id]) => idsValidos.has(id))
       .sort(([, a], [, b]) => b - a)
       .map(([id]) => id);
 
-    // Si hay menos gastos que el límite, agregar categorías predeterminadas no usadas
-    if (categoriasOrdenadas.length < limite) {
-      const categoriasUsadas = new Set(categoriasOrdenadas);
-      const categoriasPredeterminadas = categorias
-        .filter(c => !c.esPersonalizada && !categoriasUsadas.has(c.id))
+    if (ordenadas.length < limite) {
+      const usadas = new Set(ordenadas);
+      const relleno = categoriasFiltradas
+        .filter(c => !c.esPersonalizada && !usadas.has(c.id))
         .map(c => c.id);
-
-      return [...categoriasOrdenadas, ...categoriasPredeterminadas].slice(0, limite);
+      return [...ordenadas, ...relleno].slice(0, limite);
     }
 
-    return categoriasOrdenadas.slice(0, limite);
-  }, [gastos, categorias, limite]);
+    return ordenadas.slice(0, limite);
+  }, [gastos, categorias, limite, tipoTransaccion]);
 };

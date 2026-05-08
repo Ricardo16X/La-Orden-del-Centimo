@@ -1,15 +1,15 @@
 import { Categoria } from '../types';
 
 export const CATEGORIAS_BASE: Omit<Categoria, 'nombre'>[] = [
-  { id: 'comida', emoji: '🍽️', color: '#ff6b6b' },
-  { id: 'transporte', emoji: '🚘', color: '#4ecdc4' },
-  { id: 'equipo', emoji: '🛒', color: '#45b7d1' },
-  { id: 'pociones', emoji: '☕', color: '#96ceb4' },
-  { id: 'vivienda', emoji: '🏠', color: '#ffeaa7' },
-  { id: 'entrenamiento', emoji: '🏃', color: '#dfe6e9' },
-  { id: 'ahorro_metas', emoji: '🎯', color: '#10b981' },
-  { id: 'transferencia', emoji: '💱', color: '#6366f1' },
-  { id: 'otros', emoji: '📦', color: '#b2bec3' },
+  { id: 'comida',        tipo: 'gasto', emoji: '🍽️', color: '#ff6b6b' },
+  { id: 'transporte',    tipo: 'gasto', emoji: '🚘', color: '#4ecdc4' },
+  { id: 'equipo',        tipo: 'gasto', emoji: '🛒', color: '#45b7d1' },
+  { id: 'pociones',      tipo: 'gasto', emoji: '☕', color: '#96ceb4' },
+  { id: 'vivienda',      tipo: 'gasto', emoji: '🏠', color: '#ffeaa7' },
+  { id: 'entrenamiento', tipo: 'gasto', emoji: '🏃', color: '#dfe6e9' },
+  { id: 'ahorro_metas',  tipo: 'gasto', emoji: '🎯', color: '#10b981' },
+  { id: 'transferencia', tipo: 'ambos', emoji: '💱', color: '#6366f1' },
+  { id: 'otros',         tipo: 'gasto', emoji: '📦', color: '#b2bec3' },
 ];
 
 // Nombres profesionales de categorías

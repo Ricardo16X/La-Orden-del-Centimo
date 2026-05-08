@@ -32,6 +32,7 @@ interface DatosBackup {
     modoOscuroAuto?: string;
     temaManualId?: string;
     monedaLegacy?: string;
+    metodoPagoFrecuencia?: string;
   };
 }
 
@@ -47,9 +48,10 @@ const CLAVES_BACKUP: Array<{ storage: string; campo: keyof DatosBackup['datos'] 
   { storage: STORAGE_KEYS.GASTOS_RECURRENTES, campo: 'gastosRecurrentes' },
   { storage: STORAGE_KEYS.RECORDATORIOS,     campo: 'recordatorios' },
   { storage: STORAGE_KEYS.TEMA,              campo: 'tema' },
-  { storage: STORAGE_KEYS.MODO_OSCURO_AUTO,  campo: 'modoOscuroAuto' },
-  { storage: TEMA_MANUAL_KEY,                campo: 'temaManualId' },
-  { storage: MONEDA_LEGACY_KEY,              campo: 'monedaLegacy' },
+  { storage: STORAGE_KEYS.MODO_OSCURO_AUTO,        campo: 'modoOscuroAuto' },
+  { storage: TEMA_MANUAL_KEY,                      campo: 'temaManualId' },
+  { storage: MONEDA_LEGACY_KEY,                    campo: 'monedaLegacy' },
+  { storage: STORAGE_KEYS.METODO_PAGO_FRECUENCIA,  campo: 'metodoPagoFrecuencia' },
 ];
 
 export const useBackup = () => {

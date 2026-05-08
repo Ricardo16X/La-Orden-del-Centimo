@@ -5,29 +5,30 @@ import { useCategorias } from '../context/CategoriasContext';
 import { useGastos } from '../context/GastosContext';
 import { useCategoriasPopulares } from '../hooks';
 import { ModalSeleccionarCategoria } from './ModalSeleccionarCategoria';
+import { TipoTransaccion } from '../types';
 
 interface Props {
   categoriaSeleccionada: string;
   onSeleccionar: (id: string) => void;
+  tipoTransaccion?: TipoTransaccion;
 }
 
-export const SelectorCategoria = ({ categoriaSeleccionada, onSeleccionar }: Props) => {
+export const SelectorCategoria = ({ categoriaSeleccionada, onSeleccionar, tipoTransaccion }: Props) => {
   const { tema } = useTema();
   const { categorias } = useCategorias();
   const { gastos } = useGastos();
-  const categoriasPopulares = useCategoriasPopulares(gastos, categorias, 5);
-
   const [modalVisible, setModalVisible] = useState(false);
 
-  // Protección adicional
-  if (!categorias || categorias.length === 0) {
-    return null;
-  }
+  const categoriasFiltradas = tipoTransaccion
+    ? categorias.filter(c => c.tipo === tipoTransaccion || c.tipo === 'ambos')
+    : categorias;
 
-  // Obtener objetos completos de las categorías populares
-  const categoriasAMostrar = categoriasPopulares
-    .map(id => categorias.find(c => c.id === id))
-    .filter(Boolean);
+  const idsPopulares = useCategoriasPopulares(gastos, categorias, 5, tipoTransaccion);
+  const categoriasAMostrar = idsPopulares
+    .map(id => categoriasFiltradas.find(c => c.id === id))
+    .filter(Boolean) as typeof categorias;
+
+  if (!categorias || categorias.length === 0) return null;
 
   return (
     <View>
@@ -35,27 +36,22 @@ export const SelectorCategoria = ({ categoriaSeleccionada, onSeleccionar }: Prop
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.scroll}>
         {categoriasAMostrar.map(categoria => (
           <TouchableOpacity
-            key={categoria!.id}
+            key={categoria.id}
             style={[
               styles.boton,
               {
                 backgroundColor: tema.colores.fondoSecundario,
-                borderColor: categoriaSeleccionada === categoria!.id
-                  ? categoria!.color
-                  : tema.colores.bordes,
-                borderWidth: categoriaSeleccionada === categoria!.id ? 3 : 2,
+                borderColor: categoriaSeleccionada === categoria.id ? categoria.color : tema.colores.bordes,
+                borderWidth: categoriaSeleccionada === categoria.id ? 3 : 2,
               },
             ]}
-            onPress={() => onSeleccionar(categoria!.id)}
+            onPress={() => onSeleccionar(categoria.id)}
           >
-            <Text style={styles.emoji}>{categoria!.emoji}</Text>
-            <Text style={[styles.nombre, { color: tema.colores.texto }]}>
-              {categoria!.nombre}
-            </Text>
+            <Text style={styles.emoji}>{categoria.emoji}</Text>
+            <Text style={[styles.nombre, { color: tema.colores.texto }]}>{categoria.nombre}</Text>
           </TouchableOpacity>
         ))}
 
-        {/* Botón para ver todas las categorías */}
         <TouchableOpacity
           style={[styles.boton, styles.botonVerTodas, {
             backgroundColor: tema.colores.fondoSecundario,
@@ -64,9 +60,7 @@ export const SelectorCategoria = ({ categoriaSeleccionada, onSeleccionar }: Prop
           onPress={() => setModalVisible(true)}
         >
           <Text style={styles.iconoVerTodas}>⋯</Text>
-          <Text style={[styles.nombre, { color: tema.colores.primario }]}>
-            Ver todas
-          </Text>
+          <Text style={[styles.nombre, { color: tema.colores.primario }]}>Ver todas</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -74,7 +68,7 @@ export const SelectorCategoria = ({ categoriaSeleccionada, onSeleccionar }: Prop
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onSeleccionar={onSeleccionar}
-        categorias={categorias}
+        categorias={categoriasFiltradas}
         categoriaSeleccionada={categoriaSeleccionada}
       />
     </View>
@@ -88,9 +82,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 5,
   },
-  scroll: {
-    marginBottom: 15,
-  },
+  scroll: { marginBottom: 15 },
   boton: {
     padding: 10,
     marginRight: 10,
@@ -102,16 +94,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderWidth: 2,
   },
-  emoji: {
-    fontSize: 24,
-    marginBottom: 5,
-  },
-  iconoVerTodas: {
-    fontSize: 28,
-    marginBottom: 2,
-  },
-  nombre: {
-    fontSize: 11,
-    textAlign: 'center',
-  },
+  emoji: { fontSize: 24, marginBottom: 5 },
+  iconoVerTodas: { fontSize: 28, marginBottom: 2 },
+  nombre: { fontSize: 11, textAlign: 'center' },
 });

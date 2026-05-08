@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Modal } from 'react-native';
 import { useState, useEffect } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { useTema } from './src/context/TemaContext';
 import { useToast } from './src/context/ToastContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
@@ -15,6 +16,7 @@ import { SimuladorCuotas } from './src/components/SimuladorCuotas';
 import { TarjetaCredito } from './src/types';
 
 export default function TarjetasScreen() {
+  const { tarjetaId: tarjetaIdParam } = useLocalSearchParams<{ tarjetaId?: string }>();
   const { tema } = useTema();
   const { showToast } = useToast();
   const { tarjetas, eliminarTarjeta, obtenerEstadoTarjeta, editarTarjeta } = useTarjetas();
@@ -35,13 +37,15 @@ export default function TarjetasScreen() {
 
   const { gastos } = useGastos();
 
-  // Sincronizar tarjeta activa cuando cambia la lista
+  // Sincronizar tarjeta activa. Si hay un param de navegación, priorízarlo.
   useEffect(() => {
     if (tarjetas.length === 0) { setTarjetaActivaId(null); return; }
-    if (!tarjetaActivaId || !tarjetas.find(t => t.id === tarjetaActivaId)) {
+    if (tarjetaIdParam && tarjetas.find(t => t.id === tarjetaIdParam)) {
+      setTarjetaActivaId(tarjetaIdParam);
+    } else if (!tarjetaActivaId || !tarjetas.find(t => t.id === tarjetaActivaId)) {
       setTarjetaActivaId(tarjetas[0].id);
     }
-  }, [tarjetas]);
+  }, [tarjetas, tarjetaIdParam]);
 
   const tarjetaActiva = tarjetas.find(t => t.id === tarjetaActivaId) ?? null;
 

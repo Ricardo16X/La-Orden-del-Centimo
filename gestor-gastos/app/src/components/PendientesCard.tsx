@@ -49,7 +49,7 @@ export const PendientesCard = () => {
         subtexto: a.diasParaPago <= 0
           ? '¡Pago vencido!'
           : `Pago en ${a.diasParaPago} día${a.diasParaPago !== 1 ? 's' : ''}`,
-        ruta: '/tarjetas',
+        ruta: `/tarjetas?tarjetaId=${a.tarjeta.id}`,
       }));
 
     // ── Tarjetas: cerca del corte ────────────────────────────────────────
@@ -61,7 +61,7 @@ export const PendientesCard = () => {
         emoji: '⏰',
         texto: a.tarjeta.nombre,
         subtexto: `Corte en ${a.diasParaCorte} día${a.diasParaCorte !== 1 ? 's' : ''}`,
-        ruta: '/tarjetas',
+        ruta: `/tarjetas?tarjetaId=${a.tarjeta.id}`,
       }));
 
     // ── Presupuestos excedidos ───────────────────────────────────────────

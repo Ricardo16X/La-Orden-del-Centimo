@@ -44,7 +44,8 @@ export interface Categoria {
   nombre: string;
   emoji: string;
   color: string;
-  esPersonalizada?: boolean; // true si fue creada por el usuario
+  tipo: 'gasto' | 'ingreso' | 'ambos';
+  esPersonalizada?: boolean;
 }
 
 /**
