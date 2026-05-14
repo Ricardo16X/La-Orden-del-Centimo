@@ -17,7 +17,7 @@ export const ModalAgregarIngreso = ({ visible, onClose, onAgregar }: Props) => {
     <ModalBase
       visible={visible}
       onClose={onClose}
-      title="💰 Nuevo Ingreso"
+      title="📥 Nuevo Ingreso"
       position="center"
       maxHeight="85%"
     >

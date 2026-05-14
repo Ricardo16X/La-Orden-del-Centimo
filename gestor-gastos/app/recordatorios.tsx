@@ -7,6 +7,7 @@ import { useTema } from './src/context/TemaContext';
 import { useToast } from './src/context/ToastContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
 import { BotonAnimado } from './src/components/BotonAnimado';
+import { MenuContextual } from './src/components/MenuContextual';
 import { useRecordatorios } from './src/context/RecordatoriosContext';
 import { useNotificaciones } from './src/hooks/useNotificaciones';
 import { Recordatorio, FrecuenciaRecordatorio } from './src/types';
@@ -209,19 +210,12 @@ export default function RecordatoriosScreen() {
                         trackColor={{ false: c.bordes, true: `${c.primario}80` }}
                         thumbColor={r.activo ? c.primario : c.texto}
                       />
-                      <TouchableOpacity
-                        onPress={() => abrirEdicion(r)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <Text style={{ fontSize: 18 }}>✏️</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => handleEliminar(r)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={styles.btnEliminar}
-                      >
-                        <Text style={styles.btnEliminarTexto}>🗑️</Text>
-                      </TouchableOpacity>
+                      <MenuContextual
+                        opciones={[
+                          { emoji: '✏️', label: 'Editar', onPress: () => abrirEdicion(r) },
+                          { emoji: '🗑️', label: 'Eliminar', destructivo: true, onPress: () => handleEliminar(r) },
+                        ]}
+                      />
                     </View>
                   </View>
                 </View>

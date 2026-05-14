@@ -1,10 +1,11 @@
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useState } from 'react';
 import { useTema } from './src/context/TemaContext';
 import { useCategorias } from './src/context/CategoriasContext';
 import { useToast } from './src/context/ToastContext';
 import { BotonAnimado } from './src/components/BotonAnimado';
 import { EstadoVacio } from './src/components/EstadoVacio';
+import { MenuContextual } from './src/components/MenuContextual';
 import { Categoria } from './src/types';
 
 const COLORES_DISPONIBLES = [
@@ -30,7 +31,6 @@ export default function CategoriasScreen() {
   const [tabActivo, setTabActivo] = useState<TabCategoria>('gastos');
   const [modo, setModo] = useState<ModoFormulario>('cerrado');
   const [editandoId, setEditandoId] = useState<string | null>(null);
-  const [confirmandoId, setConfirmandoId] = useState<string | null>(null);
 
   const [nombre, setNombre] = useState('');
   const [emoji, setEmoji] = useState('🎯');
@@ -51,7 +51,6 @@ export default function CategoriasScreen() {
 
   const abrirCrear = () => {
     resetFormulario();
-    setConfirmandoId(null);
     setModo('crear');
   };
 
@@ -61,7 +60,6 @@ export default function CategoriasScreen() {
     setColor(cat.color);
     setTipoEdicion(cat.tipo === 'ambos' ? 'gasto' : cat.tipo);
     setEditandoId(cat.id);
-    setConfirmandoId(null);
     setModo('editar');
   };
 
@@ -73,7 +71,6 @@ export default function CategoriasScreen() {
   const cambiarTab = (tab: TabCategoria) => {
     setTabActivo(tab);
     cerrar();
-    setConfirmandoId(null);
   };
 
   const handleGuardar = () => {
@@ -91,10 +88,15 @@ export default function CategoriasScreen() {
     cerrar();
   };
 
-  const handleEliminar = (id: string) => {
-    eliminarCategoria(id);
-    setConfirmandoId(null);
-    showToast('Categoría eliminada');
+  const handleEliminar = (cat: Categoria) => {
+    Alert.alert(
+      'Eliminar categoría',
+      `¿Eliminar "${cat.nombre}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => { eliminarCategoria(cat.id); showToast('Categoría eliminada'); } },
+      ]
+    );
   };
 
   const c = tema.colores;
@@ -272,66 +274,26 @@ export default function CategoriasScreen() {
           <View style={[styles.lista, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
             {personalizadas.map((cat, i) => {
               const esUltimo = i === personalizadas.length - 1;
-              const confirmando = confirmandoId === cat.id;
               return (
                 <View key={cat.id}>
                   <View
                     style={[
                       styles.item,
                       { borderBottomColor: c.bordes },
-                      (esUltimo && !confirmando) && styles.itemUltimo,
+                      esUltimo && styles.itemUltimo,
                     ]}
                   >
                     <View style={[styles.itemAccent, { backgroundColor: cat.color }]} />
                     <Text style={styles.itemEmoji}>{cat.emoji}</Text>
                     <Text style={[styles.itemNombre, { color: c.texto }]}>{cat.nombre}</Text>
-                    <View style={styles.acciones}>
-                      <TouchableOpacity
-                        onPress={() => abrirEditar(cat)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        style={styles.accionBoton}
-                      >
-                        <Text style={[styles.accionIcono, { color: c.primario }]}>✏️</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => setConfirmandoId(confirmando ? null : cat.id)}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        style={styles.accionBoton}
-                      >
-                        <Text style={styles.accionIcono}>🗑️</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <MenuContextual
+                      opciones={[
+                        { emoji: '✏️', label: 'Editar', onPress: () => abrirEditar(cat) },
+                        { emoji: '🗑️', label: 'Eliminar', destructivo: true, onPress: () => handleEliminar(cat) },
+                      ]}
+                    />
                   </View>
 
-                  {confirmando && (
-                    <View
-                      style={[
-                        styles.confirmacion,
-                        { borderTopColor: c.bordes },
-                        esUltimo && styles.itemUltimo,
-                      ]}
-                    >
-                      <Text style={[styles.confirmacionTexto, { color: c.texto }]}>
-                        ¿Eliminar "{cat.nombre}"?
-                      </Text>
-                      <View style={styles.confirmacionBotones}>
-                        <TouchableOpacity
-                          onPress={() => setConfirmandoId(null)}
-                          style={[styles.confirmacionBoton, { borderColor: c.bordes }]}
-                        >
-                          <Text style={[styles.confirmacionCancelarTexto, { color: c.textoSecundario }]}>
-                            Cancelar
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleEliminar(cat.id)}
-                          style={styles.confirmacionBotonEliminar}
-                        >
-                          <Text style={styles.confirmacionEliminarTexto}>Eliminar</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
                 </View>
               );
             })}

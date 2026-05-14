@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTema } from './src/context/TemaContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
 import { BotonAnimado } from './src/components/BotonAnimado';
+import { MenuContextual } from './src/components/MenuContextual';
 import { useGastosRecurrentes } from './src/context/GastosRecurrentesContext';
 import { useCategorias } from './src/context/CategoriasContext';
 import { useMonedas } from './src/context/MonedasContext';
@@ -314,14 +315,12 @@ export default function GastosRecurrentesScreen() {
                       <Text style={[styles.cardFechaTexto, { color: tema.colores.textoSecundario }]} numberOfLines={1}>
                         🔔 {etiqFecha}{tarjeta ? ` · 💳 ${tarjeta.nombre}` : ''}
                       </Text>
-                      <View style={styles.cardAcciones}>
-                        <TouchableOpacity onPress={() => abrirEdicion(gr)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Text style={{ fontSize: 15 }}>✏️</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleEliminar(gr)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                          <Text style={{ fontSize: 15 }}>🗑️</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <MenuContextual
+                        opciones={[
+                          { emoji: '✏️', label: 'Editar', onPress: () => abrirEdicion(gr) },
+                          { emoji: '🗑️', label: 'Eliminar', destructivo: true, onPress: () => handleEliminar(gr) },
+                        ]}
+                      />
                     </View>
                   </View>
                 </View>

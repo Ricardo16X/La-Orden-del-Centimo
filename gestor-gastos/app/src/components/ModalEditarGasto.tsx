@@ -71,6 +71,7 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
   if (!gasto) return null;
 
   const esGasto = gasto.tipo === 'gasto';
+  const accentColor = esGasto ? '#ef4444' : '#10b981';
   const tieneTarjetas = esGasto && tarjetas.length > 0;
   const tarjetaActiva = tarjetas.find(t => t.id === tarjetaId);
 
@@ -78,11 +79,11 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
     <ModalBase
       visible={visible}
       onClose={onClose}
-      title={esGasto ? '✏️ Editar Gasto' : '💰 Editar Ingreso'}
+      title={esGasto ? '📤 Editar Gasto' : '📥 Editar Ingreso'}
       position="center"
       maxHeight="90%"
     >
-      <View style={[styles.formulario, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
+      <View style={[styles.formulario, { backgroundColor: c.fondoSecundario, borderColor: accentColor }]}>
 
         <TextInput
           style={[styles.input, { borderColor: c.bordes, backgroundColor: c.fondo, color: c.texto }]}
@@ -146,28 +147,28 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
         {tieneTarjetas ? (
           <View style={styles.botonRow}>
             <TouchableOpacity
-              style={[styles.botonPrincipal, { backgroundColor: c.acento, borderColor: c.primario }]}
+              style={[styles.botonPrincipal, { backgroundColor: accentColor }]}
               onPress={handleGuardar}
             >
-              <Text style={[styles.botonTexto, { color: c.primarioClaro }]}>💾 Guardar Cambios</Text>
+              <Text style={[styles.botonTexto, { color: '#fff' }]}>💾 Guardar Cambios</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.botonMetodo, { backgroundColor: c.acento, borderColor: c.primario, borderLeftColor: c.primario + '50' }]}
+              style={[styles.botonMetodo, { backgroundColor: accentColor, borderLeftColor: 'rgba(255,255,255,0.25)' }]}
               onPress={() => setPickerVisible(v => !v)}
             >
               {tarjetaActiva
                 ? <View style={[styles.metodoDot, { backgroundColor: tarjetaActiva.color }]} />
                 : <Text style={styles.metodoEfectivoIcon}>💵</Text>
               }
-              <Text style={[styles.metodoFlecha, { color: c.primarioClaro }]}>▾</Text>
+              <Text style={[styles.metodoFlecha, { color: '#fff' }]}>▾</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <TouchableOpacity
-            style={[styles.botonSimple, { backgroundColor: c.acento, borderColor: c.primario }]}
+            style={[styles.botonSimple, { backgroundColor: accentColor }]}
             onPress={handleGuardar}
           >
-            <Text style={[styles.botonTexto, { color: c.primarioClaro }]}>💾 Guardar Cambios</Text>
+            <Text style={[styles.botonTexto, { color: '#fff' }]}>💾 Guardar Cambios</Text>
           </TouchableOpacity>
         )}
 
@@ -189,14 +190,14 @@ export const ModalEditarGasto = ({ visible, gasto, onClose, onEditar, onEliminar
 
 const styles = StyleSheet.create({
   formulario: {
-    padding: 15,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 2,
   },
   input: {
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 8,
+    borderWidth: 1.5,
+    padding: 13,
+    borderRadius: 12,
     marginBottom: 10,
     fontSize: 16,
   },
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   picker: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     marginBottom: 8,
     overflow: 'hidden',
@@ -234,6 +235,8 @@ const styles = StyleSheet.create({
   },
   botonRow: {
     flexDirection: 'row',
+    borderRadius: 12,
+    overflow: 'hidden',
     marginTop: 12,
     marginBottom: 6,
   },
@@ -241,28 +244,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 2,
-    borderRightWidth: 0,
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
   },
   botonMetodo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
-    borderWidth: 2,
     borderLeftWidth: 1,
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
     gap: 5,
     minWidth: 58,
   },
   botonSimple: {
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 2,
     marginTop: 12,
     marginBottom: 6,
   },
@@ -288,7 +287,7 @@ const styles = StyleSheet.create({
   botonEliminar: {
     backgroundColor: '#8b0000',
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#ff4444',

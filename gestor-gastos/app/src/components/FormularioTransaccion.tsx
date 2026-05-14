@@ -15,9 +15,9 @@ interface Props {
   onAgregar: (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string, tarjetaId?: string) => void;
 }
 
-const CONFIG = {
-  gasto:   { placeholder: '¿En qué lo gastaste?', botonTexto: 'Registrar Gasto',   botonEmoji: '📜' },
-  ingreso: { placeholder: '¿De dónde viene?',     botonTexto: 'Registrar Ingreso', botonEmoji: '💰' },
+const ACCENT: Record<string, { color: string; placeholder: string; botonTexto: string }> = {
+  gasto:   { color: '#ef4444', placeholder: '¿En qué lo gastaste?', botonTexto: 'Registrar Gasto'   },
+  ingreso: { color: '#10b981', placeholder: '¿De dónde viene?',     botonTexto: 'Registrar Ingreso' },
 };
 
 export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
@@ -26,7 +26,7 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
   const { monedaBase } = useMonedas();
   const { tarjetas } = useTarjetas();
   const { registrarUso, obtenerSugerido } = useMetodoPagoSugerido();
-  const config = CONFIG[tipo];
+  const accent = ACCENT[tipo];
   const esGasto = tipo === 'gasto';
   const tieneTarjetas = esGasto && tarjetas.length > 0;
 
@@ -77,7 +77,7 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
   return (
     <View style={[styles.container, {
       backgroundColor: c.fondoSecundario,
-      borderColor: esGasto ? c.bordes : c.primario,
+      borderColor: accent.color,
     }]}>
       <TextInput
         style={[styles.input, { borderColor: c.bordes, backgroundColor: c.fondo, color: c.texto }]}
@@ -90,7 +90,7 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
 
       <TextInput
         style={[styles.input, { borderColor: c.bordes, backgroundColor: c.fondo, color: c.texto }]}
-        placeholder={config.placeholder}
+        placeholder={accent.placeholder}
         placeholderTextColor={c.textoSecundario}
         value={descripcion}
         onChangeText={setDescripcion}
@@ -141,35 +141,32 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
       {tieneTarjetas ? (
         <View style={styles.botonRow}>
           <TouchableOpacity
-            style={[styles.botonPrincipal, { backgroundColor: c.acento, borderColor: c.primario }]}
+            style={[styles.botonPrincipal, { backgroundColor: accent.color }]}
             onPress={handleAgregar}
           >
-            <Text style={[styles.botonTexto, { color: c.primarioClaro }]}>
-              {config.botonEmoji} {config.botonTexto}
+            <Text style={[styles.botonTexto, { color: '#fff' }]}>
+              {accent.botonTexto}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.botonMetodo, { backgroundColor: c.acento, borderColor: c.primario, borderLeftColor: c.primario + '50' }]}
+            style={[styles.botonMetodo, { backgroundColor: accent.color, borderLeftColor: 'rgba(255,255,255,0.25)' }]}
             onPress={() => setPickerVisible(v => !v)}
           >
             {metodoColor
               ? <View style={[styles.metodoDot, { backgroundColor: metodoColor }]} />
               : <Text style={styles.metodoEfectivoIcon}>💵</Text>
             }
-            <Text style={[styles.metodoFlecha, { color: c.primarioClaro }]}>▾</Text>
+            <Text style={[styles.metodoFlecha, { color: '#fff' }]}>▾</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <TouchableOpacity
-          style={[styles.botonSimple, {
-            backgroundColor: esGasto ? c.acento : c.primarioClaro,
-            borderColor: c.primario,
-          }]}
+          style={[styles.botonSimple, { backgroundColor: accent.color }]}
           onPress={handleAgregar}
         >
-          <Text style={[styles.botonTexto, { color: esGasto ? c.primarioClaro : c.fondo }]}>
-            {config.botonEmoji} {config.botonTexto}
+          <Text style={[styles.botonTexto, { color: '#fff' }]}>
+            {accent.botonTexto}
           </Text>
         </TouchableOpacity>
       )}
@@ -187,14 +184,14 @@ export const FormularioTransaccion = ({ tipo, onAgregar }: Props) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 15,
-    borderRadius: 10,
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 2,
   },
   input: {
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 8,
+    borderWidth: 1.5,
+    padding: 13,
+    borderRadius: 12,
     marginBottom: 10,
     fontSize: 16,
   },
@@ -203,7 +200,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   picker: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     marginBottom: 8,
     overflow: 'hidden',
@@ -232,39 +229,32 @@ const styles = StyleSheet.create({
   },
   botonRow: {
     flexDirection: 'row',
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'transparent',
     marginTop: 4,
   },
   botonPrincipal: {
     flex: 1,
     paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 2,
-    borderRightWidth: 0,
-    borderRadius: 0,
-    borderTopLeftRadius: 8,
-    borderBottomLeftRadius: 8,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
   },
   botonMetodo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
-    borderWidth: 2,
     borderLeftWidth: 1,
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
     gap: 5,
     minWidth: 60,
   },
   botonSimple: {
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 2,
     marginTop: 4,
   },
   botonTexto: {

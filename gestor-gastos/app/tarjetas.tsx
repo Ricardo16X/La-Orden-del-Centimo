@@ -5,6 +5,7 @@ import { useTema } from './src/context/TemaContext';
 import { useToast } from './src/context/ToastContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
 import { BotonAnimado } from './src/components/BotonAnimado';
+import { MenuContextual } from './src/components/MenuContextual';
 import { useTarjetas } from './src/context/TarjetasContext';
 import { useCuotas } from './src/context/CuotasContext';
 import { useGastos } from './src/context/GastosContext';
@@ -269,12 +270,12 @@ export default function TarjetasScreen() {
 
                 {/* Acciones */}
                 <View style={styles.spotlightAcciones}>
-                  <TouchableOpacity onPress={() => handleEditar(tarjetaActiva)} style={[styles.spotlightBoton, { backgroundColor: txt.botonBg }]}>
-                    <Text style={styles.spotlightBotonTexto}>✏️</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleEliminar(tarjetaActiva.id, tarjetaActiva.nombre)} style={[styles.spotlightBoton, { backgroundColor: txt.botonBg }]}>
-                    <Text style={styles.spotlightBotonTexto}>🗑️</Text>
-                  </TouchableOpacity>
+                  <MenuContextual
+                    opciones={[
+                      { emoji: '✏️', label: 'Editar tarjeta', onPress: () => handleEditar(tarjetaActiva) },
+                      { emoji: '🗑️', label: 'Eliminar tarjeta', destructivo: true, onPress: () => handleEliminar(tarjetaActiva.id, tarjetaActiva.nombre) },
+                    ]}
+                  />
                 </View>
 
                 {/* Contenido de la tarjeta */}

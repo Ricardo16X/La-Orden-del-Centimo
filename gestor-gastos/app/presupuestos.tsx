@@ -1,9 +1,10 @@
-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Modal, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useState } from 'react';
 import { useTema } from './src/context/TemaContext';
 import { useToast } from './src/context/ToastContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
 import { BotonAnimado } from './src/components/BotonAnimado';
+import { MenuContextual } from './src/components/MenuContextual';
 import { useCategorias } from './src/context/CategoriasContext';
 import { usePresupuestos } from './src/context/PresupuestosContext';
 import { useMonedas } from './src/context/MonedasContext';
@@ -33,7 +34,6 @@ export default function PresupuestosScreen() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [monedaSeleccionada, setMonedaSeleccionada] = useState(monedaBase?.codigo || '');
   const [modalSugerenciaVisible, setModalSugerenciaVisible] = useState(false);
-  const [confirmandoEliminarId, setConfirmandoEliminarId] = useState<string | null>(null);
 
   // ─── Fecha helpers ───────────────────────────────────────────────────────────
 
@@ -135,10 +135,16 @@ export default function PresupuestosScreen() {
     showToast('Presupuesto agregado');
   };
 
-  const handleEliminar = (id: string) => {
-    eliminarPresupuesto(id);
-    setConfirmandoEliminarId(null);
-    showToast('Presupuesto eliminado');
+  const handleEliminar = (p: Presupuesto) => {
+    const cat = obtenerCategoria(p.categoriaId);
+    Alert.alert(
+      'Eliminar presupuesto',
+      `¿Eliminar el presupuesto de ${cat?.nombre ?? 'esta categoría'}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Eliminar', style: 'destructive', onPress: () => { eliminarPresupuesto(p.id); showToast('Presupuesto eliminado'); } },
+      ]
+    );
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────────
@@ -232,7 +238,6 @@ export default function PresupuestosScreen() {
             const colorEstado = stats?.excedido ? '#ef4444' : stats?.debeAlertar ? '#f59e0b' : '#10b981';
             const ritmo      = stats ? obtenerRitmo(stats.gastado, p.monto, p.periodo) : null;
             const cat        = obtenerCategoria(p.categoriaId);
-            const confirmando = confirmandoEliminarId === p.id;
             const restante   = stats ? p.monto - stats.gastado : 0;
 
             return (
@@ -256,17 +261,12 @@ export default function PresupuestosScreen() {
                       <Text style={[styles.budgetPct, { color: colorEstado }]}>
                         {stats ? `${Math.round(stats.porcentaje)}%` : '—'}
                       </Text>
-                      <View style={styles.budgetAcciones}>
-                        <TouchableOpacity onPress={() => handleEditar(p)} style={styles.budgetBtn}>
-                          <Text style={styles.budgetBtnTexto}>✏️</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => setConfirmandoEliminarId(confirmando ? null : p.id)}
-                          style={styles.budgetBtn}
-                        >
-                          <Text style={styles.budgetBtnTexto}>🗑️</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <MenuContextual
+                        opciones={[
+                          { emoji: '✏️', label: 'Editar', onPress: () => handleEditar(p) },
+                          { emoji: '🗑️', label: 'Eliminar', destructivo: true, onPress: () => handleEliminar(p) },
+                        ]}
+                      />
                     </View>
                   </View>
 
@@ -311,28 +311,6 @@ export default function PresupuestosScreen() {
                     </Text>
                   )}
 
-                  {/* Confirmación inline de eliminar */}
-                  {confirmando && (
-                    <View style={[styles.confirmRow, { borderTopColor: c.bordes }]}>
-                      <Text style={[styles.confirmTexto, { color: c.textoSecundario }]}>
-                        ¿Eliminar este presupuesto?
-                      </Text>
-                      <View style={styles.confirmBotones}>
-                        <TouchableOpacity
-                          onPress={() => setConfirmandoEliminarId(null)}
-                          style={[styles.confirmBtn, { borderColor: c.bordes }]}
-                        >
-                          <Text style={[styles.confirmBtnTexto, { color: c.textoSecundario }]}>No</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleEliminar(p.id)}
-                          style={[styles.confirmBtn, { backgroundColor: '#ef4444', borderColor: '#ef4444' }]}
-                        >
-                          <Text style={[styles.confirmBtnTexto, { color: '#fff' }]}>Sí, eliminar</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
                 </View>
               </View>
             );

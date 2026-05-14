@@ -7,6 +7,7 @@ import { useTema } from './src/context/TemaContext';
 import { useToast } from './src/context/ToastContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
 import { BotonAnimado } from './src/components/BotonAnimado';
+import { MenuContextual } from './src/components/MenuContextual';
 import { useMetas } from './src/context/MetasContext';
 import { useBalance } from './src/context/BalanceContext';
 import { useMonedas } from './src/context/MonedasContext';
@@ -252,20 +253,12 @@ export default function MetasScreen() {
                 <Text style={[styles.estadoBadgeTexto, { color: '#ef4444' }]}>Vencida</Text>
               </View>
             )}
-            <TouchableOpacity
-              onPress={() => abrirEdicion(meta)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={{ padding: 4, marginRight: 2 }}
-            >
-              <Text style={{ fontSize: 16, color: c.primario }}>✏️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => handleEliminar(meta)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              style={styles.btnEliminar}
-            >
-              <Text style={[styles.btnEliminarTexto, { color: c.textoSecundario }]}>✕</Text>
-            </TouchableOpacity>
+            <MenuContextual
+              opciones={[
+                { emoji: '✏️', label: 'Editar', onPress: () => abrirEdicion(meta) },
+                { emoji: '🗑️', label: 'Eliminar', destructivo: true, onPress: () => handleEliminar(meta) },
+              ]}
+            />
           </View>
 
           {/* Montos + barra */}
@@ -666,8 +659,6 @@ const styles = StyleSheet.create({
     borderRadius: 8, borderWidth: 1,
   },
   estadoBadgeTexto: { fontSize: 11, fontWeight: '700' },
-  btnEliminar: { padding: 4 },
-  btnEliminarTexto: { fontSize: 16, fontWeight: 'bold' },
 
   montosRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 8 },
   montoActual: { fontSize: 22, fontWeight: 'bold' },
