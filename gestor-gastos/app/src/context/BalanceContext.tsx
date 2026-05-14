@@ -60,34 +60,32 @@ export const BalanceProvider = ({ children }: { children: ReactNode }) => {
     const ahora = new Date();
     const mesActual = ahora.getMonth();
     const anioActual = ahora.getFullYear();
+    const mesAnterior = mesActual === 0 ? 11 : mesActual - 1;
+    const anioAnterior = mesActual === 0 ? anioActual - 1 : anioActual;
 
-    // Calcular balance del mes anterior
-    const gastosDelMesAnterior = gastos.filter(g => {
-      const fecha = new Date(g.fecha);
-      const mes = fecha.getMonth();
-      const anio = fecha.getFullYear();
+    const sumarBalance = (lista: typeof gastos) => {
+      const ing = lista.filter(g => g.tipo === 'ingreso').reduce((s, g) => s + (g.montoEnMonedaBase || g.monto), 0);
+      const gas = lista.filter(g => g.tipo === 'gasto').reduce((s, g) => s + (g.montoEnMonedaBase || g.monto), 0);
+      return ing - gas;
+    };
 
-      // Mes anterior
-      const mesAnterior = mesActual === 0 ? 11 : mesActual - 1;
-      const anioAnterior = mesActual === 0 ? anioActual - 1 : anioActual;
-
-      return mes === mesAnterior && anio === anioAnterior;
+    // Balance generado solo en el mes actual y en el mes anterior (mes vs mes)
+    const delMesActual = gastos.filter(g => {
+      const f = new Date(g.fecha);
+      return f.getMonth() === mesActual && f.getFullYear() === anioActual;
+    });
+    const delMesAnterior = gastos.filter(g => {
+      const f = new Date(g.fecha);
+      return f.getMonth() === mesAnterior && f.getFullYear() === anioAnterior;
     });
 
-    const ingresosAnterior = gastosDelMesAnterior
-      .filter(g => g.tipo === 'ingreso')
-      .reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0);
+    const balanceMesActual = sumarBalance(delMesActual);
+    const balanceMesAnterior = sumarBalance(delMesAnterior);
 
-    const gastosAnterior = gastosDelMesAnterior
-      .filter(g => g.tipo === 'gasto')
-      .reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0);
-
-    const balanceAnterior = ingresosAnterior - gastosAnterior;
-
-    // Calcular cambio porcentual
+    // Cambio porcentual entre el resultado neto de cada mes
     let cambioMensual = 0;
-    if (balanceAnterior !== 0) {
-      cambioMensual = ((balance.balanceTotal - balanceAnterior) / Math.abs(balanceAnterior)) * 100;
+    if (balanceMesAnterior !== 0) {
+      cambioMensual = ((balanceMesActual - balanceMesAnterior) / Math.abs(balanceMesAnterior)) * 100;
     }
 
     // Determinar tendencia

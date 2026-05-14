@@ -224,7 +224,7 @@ export interface Meta {
   montoActual: number;
   monedaId: string; // ID de la moneda para esta meta
   fechaInicio: string; // ISO format
-  fechaLimite: string; // ISO format
+  fechaLimite?: string; // ISO format — undefined = fondo abierto sin plazo
   icono: string; // Emoji
   color: string;
   estado: EstadoMeta;
@@ -241,10 +241,10 @@ export type NuevaMeta = Omit<Meta, 'id' | 'montoActual' | 'estado'>;
 export interface EstadisticasMeta {
   porcentajeCompletado: number;
   montoFaltante: number;
-  diasRestantes: number;
-  ahorroRequeridoDiario: number;
-  ahorroRequeridoSemanal: number;
-  ahorroRequeridoMensual: number;
+  diasRestantes: number | null; // null para fondos abiertos sin plazo
+  ahorroRequeridoDiario: number | null;
+  ahorroRequeridoSemanal: number | null;
+  ahorroRequeridoMensual: number | null;
   enTiempo: boolean;
 }
 

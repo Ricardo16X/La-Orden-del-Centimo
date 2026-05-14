@@ -79,7 +79,8 @@ export default function TarjetasScreen() {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     const dia = hoy.getDate();
-    let mes = dia > tarjeta.diaCorte ? hoy.getMonth() : hoy.getMonth() - 1;
+    // El día de corte es inclusivo: >= para que el día de corte cierre el ciclo anterior
+    let mes = dia >= tarjeta.diaCorte ? hoy.getMonth() : hoy.getMonth() - 1;
     let anio = hoy.getFullYear();
     if (mes < 0) { mes = 11; anio -= 1; }
     const corte = new Date(anio, mes, tarjeta.diaCorte);

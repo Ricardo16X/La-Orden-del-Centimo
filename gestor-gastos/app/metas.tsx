@@ -30,6 +30,7 @@ export default function MetasScreen() {
   const [montoObjetivo, setMontoObjetivo] = useState('');
   const [duracion, setDuracion] = useState('6');
   const [unidad, setUnidad] = useState<'dias' | 'meses' | 'años'>('meses');
+  const [sinFecha, setSinFecha] = useState(false);
   const [icono, setIcono] = useState(ICONOS[0]);
   const [color, setColor] = useState(COLORES[0]);
   const [monedaSel, setMonedaSel] = useState(monedaBase?.codigo || '');
@@ -47,27 +48,35 @@ export default function MetasScreen() {
 
   const resetForm = () => {
     setNombre(''); setDescripcion(''); setMontoObjetivo('');
-    setDuracion('6'); setUnidad('meses');
+    setDuracion('6'); setUnidad('meses'); setSinFecha(false);
     setIcono(ICONOS[0]); setColor(COLORES[0]);
     setMonedaSel(monedaBase?.codigo || '');
     setEditandoMeta(null);
   };
 
   const abrirEdicion = (meta: Meta) => {
-    const remaining = new Date(meta.fechaLimite).getTime() - Date.now();
-    const diasRestantes = Math.max(1, Math.floor(remaining / 86400000));
-    let durVal: string;
-    let unidadVal: 'dias' | 'meses' | 'años';
-    if (diasRestantes >= 365) {
-      unidadVal = 'años';
-      durVal = Math.max(1, Math.round(diasRestantes / 365)).toString();
-    } else if (diasRestantes >= 30) {
-      unidadVal = 'meses';
-      durVal = Math.max(1, Math.round(diasRestantes / 30)).toString();
-    } else {
-      unidadVal = 'dias';
-      durVal = diasRestantes.toString();
+    const esFondoAbierto = !meta.fechaLimite;
+    setSinFecha(esFondoAbierto);
+
+    if (!esFondoAbierto && meta.fechaLimite) {
+      const remaining = new Date(meta.fechaLimite).getTime() - Date.now();
+      const diasRestantes = Math.max(1, Math.floor(remaining / 86400000));
+      let durVal: string;
+      let unidadVal: 'dias' | 'meses' | 'años';
+      if (diasRestantes >= 365) {
+        unidadVal = 'años';
+        durVal = Math.max(1, Math.round(diasRestantes / 365)).toString();
+      } else if (diasRestantes >= 30) {
+        unidadVal = 'meses';
+        durVal = Math.max(1, Math.round(diasRestantes / 30)).toString();
+      } else {
+        unidadVal = 'dias';
+        durVal = diasRestantes.toString();
+      }
+      setDuracion(durVal);
+      setUnidad(unidadVal);
     }
+
     setEditandoMeta(meta);
     setNombre(meta.nombre);
     setDescripcion(meta.descripcion);
@@ -75,8 +84,6 @@ export default function MetasScreen() {
     setMonedaSel(meta.monedaId);
     setIcono(meta.icono);
     setColor(meta.color);
-    setDuracion(durVal);
-    setUnidad(unidadVal);
     setFormVisible(true);
   };
 
@@ -93,8 +100,12 @@ export default function MetasScreen() {
     if (!nombre.trim()) { Alert.alert('Error', 'Ingresa un nombre'); return; }
     const monto = parseFloat(montoObjetivo);
     if (isNaN(monto) || monto <= 0) { Alert.alert('Error', 'Ingresa un monto válido'); return; }
-    const dur = parseInt(duracion);
-    if (isNaN(dur) || dur <= 0) { Alert.alert('Error', 'Ingresa una duración válida'); return; }
+    if (!sinFecha) {
+      const dur = parseInt(duracion);
+      if (isNaN(dur) || dur <= 0) { Alert.alert('Error', 'Ingresa una duración válida'); return; }
+    }
+
+    const fechaLimite = sinFecha ? undefined : calcularFechaLimite();
 
     if (editandoMeta) {
       editarMeta(editandoMeta.id, {
@@ -102,7 +113,7 @@ export default function MetasScreen() {
         descripcion: descripcion.trim(),
         montoObjetivo: monto,
         monedaId: monedaSel || monedaBase?.codigo || '',
-        fechaLimite: calcularFechaLimite(),
+        fechaLimite,
         icono, color,
       });
       showToast('Meta actualizada');
@@ -113,7 +124,7 @@ export default function MetasScreen() {
         montoObjetivo: monto,
         monedaId: monedaSel || monedaBase?.codigo || '',
         fechaInicio: new Date().toISOString(),
-        fechaLimite: calcularFechaLimite(),
+        fechaLimite,
         icono, color,
       });
       showToast('Meta creada');
@@ -186,21 +197,26 @@ export default function MetasScreen() {
     if (!stats) return null;
 
     const pctCompletado = Math.min(stats.porcentajeCompletado, 100);
-
-    const diasTotales = Math.max(1, Math.floor(
-      (new Date(meta.fechaLimite).getTime() - new Date(meta.fechaInicio).getTime()) / 86400000
-    ));
-    const diasTranscurridos = Math.floor(
-      (Date.now() - new Date(meta.fechaInicio).getTime()) / 86400000
-    );
-    const pctTiempo = Math.min((diasTranscurridos / diasTotales) * 100, 100);
-
-    const ritmo = meta.estado === 'en_progreso' ? obtenerRitmo(pctCompletado, pctTiempo) : null;
+    const esFondoAbierto = !meta.fechaLimite;
     const sim = simboloMoneda(meta.monedaId);
 
-    const fechaLimiteStr = new Date(meta.fechaLimite).toLocaleDateString('es', {
-      day: 'numeric', month: 'short', year: 'numeric',
-    });
+    const pctTiempo = esFondoAbierto ? null : (() => {
+      const diasTotales = Math.max(1, Math.floor(
+        (new Date(meta.fechaLimite!).getTime() - new Date(meta.fechaInicio).getTime()) / 86400000
+      ));
+      const diasTranscurridos = Math.floor(
+        (Date.now() - new Date(meta.fechaInicio).getTime()) / 86400000
+      );
+      return Math.min((diasTranscurridos / diasTotales) * 100, 100);
+    })();
+
+    const ritmo = (!esFondoAbierto && meta.estado === 'en_progreso' && pctTiempo !== null)
+      ? obtenerRitmo(pctCompletado, pctTiempo)
+      : null;
+
+    const fechaLimiteStr = meta.fechaLimite
+      ? new Date(meta.fechaLimite).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
+      : null;
 
     return (
       <View key={meta.id} style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
@@ -221,6 +237,11 @@ export default function MetasScreen() {
                 </Text>
               ) : null}
             </View>
+            {esFondoAbierto && meta.estado === 'en_progreso' && (
+              <View style={[styles.estadoBadge, { backgroundColor: `${meta.color}20`, borderColor: meta.color }]}>
+                <Text style={[styles.estadoBadgeTexto, { color: meta.color }]}>♾️ Fondo</Text>
+              </View>
+            )}
             {meta.estado === 'completada' && (
               <View style={[styles.estadoBadge, { backgroundColor: '#10b98120', borderColor: '#10b981' }]}>
                 <Text style={[styles.estadoBadgeTexto, { color: '#10b981' }]}>✓ Completada</Text>
@@ -263,36 +284,40 @@ export default function MetasScreen() {
 
           <View style={[styles.barraTrack, { backgroundColor: c.bordes }]}>
             <View style={[styles.barraFill, { width: `${pctCompletado}%`, backgroundColor: meta.color }]} />
-            {meta.estado === 'en_progreso' && (
+            {!esFondoAbierto && meta.estado === 'en_progreso' && pctTiempo !== null && (
               <View style={[styles.barraRitmoLinea, { left: `${pctTiempo}%` }]} />
             )}
           </View>
 
-          {/* Stats */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statLabel, { color: c.textoSecundario }]}>Vence</Text>
-              <Text style={[styles.statValor, { color: c.texto }]}>{fechaLimiteStr}</Text>
+          {/* Stats — solo para metas con fecha límite */}
+          {!esFondoAbierto && (
+            <View style={styles.statsRow}>
+              {fechaLimiteStr && (
+                <View style={styles.statItem}>
+                  <Text style={[styles.statLabel, { color: c.textoSecundario }]}>Vence</Text>
+                  <Text style={[styles.statValor, { color: c.texto }]}>{fechaLimiteStr}</Text>
+                </View>
+              )}
+              {meta.estado === 'en_progreso' && stats.diasRestantes !== null && stats.diasRestantes > 0 && (
+                <View style={styles.statItem}>
+                  <Text style={[styles.statLabel, { color: c.textoSecundario }]}>Faltan</Text>
+                  <Text style={[styles.statValor, { color: c.texto }]}>
+                    {stats.diasRestantes > 30
+                      ? `${Math.round(stats.diasRestantes / 30)} meses`
+                      : `${stats.diasRestantes} días`}
+                  </Text>
+                </View>
+              )}
+              {meta.estado === 'en_progreso' && stats.montoFaltante > 0 && stats.ahorroRequeridoMensual !== null && (
+                <View style={styles.statItem}>
+                  <Text style={[styles.statLabel, { color: c.textoSecundario }]}>Mensual</Text>
+                  <Text style={[styles.statValor, { color: c.texto }]}>
+                    {sim}{stats.ahorroRequeridoMensual.toFixed(0)}
+                  </Text>
+                </View>
+              )}
             </View>
-            {meta.estado === 'en_progreso' && stats.diasRestantes > 0 && (
-              <View style={styles.statItem}>
-                <Text style={[styles.statLabel, { color: c.textoSecundario }]}>Faltan</Text>
-                <Text style={[styles.statValor, { color: c.texto }]}>
-                  {stats.diasRestantes > 30
-                    ? `${Math.round(stats.diasRestantes / 30)} meses`
-                    : `${stats.diasRestantes} días`}
-                </Text>
-              </View>
-            )}
-            {meta.estado === 'en_progreso' && stats.montoFaltante > 0 && (
-              <View style={styles.statItem}>
-                <Text style={[styles.statLabel, { color: c.textoSecundario }]}>Mensual</Text>
-                <Text style={[styles.statValor, { color: c.texto }]}>
-                  {sim}{stats.ahorroRequeridoMensual.toFixed(0)}
-                </Text>
-              </View>
-            )}
-          </View>
+          )}
 
           {/* Ritmo */}
           {ritmo && (
@@ -497,33 +522,48 @@ export default function MetasScreen() {
               )}
 
               {/* Duración */}
-              <Text style={[styles.formLabel, { color: c.texto }]}>Duración</Text>
-              <View style={styles.duracionRow}>
-                <TextInput
-                  style={[styles.formInputDuracion, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto }]}
-                  placeholder="6"
-                  placeholderTextColor={c.textoSecundario}
-                  keyboardType="number-pad"
-                  value={duracion}
-                  onChangeText={setDuracion}
-                />
-                <View style={styles.chipsRow}>
-                  {(['dias', 'meses', 'años'] as const).map(u => (
-                    <TouchableOpacity
-                      key={u}
-                      onPress={() => setUnidad(u)}
-                      style={[styles.chip, {
-                        backgroundColor: unidad === u ? c.primario : c.fondoSecundario,
-                        borderColor: c.bordes,
-                      }]}
-                    >
-                      <Text style={[styles.chipTexto, { color: unidad === u ? '#fff' : c.texto }]}>
-                        {u.charAt(0).toUpperCase() + u.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+              <View style={styles.duracionHeader}>
+                <Text style={[styles.formLabel, { color: c.texto, marginTop: 0, marginBottom: 0 }]}>Duración</Text>
+                <TouchableOpacity
+                  style={[styles.sinFechaChip, {
+                    backgroundColor: sinFecha ? c.primario : c.fondoSecundario,
+                    borderColor: sinFecha ? c.primario : c.bordes,
+                  }]}
+                  onPress={() => setSinFecha(prev => !prev)}
+                >
+                  <Text style={[styles.sinFechaChipTexto, { color: sinFecha ? '#fff' : c.textoSecundario }]}>
+                    ♾️ Sin límite
+                  </Text>
+                </TouchableOpacity>
               </View>
+              {!sinFecha && (
+                <View style={styles.duracionRow}>
+                  <TextInput
+                    style={[styles.formInputDuracion, { backgroundColor: c.fondoSecundario, borderColor: c.bordes, color: c.texto }]}
+                    placeholder="6"
+                    placeholderTextColor={c.textoSecundario}
+                    keyboardType="number-pad"
+                    value={duracion}
+                    onChangeText={setDuracion}
+                  />
+                  <View style={styles.chipsRow}>
+                    {(['dias', 'meses', 'años'] as const).map(u => (
+                      <TouchableOpacity
+                        key={u}
+                        onPress={() => setUnidad(u)}
+                        style={[styles.chip, {
+                          backgroundColor: unidad === u ? c.primario : c.fondoSecundario,
+                          borderColor: c.bordes,
+                        }]}
+                      >
+                        <Text style={[styles.chipTexto, { color: unidad === u ? '#fff' : c.texto }]}>
+                          {u.charAt(0).toUpperCase() + u.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
 
               <BotonAnimado
                 onPress={handleAgregar}
@@ -707,7 +747,10 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 20, borderWidth: 2 },
   chipTexto: { fontSize: 13, fontWeight: '600' },
 
-  duracionRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  duracionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  duracionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 0 },
+  sinFechaChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 2 },
+  sinFechaChipTexto: { fontSize: 12, fontWeight: '600' },
 
   // ── Modal aportar/retirar ──
   aportarContainer: {

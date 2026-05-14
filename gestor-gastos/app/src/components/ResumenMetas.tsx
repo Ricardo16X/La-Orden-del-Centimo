@@ -77,12 +77,20 @@ export const ResumenMetas = () => {
               </View>
 
               <View style={styles.statsColumn}>
-                <Text style={[styles.statTexto, { color: tema.colores.textoSecundario }]} numberOfLines={1}>
-                  ⏱ {formatearTiempoRestante(stats.diasRestantes)}
-                </Text>
-                <Text style={[styles.statTexto, { color: tema.colores.textoSecundario }]} numberOfLines={1}>
-                  💰 {formatearAhorroRequerido(stats.diasRestantes, stats.ahorroRequeridoDiario, stats.ahorroRequeridoMensual)}
-                </Text>
+                {stats.diasRestantes !== null ? (
+                  <>
+                    <Text style={[styles.statTexto, { color: tema.colores.textoSecundario }]} numberOfLines={1}>
+                      ⏱ {formatearTiempoRestante(stats.diasRestantes)}
+                    </Text>
+                    <Text style={[styles.statTexto, { color: tema.colores.textoSecundario }]} numberOfLines={1}>
+                      💰 {formatearAhorroRequerido(stats.diasRestantes, stats.ahorroRequeridoDiario!, stats.ahorroRequeridoMensual!)}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={[styles.statTexto, { color: tema.colores.textoSecundario }]} numberOfLines={1}>
+                    ♾️ Fondo abierto
+                  </Text>
+                )}
               </View>
 
               {!stats.enTiempo && (

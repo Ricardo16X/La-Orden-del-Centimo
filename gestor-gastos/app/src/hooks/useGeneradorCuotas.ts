@@ -40,6 +40,7 @@ export const useGeneradorCuotas = () => {
             categoria: obtenerCategoriaTarjeta(cuota.tarjetaId),
             tipo: 'gasto',
             tarjetaId: cuota.tarjetaId,
+            fecha: cuota.fechaProximaCuota, // fechar en la fecha de corte, no en "hoy"
           });
 
           // Enviar notificación

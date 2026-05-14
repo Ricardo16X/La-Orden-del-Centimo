@@ -81,13 +81,13 @@ export const PendientesCard = () => {
       .filter(m => m.estado === 'en_progreso')
       .forEach(m => {
         const stats = obtenerEstadisticasMeta(m.id);
-        if (stats && !stats.enTiempo && stats.diasRestantes > 0) {
+        if (stats && !stats.enTiempo && stats.diasRestantes !== null && stats.diasRestantes > 0) {
           items.push({
             id: `meta-${m.id}`,
             nivel: 'advertencia',
             emoji: m.icono,
             texto: m.nombre,
-            subtexto: `Necesitas ${sim}${stats.ahorroRequeridoMensual.toFixed(0)}/mes para llegar a tiempo`,
+            subtexto: `Necesitas ${sim}${(stats.ahorroRequeridoMensual ?? 0).toFixed(0)}/mes para llegar a tiempo`,
             ruta: '/metas',
           });
         }

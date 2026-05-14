@@ -240,9 +240,9 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
                             </Text>
                           </View>
 
-                          {meta.estado === 'en_progreso' && (
+                          {meta.estado === 'en_progreso' && stats.diasRestantes !== null && (
                             <Text style={[styles.diasRestantes, { color: tema.colores.textoSecundario }]}>
-                              {formatearTiempoRestante(stats.diasRestantes)} restantes • Ahorra {formatearAhorroRequerido(stats.diasRestantes, stats.ahorroRequeridoDiario, stats.ahorroRequeridoMensual)}
+                              {formatearTiempoRestante(stats.diasRestantes)} restantes • Ahorra {formatearAhorroRequerido(stats.diasRestantes, stats.ahorroRequeridoDiario!, stats.ahorroRequeridoMensual!)}
                             </Text>
                           )}
 

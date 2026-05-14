@@ -6,7 +6,6 @@ import { useCategorias } from '../context/CategoriasContext';
 import { useMonedas } from '../context/MonedasContext';
 import { useEstadisticas } from '../hooks';
 import { GraficaPastel } from '../components/GraficaPastel';
-import { GraficaLineas } from '../components/GraficaLineas';
 import { ProximoMesPanel } from '../components/ProximoMesPanel';
 import { LineChart } from 'react-native-chart-kit';
 
@@ -90,7 +89,6 @@ export const EstadisticasScreen = () => {
     promedioDiario,
     topGastos,
     tendenciaMensual,
-    gastoPorDiaSemana,
     comparativaPorCategoria,
   } = useEstadisticas(gastos, categorias);
 
@@ -115,38 +113,11 @@ export const EstadisticasScreen = () => {
   const proyMejora = diferenciaProy < 0;
   const colorProy = proyMejora ? '#10b981' : diferenciaProy > 10 ? '#ef4444' : '#f59e0b';
 
-  // ─── Día más caro ────────────────────────────────────────────────────────────
-
-  const diasConDatos = gastoPorDiaSemana.dias.filter(d => d.cantidad > 0);
-  const diaMasCaro = gastoPorDiaSemana.totalTransacciones >= 14 && diasConDatos.length > 0
-    ? diasConDatos.reduce((max, d) => d.promedio > max.promedio ? d : max)
-    : null;
-  const maxPromedioDia = diasConDatos.length > 0 ? Math.max(...diasConDatos.map(d => d.promedio)) : 1;
-
   // ─── Pie chart + historial integrado ─────────────────────────────────────────
 
   const datosPastel = gastosPorCategoriaMes
     .filter(cat => cat.total > 0)
     .map(cat => ({ categoriaId: cat.id, total: cat.total }));
-
-  // ─── Tendencia 7 días ────────────────────────────────────────────────────────
-
-  const datosLineas = (() => {
-    const resultado = [];
-    for (let i = 6; i >= 0; i--) {
-      const fecha = new Date(hoy);
-      fecha.setDate(hoy.getDate() - i);
-      fecha.setHours(0, 0, 0, 0);
-      const totalDia = gastos
-        .filter(g => {
-          const fg = new Date(g.fecha); fg.setHours(0, 0, 0, 0);
-          return fg.getTime() === fecha.getTime() && g.tipo === 'gasto';
-        })
-        .reduce((s, g) => s + g.monto, 0);
-      resultado.push({ fecha: fecha.toISOString(), total: totalDia });
-    }
-    return resultado;
-  })();
 
   const hayDatosTendencia = tendenciaMensual.some(t => t.ingresos > 0 || t.gastos > 0);
 
@@ -190,17 +161,6 @@ export const EstadisticasScreen = () => {
 
         {/* ── 2. Compromisos del mes siguiente ── */}
         <ProximoMesPanel />
-
-        {/* ── 3. Tendencia últimos 7 días ── */}
-        {gastos.length > 0 && (
-          <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
-            <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitulo, { color: c.texto }]}>Últimos 7 días</Text>
-              <Text style={[styles.cardSubtitulo, { color: c.textoSecundario }]}>Gasto diario</Text>
-            </View>
-            <GraficaLineas datos={datosLineas} />
-          </View>
-        )}
 
         {/* ── 3. Evolución mensual ── */}
         {hayDatosTendencia && (
@@ -265,67 +225,7 @@ export const EstadisticasScreen = () => {
           />
         )}
 
-        {/* ── 6. Patrón semanal ── */}
-        {gastoPorDiaSemana.totalTransacciones >= 14 && (
-          <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
-            <View style={styles.cardHeader}>
-              <Text style={[styles.cardTitulo, { color: c.texto }]}>Patrón semanal</Text>
-              <Text style={[styles.cardSubtitulo, { color: c.textoSecundario }]}>Promedio por día</Text>
-            </View>
-
-            {diaMasCaro && gastoPorDiaSemana.promedioGlobal > 0 && (
-              <View style={[styles.insightBanner, { backgroundColor: `${c.primario}15`, borderColor: `${c.primario}40` }]}>
-                <Text style={styles.insightIcono}>💡</Text>
-                <Text style={[styles.insightTexto, { color: c.texto }]}>
-                  Los{' '}
-                  <Text style={{ fontWeight: 'bold', color: c.primario }}>{diaMasCaro.nombre}</Text>
-                  {' '}gastas{' '}
-                  <Text style={{ fontWeight: 'bold', color: '#f59e0b' }}>
-                    {Math.round((diaMasCaro.promedio / gastoPorDiaSemana.promedioGlobal - 1) * 100)}%
-                  </Text>
-                  {' '}más que el promedio semanal
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.diasContainer}>
-              {gastoPorDiaSemana.dias.map((d, i) => {
-                const esMasCaro = diaMasCaro?.nombre === d.nombre;
-                const pct = maxPromedioDia > 0 ? d.promedio / maxPromedioDia : 0;
-                const tieneDatos = d.cantidad > 0;
-                return (
-                  <View key={i} style={styles.diaFila}>
-                    <Text style={[
-                      styles.diaNombre,
-                      { color: esMasCaro ? c.primario : c.textoSecundario },
-                    ]}>
-                      {d.nombre}
-                    </Text>
-                    <View style={[styles.diaTrack, { backgroundColor: c.bordes }]}>
-                      {tieneDatos && (
-                        <View style={[
-                          styles.diaFill,
-                          {
-                            width: `${pct * 100}%`,
-                            backgroundColor: esMasCaro ? c.primario : `${c.textoSecundario}88`,
-                          },
-                        ]} />
-                      )}
-                    </View>
-                    <Text style={[
-                      styles.diaValor,
-                      { color: esMasCaro ? c.primario : c.textoSecundario },
-                    ]}>
-                      {tieneDatos ? `${simbolo}${d.promedio.toFixed(0)}` : '—'}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* ── 7. Top 5 gastos del mes ── */}
+        {/* ── 6. Top 5 gastos del mes ── */}
         {topGastos.length > 0 && (
           <View style={[styles.card, { backgroundColor: c.fondoSecundario, borderColor: c.bordes }]}>
             <View style={styles.cardHeader}>
@@ -490,67 +390,6 @@ const styles = StyleSheet.create({
   },
   leyendaTexto: {
     fontSize: 11,
-  },
-
-  // ── Chips selector ──
-  chipsScroll: { marginBottom: 4 },
-  chipsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingBottom: 4,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    gap: 5,
-  },
-  chipEmoji: { fontSize: 15 },
-  chipTexto: { fontSize: 12, fontWeight: '600' },
-
-  // ── Insight banner ──
-  insightBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  insightIcono: { fontSize: 16, marginTop: 1 },
-  insightTexto: { fontSize: 13, lineHeight: 20, flex: 1 },
-
-  // ── Barras por día ──
-  diasContainer: { gap: 10 },
-  diaFila: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  diaNombre: {
-    fontSize: 12,
-    fontWeight: '600',
-    width: 32,
-  },
-  diaTrack: {
-    flex: 1,
-    height: 10,
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  diaFill: {
-    height: 10,
-    borderRadius: 5,
-  },
-  diaValor: {
-    fontSize: 12,
-    fontWeight: '600',
-    width: 58,
-    textAlign: 'right',
   },
 
   // ── Top gastos ──

@@ -8,7 +8,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Meta, NuevaMeta, EstadisticasMeta, EstadoMeta } from '../types';
 import { STORAGE_KEYS } from '../utils/storage-keys';
 import { generarId } from '../utils';
-import { useGastos } from './GastosContext';
 
 interface MetasContextType {
   metas: Meta[];
@@ -26,7 +25,6 @@ const MetasContext = createContext<MetasContextType | undefined>(undefined);
 export const MetasProvider = ({ children }: { children: ReactNode }) => {
   const [metas, setMetas] = useState<Meta[]>([]);
   const [cargado, setCargado] = useState(false);
-  const { agregarGasto } = useGastos();
 
   useEffect(() => {
     cargarMetas();
@@ -96,15 +94,6 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
       return { exito: false, mensaje: 'Meta no encontrada' };
     }
 
-    // Crear gasto por el aporte a la meta
-    agregarGasto({
-      monto,
-      descripcion: `Aporte a meta: ${meta.nombre}`,
-      categoria: 'ahorro_metas',
-      tipo: 'gasto',
-      moneda: meta.monedaId,
-    });
-
     setMetas(prev =>
       prev.map(m => {
         if (m.id !== id) return m;
@@ -137,15 +126,6 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
       return { exito: false, mensaje: 'No puedes retirar más de lo que has aportado' };
     }
 
-    // Crear ingreso por el retiro de la meta
-    agregarGasto({
-      monto,
-      descripcion: `Retiro de meta: ${meta.nombre}`,
-      categoria: 'ahorro_metas',
-      tipo: 'ingreso',
-      moneda: meta.monedaId,
-    });
-
     setMetas(prev =>
       prev.map(m => {
         if (m.id !== id) return m;
@@ -167,6 +147,22 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
     const meta = metas.find(m => m.id === id);
     if (!meta) return null;
 
+    const porcentajeCompletado = (meta.montoActual / meta.montoObjetivo) * 100;
+    const montoFaltante = meta.montoObjetivo - meta.montoActual;
+
+    // Fondo abierto: sin fecha límite
+    if (!meta.fechaLimite) {
+      return {
+        porcentajeCompletado,
+        montoFaltante,
+        diasRestantes: null,
+        ahorroRequeridoDiario: null,
+        ahorroRequeridoSemanal: null,
+        ahorroRequeridoMensual: null,
+        enTiempo: true,
+      };
+    }
+
     const ahora = new Date();
     const fechaLimite = new Date(meta.fechaLimite);
     const fechaInicio = new Date(meta.fechaInicio);
@@ -178,14 +174,10 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
       (fechaLimite.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    const porcentajeCompletado = (meta.montoActual / meta.montoObjetivo) * 100;
-    const montoFaltante = meta.montoObjetivo - meta.montoActual;
-
     const ahorroRequeridoDiario = diasRestantes > 0 ? montoFaltante / diasRestantes : 0;
     const ahorroRequeridoSemanal = ahorroRequeridoDiario * 7;
     const ahorroRequeridoMensual = ahorroRequeridoDiario * 30;
 
-    // Calcular si va en tiempo
     const diasTotales = Math.floor(
       (fechaLimite.getTime() - fechaInicio.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -208,12 +200,11 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
 
     setMetas(prev =>
       prev.map(meta => {
-        // Si ya está completada, no cambiar
         if (meta.estado === 'completada') return meta;
+        if (!meta.fechaLimite) return meta; // fondos abiertos nunca vencen
 
         const fechaLimite = new Date(meta.fechaLimite);
 
-        // Si pasó la fecha límite y no se completó, marcar como vencida
         if (ahora > fechaLimite && meta.montoActual < meta.montoObjetivo) {
           return { ...meta, estado: 'vencida' as EstadoMeta };
         }
