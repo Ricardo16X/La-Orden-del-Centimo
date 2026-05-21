@@ -11,7 +11,7 @@ export const VistaProyeccionCuotas = ({ variant = 'widget' }: Props) => {
   const { tema } = useTema();
   const { obtenerProyeccionCuotas } = useCuotas();
   const { monedaBase } = useMonedas();
-  const simbolo = monedaBase?.simbolo ?? simbolo;
+  const simbolo = monedaBase?.simbolo ?? 'Q';
 
   const proyecciones = obtenerProyeccionCuotas(6);
 

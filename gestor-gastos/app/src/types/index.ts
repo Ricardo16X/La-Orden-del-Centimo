@@ -308,7 +308,8 @@ export interface CuotaSinIntereses {
   fechaCompra: string; // ISO format
   fechaProximaCuota: string; // ISO format - se actualiza automáticamente
   comercio?: string; // Opcional: dónde se realizó la compra
-  categoria?: string; // Opcional: tipo de compra (Electrónica, Hogar, etc.)
+  categoria?: string; // Opcional: categoría del sistema
+  moneda?: string; // Opcional: código de moneda (GTQ, USD, etc.)
   estado: EstadoCuota;
 }
 

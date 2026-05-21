@@ -1,10 +1,11 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { memo, useMemo } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useMetas } from '../context/MetasContext';
 import { useMonedas } from '../context/MonedasContext';
 import { formatearTiempoRestante, formatearAhorroRequerido } from '../utils/date';
 
-export const ResumenMetas = () => {
+export const ResumenMetas = memo(() => {
   const { tema } = useTema();
   const { metas, obtenerEstadisticasMeta } = useMetas();
   const { monedas, monedaBase } = useMonedas();
@@ -14,25 +15,21 @@ export const ResumenMetas = () => {
     return moneda?.simbolo || monedaBase?.simbolo || '$';
   };
 
-  // Filtrar solo metas en progreso
-  const metasActivas = metas.filter(m => m.estado === 'en_progreso');
+  const metasOrdenadas = useMemo(() => {
+    return metas
+      .filter(m => m.estado === 'en_progreso')
+      .map(meta => ({ ...meta, stats: obtenerEstadisticasMeta(meta.id) }))
+      .filter(m => m.stats !== null)
+      .sort((a, b) => (b.stats?.porcentajeCompletado || 0) - (a.stats?.porcentajeCompletado || 0));
+  }, [metas, obtenerEstadisticasMeta]);
 
-  if (metasActivas.length === 0) return null;
-
-  // Ordenar por porcentaje de completado (más cercanas a completarse primero)
-  const metasOrdenadas = metasActivas
-    .map(meta => ({
-      ...meta,
-      stats: obtenerEstadisticasMeta(meta.id),
-    }))
-    .filter(m => m.stats !== null)
-    .sort((a, b) => (b.stats?.porcentajeCompletado || 0) - (a.stats?.porcentajeCompletado || 0));
+  if (metasOrdenadas.length === 0) return null;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.titulo, { color: tema.colores.primario }]}>
-          🎯 Metas de Ahorro {metasActivas.length > 0 && `(${metasActivas.length})`}
+          🎯 Metas de Ahorro {metasOrdenadas.length > 0 && `(${metasOrdenadas.length})`}
         </Text>
       </View>
 
@@ -109,7 +106,7 @@ export const ResumenMetas = () => {
       </ScrollView>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

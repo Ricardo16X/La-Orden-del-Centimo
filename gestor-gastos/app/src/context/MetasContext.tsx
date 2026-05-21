@@ -94,11 +94,20 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
       return { exito: false, mensaje: 'Meta no encontrada' };
     }
 
+    if (meta.estado === 'completada') {
+      return { exito: false, mensaje: 'Esta meta ya está completada' };
+    }
+
+    const disponible = meta.montoObjetivo - meta.montoActual;
+    if (monto > disponible) {
+      return { exito: false, mensaje: `El máximo que puedes aportar es ${disponible.toFixed(2)}` };
+    }
+
     setMetas(prev =>
       prev.map(m => {
         if (m.id !== id) return m;
 
-        const nuevoMontoActual = m.montoActual + monto;
+        const nuevoMontoActual = Math.min(m.montoActual + monto, m.montoObjetivo);
         const completada = nuevoMontoActual >= m.montoObjetivo;
 
         return {

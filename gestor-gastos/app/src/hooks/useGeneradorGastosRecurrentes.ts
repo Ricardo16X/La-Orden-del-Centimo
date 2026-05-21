@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useGastosRecurrentes } from '../context/GastosRecurrentesContext';
 import { useGastos } from '../context/GastosContext';
@@ -34,19 +34,33 @@ export const useGeneradorGastosRecurrentes = () => {
   const { monedas, monedaBase } = useMonedas();
   const { tarjetas } = useTarjetas();
 
+  // Guard de idempotencia: evita procesar el mismo gasto recurrente más de una vez por día
+  const procesadosHoy = useRef<Set<string>>(new Set());
+  const ultimaFechaEjecucion = useRef<string>('');
+
   useEffect(() => {
     const ejecutar = async () => {
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);
+      const fechaHoy = hoy.toDateString();
+
+      // Resetear el guard si es un nuevo día
+      if (ultimaFechaEjecucion.current !== fechaHoy) {
+        procesadosHoy.current.clear();
+        ultimaFechaEjecucion.current = fechaHoy;
+      }
 
       const { status } = await Notifications.getPermissionsAsync();
       const puedeNotificar = status === 'granted';
 
-      for (const gr of gastosRecurrentes.filter(g => g.activo)) {
+      for (const gr of gastosRecurrentes.filter(g => g.activo && !procesadosHoy.current.has(g.id))) {
         const proximaFecha = new Date(gr.proximaFecha);
         proximaFecha.setHours(0, 0, 0, 0);
 
         if (proximaFecha <= hoy) {
+          // Marcar como procesado ANTES de las operaciones async
+          procesadosHoy.current.add(gr.id);
+
           agregarGasto({
             monto: gr.monto,
             descripcion: `${gr.descripcion} (recurrente)`,
@@ -75,7 +89,7 @@ export const useGeneradorGastosRecurrentes = () => {
                 sound: true,
                 data: { type: 'gasto_recurrente', gastoRecurrenteId: gr.id },
               },
-              trigger: null, // inmediata
+              trigger: null,
             });
           }
         }

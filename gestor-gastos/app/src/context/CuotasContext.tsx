@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { CuotaSinIntereses, NuevaCuota, EstadisticasCuotasTarjeta, ProyeccionCuotas } from '../types';
 import { STORAGE_KEYS } from '../utils/storage-keys';
 import { generarId } from '../utils';
@@ -160,6 +161,15 @@ export const CuotasProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const eliminarCuota = (id: string) => {
+    // Cancelar notificaciones programadas para esta cuota (fire-and-forget)
+    Notifications.getAllScheduledNotificationsAsync()
+      .then(scheduled => {
+        scheduled
+          .filter(n => n.content.data?.cuotaId === id)
+          .forEach(n => Notifications.cancelScheduledNotificationAsync(n.identifier).catch(() => {}));
+      })
+      .catch(() => {});
+
     setCuotas(prev => prev.filter(c => c.id !== id));
   };
 
@@ -172,6 +182,9 @@ export const CuotasProvider = ({ children }: { children: ReactNode }) => {
     setCuotas(prev =>
       prev.map(c => {
         if (c.id !== id) return c;
+
+        // Guardar si la cuota ya está completada para evitar desbordamiento
+        if (c.cuotasPagadas >= c.cantidadCuotas) return c;
 
         const nuevasCuotasPagadas = c.cuotasPagadas + 1;
         const estaCompleta = nuevasCuotasPagadas >= c.cantidadCuotas;

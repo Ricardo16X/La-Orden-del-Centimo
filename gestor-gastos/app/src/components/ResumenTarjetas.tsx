@@ -10,7 +10,7 @@ export const ResumenTarjetas = () => {
   const { alertas, tarjetasSeguras } = useAlertasTarjetas();
   const { obtenerTotalCuotasMensual } = useCuotas();
   const { monedaBase } = useMonedas();
-  const simbolo = monedaBase?.simbolo ?? simbolo;
+  const simbolo = monedaBase?.simbolo ?? 'Q';
 
   const totalCuotasMensual = obtenerTotalCuotasMensual();
 

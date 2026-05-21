@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, GestureResponderEvent } from 'react-native';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useTema } from '../context/TemaContext';
 import { useCategorias } from '../context/CategoriasContext';
@@ -30,7 +30,7 @@ function slicePath(cx: number, cy: number, r: number, startAngle: number, endAng
   return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y} Z`;
 }
 
-export const GraficaPastel = ({ datos, onSelect }: Props) => {
+export const GraficaPastel = memo(({ datos, onSelect }: Props) => {
   const { tema } = useTema();
   const { categorias } = useCategorias();
   const { monedaBase } = useMonedas();
@@ -163,7 +163,7 @@ export const GraficaPastel = ({ datos, onSelect }: Props) => {
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

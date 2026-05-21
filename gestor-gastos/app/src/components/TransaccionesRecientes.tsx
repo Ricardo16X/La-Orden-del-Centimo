@@ -1,11 +1,11 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useGastos } from '../context/GastosContext';
 import { useCategorias } from '../context/CategoriasContext';
 import { useMonedas } from '../context/MonedasContext';
 
-export const TransaccionesRecientes = () => {
+export const TransaccionesRecientes = memo(() => {
   const { tema } = useTema();
   const { gastos } = useGastos();
   const { categorias } = useCategorias();
@@ -64,7 +64,7 @@ export const TransaccionesRecientes = () => {
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useAlertasPresupuesto } from '../hooks/useAlertasPresupuesto';
 import { useAlertasTarjetas } from '../hooks/useAlertasTarjetas';
@@ -25,7 +25,7 @@ const NIVEL_COLOR: Record<NivelPendiente, string> = {
   info:        '#3b82f6',
 };
 
-export const PendientesCard = () => {
+export const PendientesCard = memo(() => {
   const { tema } = useTema();
   const c = tema.colores;
   const { alertas: alertasPresupuesto } = useAlertasPresupuesto();
@@ -172,7 +172,7 @@ export const PendientesCard = () => {
       ))}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {

@@ -3,7 +3,7 @@
  * Maneja el estado global de gastos y su persistencia
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { Gasto, NuevoGasto, ActualizacionGasto } from '../types';
 import { cargarGastos, guardarGastos } from '../services/storage';
 import { generarId, getFechaActual } from '../utils';
@@ -85,15 +85,17 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
     await guardarGastos(nuevosGastos);
   };
 
-  const totalGastado = gastos
-    .filter(g => g.tipo === 'gasto')
-    .reduce((sum, gasto) => sum + (gasto.montoEnMonedaBase || gasto.monto), 0);
+  const totalGastado = useMemo(
+    () => gastos.filter(g => g.tipo === 'gasto').reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0),
+    [gastos]
+  );
 
-  const totalIngresos = gastos
-    .filter(g => g.tipo === 'ingreso')
-    .reduce((sum, gasto) => sum + (gasto.montoEnMonedaBase || gasto.monto), 0);
+  const totalIngresos = useMemo(
+    () => gastos.filter(g => g.tipo === 'ingreso').reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0),
+    [gastos]
+  );
 
-  const balance = totalIngresos - totalGastado;
+  const balance = useMemo(() => totalIngresos - totalGastado, [totalIngresos, totalGastado]);
 
   return (
     <GastosContext.Provider

@@ -23,7 +23,7 @@ export const SimuladorCuotas = ({ variant = 'widget' }: Props) => {
   const { obtenerTotalCuotasMensual } = useCuotas();
   const { gastos } = useGastos();
   const { monedaBase } = useMonedas();
-  const simbolo = monedaBase?.simbolo ?? simbolo;
+  const simbolo = monedaBase?.simbolo ?? 'Q';
 
   const [expandido, setExpandido] = useState(false);
   const [montoProducto, setMontoProducto] = useState('');

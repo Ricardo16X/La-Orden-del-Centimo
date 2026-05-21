@@ -7,7 +7,7 @@
  * En Fase 2, esto se integrará con notificaciones y recordatorios automáticos.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useCuotas } from '../context/CuotasContext';
 import { useTarjetas } from '../context/TarjetasContext';
 import { useGastos } from '../context/GastosContext';
@@ -19,42 +19,52 @@ export const useGeneradorCuotas = () => {
   const { agregarGasto } = useGastos();
   const { enviarNotificacionInmediata } = useNotificacionesCuotas();
 
+  // Guard de idempotencia: evita procesar la misma cuota más de una vez por día
+  // aunque el efecto se re-ejecute por cambios de estado durante el procesamiento
+  const procesadosHoy = useRef<Set<string>>(new Set());
+  const ultimaFechaEjecucion = useRef<string>('');
+
   useEffect(() => {
-    // Verificar cuotas que necesitan generar gasto
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
+    const fechaHoy = hoy.toDateString();
+
+    // Resetear el guard si es un nuevo día
+    if (ultimaFechaEjecucion.current !== fechaHoy) {
+      procesadosHoy.current.clear();
+      ultimaFechaEjecucion.current = fechaHoy;
+    }
 
     cuotas
-      .filter(cuota => cuota.estado === 'activa')
+      .filter(cuota => cuota.estado === 'activa' && !procesadosHoy.current.has(cuota.id))
       .forEach(cuota => {
         const fechaProximaCuota = new Date(cuota.fechaProximaCuota);
         fechaProximaCuota.setHours(0, 0, 0, 0);
 
-        // Si ya llegó la fecha de la próxima cuota
         if (fechaProximaCuota <= hoy) {
-          // Generar gasto automático usando categoría de la tarjeta
-          // NOTA: Cada tarjeta ahora tiene su propia categoría automática
+          // Marcar como procesada ANTES de las operaciones async para evitar doble ejecución
+          procesadosHoy.current.add(cuota.id);
+
           agregarGasto({
             monto: cuota.montoPorCuota,
             descripcion: `Cuota ${cuota.cuotasPagadas + 1}/${cuota.cantidadCuotas}: ${cuota.descripcion}`,
             categoria: obtenerCategoriaTarjeta(cuota.tarjetaId),
             tipo: 'gasto',
             tarjetaId: cuota.tarjetaId,
-            fecha: cuota.fechaProximaCuota, // fechar en la fecha de corte, no en "hoy"
+            fecha: cuota.fechaProximaCuota,
+            moneda: cuota.moneda,
           });
 
-          // Enviar notificación
           enviarNotificacionInmediata(
             '✅ Cuota registrada automáticamente',
             `Se registró la cuota ${cuota.cuotasPagadas + 1}/${cuota.cantidadCuotas} de "${cuota.descripcion}" por Q${cuota.montoPorCuota.toFixed(2)}`,
             cuota.id
           );
 
-          // Registrar que se pagó esta cuota
           registrarPagoCuota(cuota.id);
         }
       });
-  }, [cuotas]); // Se ejecuta cuando cambian las cuotas
+  }, [cuotas]);
 
   return {
     // En Fase 2, este hook podría retornar información sobre

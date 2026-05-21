@@ -138,6 +138,18 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
       })
       .reduce((sum, g) => sum + g.monto, 0);
 
+    if (presupuesto.monto <= 0) {
+      return {
+        categoriaId,
+        presupuesto: presupuesto.monto,
+        gastado,
+        porcentaje: 0,
+        excedido: false,
+        debeAlertar: false,
+        diasRestantes,
+      };
+    }
+
     const porcentaje = (gastado / presupuesto.monto) * 100;
     const excedido = gastado > presupuesto.monto;
     const debeAlertar = porcentaje >= presupuesto.alertaEn && !excedido;

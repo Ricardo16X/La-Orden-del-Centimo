@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTema } from '../src/context/TemaContext';
 import { useGastos } from '../src/context/GastosContext';
 import { useMonedas } from '../src/context/MonedasContext';
@@ -12,7 +12,7 @@ import { ModalAlertasDiarias } from '../src/components/ModalAlertasDiarias';
 import { useAlertasDiarias } from '../src/hooks/useAlertasDiarias';
 import { useGeneradorCuotas } from '../src/hooks/useGeneradorCuotas';
 
-const SaludoHeader = () => {
+const SaludoHeader = memo(() => {
   const { tema } = useTema();
   const { gastos } = useGastos();
   const { monedaBase } = useMonedas();
@@ -55,7 +55,7 @@ const SaludoHeader = () => {
       )}
     </View>
   );
-};
+});
 
 const saludoStyles = StyleSheet.create({
   container: {

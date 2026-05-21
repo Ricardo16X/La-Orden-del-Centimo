@@ -76,6 +76,10 @@ export const ListaGastos = ({ gastos, onEditar }: Props) => {
       keyExtractor={item => item.id}
       showsVerticalScrollIndicator={false}
       stickySectionHeadersEnabled={false}
+      initialNumToRender={15}
+      maxToRenderPerBatch={10}
+      windowSize={5}
+      removeClippedSubviews={true}
       renderSectionHeader={({ section }) => (
         <View style={[styles.diaHeader, { borderBottomColor: c.bordes + '60' }]}>
           <Text style={[styles.diaLabel, { color: c.textoSecundario }]}>

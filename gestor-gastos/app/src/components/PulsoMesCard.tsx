@@ -1,12 +1,12 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useBalance } from '../context/BalanceContext';
 import { useGastos } from '../context/GastosContext';
 import { useMonedas } from '../context/MonedasContext';
 import { useCuotas } from '../context/CuotasContext';
 
-export const PulsoMesCard = () => {
+export const PulsoMesCard = memo(() => {
   const { tema } = useTema();
   const c = tema.colores;
   const { resumen } = useBalance();
@@ -107,7 +107,7 @@ export const PulsoMesCard = () => {
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {
