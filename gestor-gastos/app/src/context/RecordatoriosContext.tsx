@@ -35,9 +35,9 @@ export const RecordatoriosProvider = ({ children }: { children: ReactNode }) => 
   }, []);
 
   useEffect(() => {
-    if (cargado) {
-      guardarRecordatorios(recordatorios);
-    }
+    if (!cargado) return;
+    const timer = setTimeout(() => guardarRecordatorios(recordatorios), 500);
+    return () => clearTimeout(timer);
   }, [recordatorios, cargado]);
 
   const cargarDatos = async () => {

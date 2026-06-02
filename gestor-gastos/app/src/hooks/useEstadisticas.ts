@@ -24,26 +24,30 @@ interface TendenciaMensual {
   gastos: number;
 }
 
-/**
- * Hook para calcular estadísticas de gastos
- */
 export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria[]) => {
-  // Excluir transferencias entre monedas de todas las estadísticas
   const gastos = useMemo(() => gastosOriginales.filter(g => !g.esTransferencia), [gastosOriginales]);
+
+  // Agrupación única por mes — todas las métricas mensuales parten de aquí (O(n) en lugar de O(n*12))
+  const gastosPorMes = useMemo(() => {
+    const mapa = new Map<string, Gasto[]>();
+    for (const g of gastos) {
+      const f = new Date(g.fecha);
+      const key = `${f.getFullYear()}-${f.getMonth()}`;
+      if (!mapa.has(key)) mapa.set(key, []);
+      mapa.get(key)!.push(g);
+    }
+    return mapa;
+  }, [gastos]);
 
   const gastosPorCategoria = useMemo<EstadisticasCategoria[]>(() => {
     return categorias
       .map(categoria => {
         const gastosCategoria = gastos.filter(g => g.categoria === categoria.id);
         const total = gastosCategoria.reduce((sum, g) => sum + g.monto, 0);
-        return {
-          ...categoria,
-          cantidad: gastosCategoria.length,
-          total,
-        };
+        return { ...categoria, cantidad: gastosCategoria.length, total };
       })
       .filter(c => c.cantidad > 0)
-      .sort((a, b) => b.total - a.total); // Ordenar por total descendente
+      .sort((a, b) => b.total - a.total);
   }, [gastos, categorias]);
 
   const totalGastos = useMemo(() => gastos.length, [gastos]);
@@ -59,7 +63,6 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
     return gastosPorCategoria[0];
   }, [gastosPorCategoria]);
 
-  // Resumen del mes actual vs mes anterior
   const resumenMes = useMemo<ResumenMes>(() => {
     const hoy = new Date();
     const mesActual = hoy.getMonth();
@@ -67,15 +70,8 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
     const mesAnterior = mesActual === 0 ? 11 : mesActual - 1;
     const anioMesAnterior = mesActual === 0 ? anioActual - 1 : anioActual;
 
-    const gastosMesActual = gastos.filter(g => {
-      const f = new Date(g.fecha);
-      return f.getMonth() === mesActual && f.getFullYear() === anioActual;
-    });
-
-    const gastosMesAnterior = gastos.filter(g => {
-      const f = new Date(g.fecha);
-      return f.getMonth() === mesAnterior && f.getFullYear() === anioMesAnterior;
-    });
+    const gastosMesActual = gastosPorMes.get(`${anioActual}-${mesActual}`) ?? [];
+    const gastosMesAnterior = gastosPorMes.get(`${anioMesAnterior}-${mesAnterior}`) ?? [];
 
     const ingresos = gastosMesActual
       .filter(g => g.tipo === 'ingreso')
@@ -94,56 +90,42 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
       : 0;
 
     return { ingresos, gastos: gastosTotal, ahorro, cambioVsMesAnterior };
-  }, [gastos]);
+  }, [gastosPorMes]);
 
-  // Promedio diario del mes actual vs mes anterior
   const promedioDiario = useMemo<PromedioDiario>(() => {
     const hoy = new Date();
     const mesActual = hoy.getMonth();
     const anioActual = hoy.getFullYear();
     const diasTranscurridos = hoy.getDate();
 
-    const totalActual = gastos
-      .filter(g => {
-        const f = new Date(g.fecha);
-        return f.getMonth() === mesActual && f.getFullYear() === anioActual && g.tipo === 'gasto';
-      })
+    const gastosMesActual = gastosPorMes.get(`${anioActual}-${mesActual}`) ?? [];
+    const totalActual = gastosMesActual
+      .filter(g => g.tipo === 'gasto')
       .reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0);
-
     const actual = diasTranscurridos > 0 ? totalActual / diasTranscurridos : 0;
 
     const mesAnterior = mesActual === 0 ? 11 : mesActual - 1;
     const anioMesAnterior = mesActual === 0 ? anioActual - 1 : anioActual;
     const diasMesAnterior = new Date(anioMesAnterior, mesAnterior + 1, 0).getDate();
 
-    const totalAnterior = gastos
-      .filter(g => {
-        const f = new Date(g.fecha);
-        return f.getMonth() === mesAnterior && f.getFullYear() === anioMesAnterior && g.tipo === 'gasto';
-      })
+    const gastosMesAnterior = gastosPorMes.get(`${anioMesAnterior}-${mesAnterior}`) ?? [];
+    const totalAnterior = gastosMesAnterior
+      .filter(g => g.tipo === 'gasto')
       .reduce((sum, g) => sum + (g.montoEnMonedaBase || g.monto), 0);
-
     const mesAnteriorPromedio = diasMesAnterior > 0 ? totalAnterior / diasMesAnterior : 0;
 
     return { actual, mesAnterior: mesAnteriorPromedio };
-  }, [gastos]);
+  }, [gastosPorMes]);
 
-  // Top 5 gastos más grandes del mes actual
   const topGastos = useMemo<Gasto[]>(() => {
     const hoy = new Date();
-    const mesActual = hoy.getMonth();
-    const anioActual = hoy.getFullYear();
-
-    return gastos
-      .filter(g => {
-        const f = new Date(g.fecha);
-        return g.tipo === 'gasto' && f.getMonth() === mesActual && f.getFullYear() === anioActual;
-      })
+    const gastosMesActual = gastosPorMes.get(`${hoy.getFullYear()}-${hoy.getMonth()}`) ?? [];
+    return gastosMesActual
+      .filter(g => g.tipo === 'gasto')
       .sort((a, b) => (b.montoEnMonedaBase || b.monto) - (a.montoEnMonedaBase || a.monto))
       .slice(0, 5);
-  }, [gastos]);
+  }, [gastosPorMes]);
 
-  // Tendencia de los últimos 6 meses (ingresos vs gastos)
   const tendenciaMensual = useMemo<TendenciaMensual[]>(() => {
     const hoy = new Date();
     const resultado: TendenciaMensual[] = [];
@@ -152,11 +134,7 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
       const fecha = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
       const mes = fecha.getMonth();
       const anio = fecha.getFullYear();
-
-      const gastosMes = gastos.filter(g => {
-        const f = new Date(g.fecha);
-        return f.getMonth() === mes && f.getFullYear() === anio;
-      });
+      const gastosMes = gastosPorMes.get(`${anio}-${mes}`) ?? [];
 
       const ingresos = gastosMes
         .filter(g => g.tipo === 'ingreso')
@@ -170,7 +148,7 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
     }
 
     return resultado;
-  }, [gastos]);
+  }, [gastosPorMes]);
 
   const gastoPorDiaSemana = useMemo(() => {
     const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -202,26 +180,17 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
 
   const gastosPorCategoriaMes = useMemo<EstadisticasCategoria[]>(() => {
     const hoy = new Date();
-    const mesActual = hoy.getMonth();
-    const anioActual = hoy.getFullYear();
+    const gastosMes = gastosPorMes.get(`${hoy.getFullYear()}-${hoy.getMonth()}`) ?? [];
 
     return categorias
       .map(categoria => {
-        const gastosCategoria = gastos.filter(g => {
-          const f = new Date(g.fecha);
-          return (
-            g.categoria === categoria.id &&
-            g.tipo === 'gasto' &&
-            f.getMonth() === mesActual &&
-            f.getFullYear() === anioActual
-          );
-        });
-        const total = gastosCategoria.reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0);
-        return { ...categoria, cantidad: gastosCategoria.length, total };
+        const gastosCat = gastosMes.filter(g => g.categoria === categoria.id && g.tipo === 'gasto');
+        const total = gastosCat.reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0);
+        return { ...categoria, cantidad: gastosCat.length, total };
       })
       .filter(c => c.cantidad > 0)
       .sort((a, b) => b.total - a.total);
-  }, [gastos, categorias]);
+  }, [gastosPorMes, categorias]);
 
   const comparativaPorCategoria = useMemo(() => {
     const hoy = new Date();
@@ -239,20 +208,16 @@ export const useEstadisticas = (gastosOriginales: Gasto[], categorias: Categoria
       .filter(cat => cat.id !== 'ahorro_metas')
       .map(cat => {
         const datos = meses.map(({ label, mes, anio }) => {
-          const total = gastos
-            .filter(g =>
-              g.tipo === 'gasto' &&
-              g.categoria === cat.id &&
-              new Date(g.fecha).getMonth() === mes &&
-              new Date(g.fecha).getFullYear() === anio
-            )
+          const gastosMes = gastosPorMes.get(`${anio}-${mes}`) ?? [];
+          const total = gastosMes
+            .filter(g => g.tipo === 'gasto' && g.categoria === cat.id)
             .reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0);
           return { label, total };
         });
         return { categoriaId: cat.id, nombre: cat.nombre, emoji: cat.emoji, datos };
       })
       .filter(c => c.datos.some(d => d.total > 0));
-  }, [gastos, categorias]);
+  }, [gastosPorMes, categorias]);
 
   return {
     gastosPorCategoria,

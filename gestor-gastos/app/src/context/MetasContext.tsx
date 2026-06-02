@@ -31,9 +31,9 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (cargado) {
-      guardarMetas();
-    }
+    if (!cargado) return;
+    const timer = setTimeout(() => guardarMetas(), 500);
+    return () => clearTimeout(timer);
   }, [metas, cargado]);
 
   // Actualizar estados solo una vez al cargar

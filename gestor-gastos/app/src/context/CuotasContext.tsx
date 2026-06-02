@@ -36,9 +36,9 @@ export const CuotasProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (cargado) {
-      guardarCuotas();
-    }
+    if (!cargado) return;
+    const timer = setTimeout(() => guardarCuotas(), 500);
+    return () => clearTimeout(timer);
   }, [cuotas, cargado]);
 
   const cargarCuotas = async () => {

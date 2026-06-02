@@ -1,5 +1,5 @@
 import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useCuotas } from '../context/CuotasContext';
 import { useMonedas } from '../context/MonedasContext';
@@ -18,7 +18,7 @@ interface Props {
 const CATEGORIAS_EXCLUIDAS = ['ahorro_metas', 'transferencia'];
 const CUOTAS_RAPIDAS = [3, 6, 12, 24, 36, 60];
 
-export const ModalAgregarCuota = ({ visible, onClose, tarjetaId, nombreTarjeta }: Props) => {
+export const ModalAgregarCuota = memo(({ visible, onClose, tarjetaId, nombreTarjeta }: Props) => {
   const { tema } = useTema();
   const c = tema.colores;
   const { agregarCuota } = useCuotas();
@@ -325,7 +325,7 @@ export const ModalAgregarCuota = ({ visible, onClose, tarjetaId, nombreTarjeta }
       </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   overlay: {

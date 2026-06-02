@@ -10,8 +10,6 @@ import { ResumenMetas } from '../src/components/ResumenMetas';
 import { TransaccionesRecientes } from '../src/components/TransaccionesRecientes';
 import { ModalAlertasDiarias } from '../src/components/ModalAlertasDiarias';
 import { useAlertasDiarias } from '../src/hooks/useAlertasDiarias';
-import { useGeneradorCuotas } from '../src/hooks/useGeneradorCuotas';
-
 const SaludoHeader = memo(() => {
   const { tema } = useTema();
   const { gastos } = useGastos();
@@ -81,8 +79,6 @@ const saludoStyles = StyleSheet.create({
 export default function ResumenScreen() {
   const { tema } = useTema();
   const { modalVisible, descartarAlertas } = useAlertasDiarias();
-
-  useGeneradorCuotas();
 
   return (
     <ScrollView

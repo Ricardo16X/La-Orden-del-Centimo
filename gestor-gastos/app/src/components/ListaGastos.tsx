@@ -1,5 +1,5 @@
 import { SectionList, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Gasto } from '../types';
 import { useTema } from '../context/TemaContext';
 import { useCategorias } from '../context/CategoriasContext';
@@ -45,7 +45,7 @@ const dateKey = (fechaISO: string): string => {
   return `${f.getFullYear()}-${f.getMonth()}-${f.getDate()}`;
 };
 
-export const ListaGastos = ({ gastos, onEditar }: Props) => {
+export const ListaGastos = memo(({ gastos, onEditar }: Props) => {
   const { tema } = useTema();
   const c = tema.colores;
   const { categorias } = useCategorias();
@@ -152,7 +152,7 @@ export const ListaGastos = ({ gastos, onEditar }: Props) => {
       contentContainerStyle={secciones.length === 0 ? { flex: 1 } : { paddingBottom: 100 }}
     />
   );
-};
+});
 
 const styles = StyleSheet.create({
   diaHeader: {

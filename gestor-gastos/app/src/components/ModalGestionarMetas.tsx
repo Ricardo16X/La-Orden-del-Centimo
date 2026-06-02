@@ -1,5 +1,5 @@
 import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useMetas } from '../context/MetasContext';
 import { useBalance } from '../context/BalanceContext';
@@ -14,7 +14,7 @@ interface Props {
 const ICONOS_DISPONIBLES = ['🎯', '🏖️', '🚗', '🏠', '💍', '🎓', '💻', '🎮', '📱', '✈️'];
 const COLORES_DISPONIBLES = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
-export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
+export const ModalGestionarMetas = memo(({ visible, onClose }: Props) => {
   const { tema } = useTema();
   const { metas, agregarMeta, eliminarMeta, aportarAMeta, retirarDeMeta, obtenerEstadisticasMeta } = useMetas();
   const { balance } = useBalance();
@@ -588,7 +588,7 @@ export const ModalGestionarMetas = ({ visible, onClose }: Props) => {
     </Modal>
     </>
   );
-};
+});
 
 const styles = StyleSheet.create({
   overlay: {

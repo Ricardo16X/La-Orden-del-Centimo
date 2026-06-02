@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useBalance } from '../context/BalanceContext';
 import { useMonedas } from '../context/MonedasContext';
 
-export const ResumenBalance = () => {
+export const ResumenBalance = memo(() => {
   const { tema } = useTema();
   const { resumen } = useBalance();
   const { monedaBase } = useMonedas();
@@ -124,7 +124,7 @@ export const ResumenBalance = () => {
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

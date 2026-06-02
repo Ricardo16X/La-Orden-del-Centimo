@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGastos } from '../src/context/GastosContext';
 import { useTema } from '../src/context/TemaContext';
@@ -44,27 +44,27 @@ export default function HomeScreen() {
     setTipoFiltro,
   } = useFiltrosGastos(gastos);
 
-  const handleAgregarGasto = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string, tarjetaId?: string) => {
+  const handleAgregarGasto = useCallback((monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string, tarjetaId?: string) => {
     agregarGasto({ monto, descripcion, categoria, tipo: 'gasto', moneda, nota: nota || undefined, fecha, tarjetaId });
-  };
+  }, [agregarGasto]);
 
-  const handleAgregarIngreso = (monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string) => {
+  const handleAgregarIngreso = useCallback((monto: number, descripcion: string, categoria: string, moneda?: string, nota?: string, fecha?: string) => {
     agregarGasto({ monto, descripcion, categoria, tipo: 'ingreso', moneda, nota: nota || undefined, fecha });
-  };
+  }, [agregarGasto]);
 
-  const handleEditar = (id: string, monto: number, descripcion: string, categoria: string, nota: string, fecha: string, moneda: string, tarjetaId?: string) => {
+  const handleEditar = useCallback((id: string, monto: number, descripcion: string, categoria: string, nota: string, fecha: string, moneda: string, tarjetaId?: string) => {
     editarGasto(id, { monto, descripcion, categoria, nota: nota || undefined, fecha, moneda, tarjetaId });
-  };
+  }, [editarGasto]);
 
-  const handleAbrirEditar = (gasto: Gasto) => {
+  const handleAbrirEditar = useCallback((gasto: Gasto) => {
     setGastoAEditar(gasto);
     setModalEditarVisible(true);
-  };
+  }, []);
 
-  const handleSeleccionarTipo = (tipo: 'gasto' | 'ingreso') => {
+  const handleSeleccionarTipo = useCallback((tipo: 'gasto' | 'ingreso') => {
     if (tipo === 'gasto') setModalAgregarGastoVisible(true);
     else setModalAgregarIngresoVisible(true);
-  };
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: tema.colores.fondo }]}>

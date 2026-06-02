@@ -33,9 +33,9 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (cargado) {
-      guardarPresupuestos();
-    }
+    if (!cargado) return;
+    const timer = setTimeout(() => guardarPresupuestos(), 500);
+    return () => clearTimeout(timer);
   }, [presupuestos, cargado]);
 
   const cargarPresupuestos = async () => {

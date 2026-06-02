@@ -30,9 +30,9 @@ export const TarjetasProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (cargado) {
-      guardarTarjetas();
-    }
+    if (!cargado) return;
+    const timer = setTimeout(() => guardarTarjetas(), 500);
+    return () => clearTimeout(timer);
   }, [tarjetas, cargado]);
 
   const cargarTarjetas = async () => {

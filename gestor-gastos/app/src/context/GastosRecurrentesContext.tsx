@@ -28,9 +28,9 @@ export const GastosRecurrentesProvider = ({ children }: { children: ReactNode })
   }, []);
 
   useEffect(() => {
-    if (cargado) {
-      guardarGastosRecurrentes(gastosRecurrentes);
-    }
+    if (!cargado) return;
+    const timer = setTimeout(() => guardarGastosRecurrentes(gastosRecurrentes), 500);
+    return () => clearTimeout(timer);
   }, [gastosRecurrentes, cargado]);
 
   const cargarDatos = async () => {

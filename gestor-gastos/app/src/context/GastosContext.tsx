@@ -8,6 +8,7 @@ import { Gasto, NuevoGasto, ActualizacionGasto } from '../types';
 import { cargarGastos, guardarGastos } from '../services/storage';
 import { generarId, getFechaActual } from '../utils';
 import { useMonedas } from './MonedasContext';
+import { useToast } from './ToastContext';
 
 interface GastosContextType {
   gastos: Gasto[];
@@ -27,21 +28,27 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
   const [ultimoGastoAgregado, setUltimoGastoAgregado] = useState<Gasto | null>(null);
   const [cargado, setCargado] = useState(false);
   const { monedaBase, obtenerMoneda } = useMonedas();
+  const { showToast } = useToast();
 
   useEffect(() => {
     cargarDatos();
   }, []);
 
   useEffect(() => {
-    if (cargado && gastos.length >= 0) {
-      guardarGastos(gastos);
-    }
+    if (!cargado) return;
+    const timer = setTimeout(() => guardarGastos(gastos), 500);
+    return () => clearTimeout(timer);
   }, [gastos, cargado]);
 
   const cargarDatos = async () => {
-    const gastosGuardados = await cargarGastos();
-    setGastos(gastosGuardados);
-    setCargado(true);
+    try {
+      const gastosGuardados = await cargarGastos();
+      setGastos(gastosGuardados);
+    } catch {
+      showToast('Error al cargar tus gastos. Reinicia la app.', 'error');
+    } finally {
+      setCargado(true);
+    }
   };
 
   const agregarGasto = (gasto: NuevoGasto) => {
@@ -69,20 +76,26 @@ export const GastosProvider = ({ children }: { children: ReactNode }) => {
     setUltimoGastoAgregado(nuevoGasto);
   };
 
-  const editarGasto = async (id: string, gastoActualizado: ActualizacionGasto) => {
-    const nuevosGastos = gastos.map(gasto => 
-      gasto.id === id 
-        ? { ...gasto, ...gastoActualizado }
-        : gasto
-    );
+  const editarGasto = (id: string, gastoActualizado: ActualizacionGasto) => {
+    const nuevosGastos = gastos.map(gasto => {
+      if (gasto.id !== id) return gasto;
+
+      const actualizado = { ...gasto, ...gastoActualizado };
+
+      if (gastoActualizado.monto !== undefined || gastoActualizado.moneda !== undefined) {
+        const codigoMoneda = actualizado.moneda || monedaBase?.codigo || 'GTQ';
+        const moneda = obtenerMoneda(codigoMoneda);
+        actualizado.tipoCambio = moneda?.tipoCambio ?? 1.0;
+        actualizado.montoEnMonedaBase = actualizado.monto * actualizado.tipoCambio;
+      }
+
+      return actualizado;
+    });
     setGastos(nuevosGastos);
-    await guardarGastos(nuevosGastos);
   };
 
-  const eliminarGasto = async (id: string) => {
-    const nuevosGastos = gastos.filter(gasto => gasto.id !== id);
-    setGastos(nuevosGastos);
-    await guardarGastos(nuevosGastos);
+  const eliminarGasto = (id: string) => {
+    setGastos(prev => prev.filter(gasto => gasto.id !== id));
   };
 
   const totalGastado = useMemo(

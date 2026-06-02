@@ -23,6 +23,7 @@ import { MonedasProvider } from './src/context/MonedasContext';
 import { GastosRecurrentesProvider } from './src/context/GastosRecurrentesContext';
 import { useGeneradorGastosRecurrentes } from './src/hooks/useGeneradorGastosRecurrentes';
 import { useNotificacionesGastosRecurrentes } from './src/hooks/useNotificacionesGastosRecurrentes';
+import { useGeneradorCuotas } from './src/hooks/useGeneradorCuotas';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,6 +31,7 @@ function NavigationContent() {
   const { tema } = useTema();
   useGeneradorGastosRecurrentes();
   useNotificacionesGastosRecurrentes();
+  useGeneradorCuotas();
 
   return (
     <View style={{ flex: 1, backgroundColor: tema.colores.fondo }}>

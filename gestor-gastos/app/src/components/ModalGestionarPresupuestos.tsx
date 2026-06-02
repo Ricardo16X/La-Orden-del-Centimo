@@ -1,5 +1,5 @@
 import { Modal, View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useToast } from '../context/ToastContext';
 import { useCategorias } from '../context/CategoriasContext';
@@ -17,7 +17,7 @@ const PERIODOS = [
   { id: 'anual', nombre: 'Anual', emoji: '📆' },
 ] as const;
 
-export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
+export const ModalGestionarPresupuestos = memo(({ visible, onClose }: Props) => {
   const { tema } = useTema();
   const { showToast } = useToast();
   const { categorias } = useCategorias();
@@ -433,7 +433,7 @@ export const ModalGestionarPresupuestos = ({ visible, onClose }: Props) => {
     </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   keyboardAvoid: {

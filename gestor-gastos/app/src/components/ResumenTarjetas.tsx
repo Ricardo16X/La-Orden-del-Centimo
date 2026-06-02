@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { memo } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useAlertasTarjetas } from '../hooks/useAlertasTarjetas';
 import { useCuotas } from '../context/CuotasContext';
 import { useMonedas } from '../context/MonedasContext';
 import { router } from 'expo-router';
 
-export const ResumenTarjetas = () => {
+export const ResumenTarjetas = memo(() => {
   const { tema } = useTema();
   const { alertas, tarjetasSeguras } = useAlertasTarjetas();
   const { obtenerTotalCuotasMensual } = useCuotas();
@@ -160,7 +161,7 @@ export const ResumenTarjetas = () => {
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -1,5 +1,5 @@
-import { View, Text, ScrollView, StyleSheet, Dimensions } from 'react-native';
-import { useState, useRef, startTransition } from 'react';
+import { View, Text, ScrollView, StyleSheet, Dimensions, ActivityIndicator } from 'react-native';
+import { useState, useRef, useEffect, startTransition } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useGastos } from '../context/GastosContext';
 import { useCategorias } from '../context/CategoriasContext';
@@ -82,6 +82,13 @@ export const EstadisticasScreen = () => {
   const { categorias } = useCategorias();
   const { monedaBase } = useMonedas();
   const simbolo = monedaBase?.simbolo ?? '$';
+
+  // Diferir gráficas: layout y texto aparecen primero, SVG/LineChart en el siguiente frame
+  const [mostrarGraficas, setMostrarGraficas] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMostrarGraficas(true), 150);
+    return () => clearTimeout(t);
+  }, []);
 
   const {
     gastosPorCategoriaMes,
@@ -178,7 +185,9 @@ export const EstadisticasScreen = () => {
                 </View>
               </View>
             </View>
-            <LineChart
+            {!mostrarGraficas
+              ? <ActivityIndicator style={{ marginVertical: 80 }} color={c.primario} />
+              : <LineChart
               data={{
                 labels: tendenciaMensual.map(t => t.mes),
                 datasets: [
@@ -212,12 +221,12 @@ export const EstadisticasScreen = () => {
               withShadow={false}
               withInnerLines={false}
               style={{ borderRadius: 10 }}
-            />
+            />}
           </View>
         )}
 
         {/* ── 4. Distribución del mes + historial por categoría ── */}
-        {datosPastel.length > 0 && (
+        {datosPastel.length > 0 && mostrarGraficas && (
           <DistribucionMesCard
             datosPastel={datosPastel}
             comparativaPorCategoria={comparativaPorCategoria}

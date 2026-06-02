@@ -1,5 +1,5 @@
 import { Modal, View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
-import { useState, useEffect } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { useTema } from '../context/TemaContext';
 import { useRecordatorios } from '../context/RecordatoriosContext';
 import { useNotificaciones } from '../hooks/useNotificaciones'; // Import directo para build nativo
@@ -10,7 +10,7 @@ interface Props {
   onClose: () => void;
 }
 
-export const ModalRecordatorios = ({ visible, onClose }: Props) => {
+export const ModalRecordatorios = memo(({ visible, onClose }: Props) => {
   const { tema } = useTema();
   const { recordatorios, agregarRecordatorio, editarRecordatorio, eliminarRecordatorio, toggleRecordatorio } = useRecordatorios();
   const { programarNotificacion, cancelarNotificacion, permisoConcedido } = useNotificaciones();
@@ -377,7 +377,7 @@ export const ModalRecordatorios = ({ visible, onClose }: Props) => {
     </KeyboardAvoidingView>
     </Modal>
   );
-};
+});
 
 const styles = StyleSheet.create({
   keyboardAvoid: {

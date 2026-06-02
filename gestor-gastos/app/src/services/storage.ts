@@ -12,13 +12,8 @@ import { STORAGE_KEYS } from '../utils/storage-keys';
  * @returns Array de gastos guardados
  */
 export const cargarGastos = async (): Promise<Gasto[]> => {
-  try {
-    const gastosGuardados = await AsyncStorage.getItem(STORAGE_KEYS.GASTOS);
-    return gastosGuardados ? JSON.parse(gastosGuardados) : [];
-  } catch (error) {
-    console.error('Error cargando gastos:', error);
-    return [];
-  }
+  const datos = await AsyncStorage.getItem(STORAGE_KEYS.GASTOS);
+  return datos ? JSON.parse(datos) : [];
 };
 
 /**
