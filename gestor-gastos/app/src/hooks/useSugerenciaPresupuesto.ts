@@ -85,7 +85,13 @@ export const useSugerenciaPresupuesto = (): ResultadoSugerencia => {
       return f.getMonth() === mesPasado && f.getFullYear() === anioPasado;
     });
 
-    const transacciones = gastosDelMes.filter(g => g.tipo === 'gasto' && idsCategorias.has(g.categoria));
+    // Gastos del mes sin transferencias, recurrentes ni cuotas para aislar el gasto variable puro
+    const transacciones = gastosDelMes.filter(g => 
+      g.tipo === 'gasto' && 
+      idsCategorias.has(g.categoria) &&
+      !g.descripcion.toLowerCase().includes('(recurrente)') &&
+      !g.descripcion.toLowerCase().includes('cuota')
+    );
     const totalTransacciones = transacciones.length;
     const suficientesDatos = totalTransacciones >= MIN_TRANSACCIONES;
 
@@ -114,7 +120,7 @@ export const useSugerenciaPresupuesto = (): ResultadoSugerencia => {
 
     const disponible = Math.max(0, ingresosMes - ahorroMetas - totalRecurrentes);
 
-    // Gastos históricos por categoría real (en moneda base)
+    // Gastos históricos VARIABLES por categoría real (en moneda base)
     const porCategoria: Record<string, number> = {};
     transacciones.forEach(g => {
       const monto = g.montoEnMonedaBase ?? g.monto;
@@ -123,22 +129,46 @@ export const useSugerenciaPresupuesto = (): ResultadoSugerencia => {
 
     const totalGastado = Object.values(porCategoria).reduce((sum, v) => sum + v, 0);
 
-    const sugerencias: SugerenciaCategoria[] = Object.entries(porCategoria)
-      .map(([categoriaId, montoHistorico]) => ({
-        categoriaId,
-        montoHistorico,
-        proporcion: totalGastado > 0 ? montoHistorico / totalGastado : 0,
-        montoSugerido: totalGastado > 0
+    const sugerencias: SugerenciaCategoria[] = categorias
+      .map(categoria => {
+        const categoriaId = categoria.id;
+        const montoHistorico = porCategoria[categoriaId] ?? 0;
+
+        // Proporción variable
+        const proporcion = totalGastado > 0 ? montoHistorico / totalGastado : 0;
+        const montoSugeridoVariable = totalGastado > 0
           ? Math.round((montoHistorico / totalGastado) * disponible)
-          : 0,
-        tienePresupuesto: idsConPresupuesto.has(categoriaId),
-      }))
-      // Ordenar: primero las que ya tienen presupuesto, luego por monto histórico
+          : 0;
+
+        // Calcular recurrentes activos mensuales de esta categoría
+        const recurrentesDeCategoria = gastosRecurrentes
+          .filter(gr => gr.activo && gr.categoriaId === categoriaId)
+          .reduce((sum, gr) => {
+            const montoBase = convertirAMonedaBase(gr.monto, gr.moneda);
+            if (gr.frecuencia === 'mensual') return sum + montoBase;
+            if (gr.frecuencia === 'semanal') return sum + montoBase * 52 / 12;
+            if (gr.frecuencia === 'diario') return sum + montoBase * 30;
+            return sum;
+          }, 0);
+
+        // El presupuesto sugerido final es la suma de la parte variable asignada más los gastos fijos recurrentes de esa categoría
+        const montoSugerido = montoSugeridoVariable + recurrentesDeCategoria;
+
+        return {
+          categoriaId,
+          montoHistorico,
+          proporcion,
+          montoSugerido,
+          tienePresupuesto: idsConPresupuesto.has(categoriaId),
+        };
+      })
+      .filter(s => s.montoSugerido > 0)
+      // Ordenar: primero las que ya tienen presupuesto, luego por el monto final sugerido de mayor a menor
       .sort((a, b) => {
         if (a.tienePresupuesto !== b.tienePresupuesto) {
           return a.tienePresupuesto ? -1 : 1;
         }
-        return b.montoHistorico - a.montoHistorico;
+        return b.montoSugerido - a.montoSugerido;
       });
 
     return {

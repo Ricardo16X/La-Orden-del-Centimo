@@ -26,7 +26,7 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
   const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
   const [cargado, setCargado] = useState(false);
   const { gastos } = useGastos();
-  const { monedaBase } = useMonedas();
+  const { monedaBase, obtenerMoneda } = useMonedas();
 
   useEffect(() => {
     cargarPresupuestos();
@@ -126,17 +126,25 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
     const monedaBase_ = monedaBase?.codigo || 'GTQ';
     const monedaPresupuesto = presupuesto.monedaId || monedaBase_;
 
-    // Calcular total gastado en la categoría en el período (filtrando por moneda)
+    // Obtener el tipo de cambio de la moneda del presupuesto para conversión dinámica
+    const monedaPresupuestoInfo = obtenerMoneda(monedaPresupuesto);
+    const tipoCambioPresupuesto = monedaPresupuestoInfo?.tipoCambio || 1.0;
+
+    // Calcular total gastado en la categoría en el período (con conversión de moneda)
     const gastado = gastos
       .filter(g => {
-        // Normalizar moneda del gasto (gastos antiguos pueden no tener el campo)
-        const monedaGasto = g.moneda || monedaBase_;
-        if (g.tipo !== 'gasto' || g.categoria !== categoriaId || monedaGasto !== monedaPresupuesto) return false;
+        if (g.tipo !== 'gasto' || g.categoria !== categoriaId) return false;
 
         const fechaGasto = new Date(g.fecha);
         return fechaGasto >= fechaInicio && fechaGasto <= ahora;
       })
-      .reduce((sum, g) => sum + g.monto, 0);
+      .reduce((sum, g) => {
+        // Usar el monto en moneda base
+        const montoBase = g.montoEnMonedaBase ?? g.monto;
+        // Convertir de moneda base a la moneda del presupuesto
+        const montoEnMonedaPresupuesto = montoBase / tipoCambioPresupuesto;
+        return sum + montoEnMonedaPresupuesto;
+      }, 0);
 
     if (presupuesto.monto <= 0) {
       return {
