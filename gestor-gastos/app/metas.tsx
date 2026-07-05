@@ -322,23 +322,33 @@ export default function MetasScreen() {
           )}
 
           {/* Botones */}
-          {meta.estado === 'en_progreso' && (
+          {(meta.estado === 'en_progreso' || (meta.estado === 'completada' && meta.montoActual > 0)) && (
             <View style={styles.botonesRow}>
-              <BotonAnimado
-                style={[styles.btnAportar, { backgroundColor: meta.color }]}
-                onPress={() => abrirAporte(meta.id)}
-              >
-                <Text style={styles.btnAportarTexto}>💰 Aportar</Text>
-              </BotonAnimado>
-              <TouchableOpacity
-                style={[styles.btnRetirar, { borderColor: c.bordes }]}
-                onPress={() => abrirAporte(meta.id, true)}
-                disabled={meta.montoActual === 0}
-              >
-                <Text style={[styles.btnRetirarTexto, { color: meta.montoActual > 0 ? c.texto : c.textoSecundario }]}>
-                  ↩ Retirar
-                </Text>
-              </TouchableOpacity>
+              {(meta.estado === 'en_progreso' || (meta.estado === 'completada' && meta.montoActual < meta.montoObjetivo)) && (
+                <BotonAnimado
+                  style={[styles.btnAportar, { backgroundColor: meta.color }]}
+                  onPress={() => abrirAporte(meta.id)}
+                >
+                  <Text style={styles.btnAportarTexto}>💰 Aportar</Text>
+                </BotonAnimado>
+              )}
+              {meta.montoActual > 0 && (
+                <TouchableOpacity
+                  style={[
+                    styles.btnRetirar,
+                    { borderColor: meta.color },
+                    meta.estado === 'completada' && { backgroundColor: `${meta.color}15` }
+                  ]}
+                  onPress={() => abrirAporte(meta.id, true)}
+                >
+                  <Text style={[
+                    styles.btnRetirarTexto,
+                    { color: meta.estado === 'completada' ? meta.color : c.texto }
+                  ]}>
+                    ↩ Retirar
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>

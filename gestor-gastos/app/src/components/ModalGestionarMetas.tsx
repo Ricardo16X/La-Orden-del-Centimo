@@ -259,14 +259,16 @@ export const ModalGestionarMetas = memo(({ visible, onClose }: Props) => {
                           )}
 
                           <View style={styles.metaAcciones}>
-                            {meta.estado === 'en_progreso' && (
+                            {(meta.estado === 'en_progreso' || (meta.estado === 'completada' && meta.montoActual > 0)) && (
                               <>
-                                <TouchableOpacity
-                                  style={[styles.botonAportar, { backgroundColor: meta.color }]}
-                                  onPress={() => handleAportar(meta.id)}
-                                >
-                                  <Text style={styles.botonTexto}>💰 Aportar</Text>
-                                </TouchableOpacity>
+                                {(meta.estado === 'en_progreso' || (meta.estado === 'completada' && meta.montoActual < meta.montoObjetivo)) && (
+                                  <TouchableOpacity
+                                    style={[styles.botonAportar, { backgroundColor: meta.color }]}
+                                    onPress={() => handleAportar(meta.id)}
+                                  >
+                                    <Text style={styles.botonTexto}>💰 Aportar</Text>
+                                  </TouchableOpacity>
+                                )}
                                 {meta.montoActual > 0 && (
                                   <TouchableOpacity
                                     style={[styles.botonRetirar, {

@@ -94,7 +94,7 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
       return { exito: false, mensaje: 'Meta no encontrada' };
     }
 
-    if (meta.estado === 'completada') {
+    if (meta.estado === 'completada' && meta.montoActual >= meta.montoObjetivo) {
       return { exito: false, mensaje: 'Esta meta ya está completada' };
     }
 
@@ -144,7 +144,7 @@ export const MetasProvider = ({ children }: { children: ReactNode }) => {
         return {
           ...m,
           montoActual: nuevoMontoActual,
-          estado: 'en_progreso' as EstadoMeta, // Vuelve a en_progreso si se retira
+          estado: m.estado === 'completada' ? 'completada' : 'en_progreso',
         };
       })
     );
