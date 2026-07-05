@@ -258,7 +258,6 @@ function obtenerTrigger(
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour: horas,
         minute: minutos,
-        repeats: true,
       };
 
     case 'semanal':
@@ -267,7 +266,6 @@ function obtenerTrigger(
         weekday: diaSemana || 2, // Por defecto Lunes (1=Dom, 2=Lun, ..., 7=Sáb)
         hour: horas,
         minute: minutos,
-        repeats: true,
       };
 
     default:
@@ -275,7 +273,6 @@ function obtenerTrigger(
         type: Notifications.SchedulableTriggerInputTypes.DAILY,
         hour: horas,
         minute: minutos,
-        repeats: true,
       };
   }
 }

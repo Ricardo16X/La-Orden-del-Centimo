@@ -55,7 +55,7 @@ export const ModalBase = ({
               styles.modal,
               {
                 backgroundColor: tema.colores.fondo,
-                maxHeight: finalMaxHeight,
+                maxHeight: finalMaxHeight as any,
               },
               position === 'bottom' ? styles.modalBottom : styles.modalCenter,
             ]}

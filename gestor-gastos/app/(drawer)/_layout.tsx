@@ -88,6 +88,11 @@ export default function DrawerLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: tema.colores.fondo }}>
       <Drawer
         drawerContent={(props) => <CustomDrawerContent {...props} />}
+        {...{
+          sceneContainerStyle: {
+            backgroundColor: tema.colores.fondo,
+          }
+        } as any}
         screenOptions={{
           headerShown: true,
           headerStyle: {
@@ -103,9 +108,6 @@ export default function DrawerLayout() {
           },
           drawerActiveTintColor: tema.colores.primario,
           drawerInactiveTintColor: tema.colores.texto,
-          sceneContainerStyle: {
-            backgroundColor: tema.colores.fondo,
-          },
         }}
       >
         <Drawer.Screen

@@ -17,7 +17,7 @@ const STORAGE_KEY_IDS = '@notif_tarjetas_ids';
 
 /** Detecta si una notificación pendiente fue programada por este hook,
  *  tanto con el tag data.source moderno como con el patrón de título legado. */
-const esNotifTarjeta = (n: Notifications.ScheduledNotification): boolean => {
+const esNotifTarjeta = (n: Notifications.NotificationRequest): boolean => {
   const data = n.content.data as Record<string, unknown> | null | undefined;
   if (data?.source === 'tarjeta_pago') return true;
   const titulo = n.content.title ?? '';
