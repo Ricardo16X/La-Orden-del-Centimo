@@ -24,6 +24,7 @@ import { GastosRecurrentesProvider } from './src/context/GastosRecurrentesContex
 import { useGeneradorGastosRecurrentes } from './src/hooks/useGeneradorGastosRecurrentes';
 import { useNotificacionesGastosRecurrentes } from './src/hooks/useNotificacionesGastosRecurrentes';
 import { useGeneradorCuotas } from './src/hooks/useGeneradorCuotas';
+import { ActualizadorApp } from './src/components/ActualizadorApp';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -94,6 +95,7 @@ function NavigationContent() {
         }} />
         <Stack.Screen name="+not-found" />
       </Stack>
+      <ActualizadorApp />
       <StatusBar style="auto" />
     </View>
   );
