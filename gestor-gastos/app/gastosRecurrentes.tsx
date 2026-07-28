@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, Alert, Modal } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useState } from 'react';
 import { useTema } from './src/context/TemaContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
