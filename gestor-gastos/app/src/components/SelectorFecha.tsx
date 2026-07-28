@@ -16,6 +16,9 @@ const MESES_CORTO = [
   'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
   'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
 ];
+const DIAS_SEMANA = [
+  'Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado',
+];
 
 interface Props {
   fecha: string;       // ISO string
@@ -140,9 +143,14 @@ export const SelectorFecha = ({ fecha, onChange }: Props) => {
               <TouchableOpacity onPress={irDiaAnterior} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Text style={[styles.flecha, { color: tema.colores.primario }]}>‹</Text>
               </TouchableOpacity>
-              <Text style={[styles.diaLabel, { color: tema.colores.texto }]}>
-                {fechaDate.getDate()} de {MESES[fechaDate.getMonth()].toLowerCase()}
-              </Text>
+              <View style={styles.diaLabelContenedor}>
+                <Text style={[styles.diaSemanaLabel, { color: tema.colores.textoSecundario }]}>
+                  {DIAS_SEMANA[fechaDate.getDay()]}
+                </Text>
+                <Text style={[styles.diaLabel, { color: tema.colores.texto }]}>
+                  {fechaDate.getDate()} de {MESES[fechaDate.getMonth()].toLowerCase()}
+                </Text>
+              </View>
               <TouchableOpacity
                 onPress={irDiaSiguiente}
                 disabled={!esDiaSiguienteDisponible()}
@@ -230,6 +238,16 @@ const styles = StyleSheet.create({
   mesLabel: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  diaLabelContenedor: {
+    alignItems: 'center',
+  },
+  diaSemanaLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   diaLabel: {
     fontSize: 22,

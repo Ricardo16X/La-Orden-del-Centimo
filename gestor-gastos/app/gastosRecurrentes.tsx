@@ -1,21 +1,27 @@
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, TextInput, Switch, KeyboardAvoidingView, Platform, Alert, Modal } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { useState } from 'react';
 import { useTema } from './src/context/TemaContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
 import { BotonAnimado } from './src/components/BotonAnimado';
 import { MenuContextual } from './src/components/MenuContextual';
 import { useGastosRecurrentes } from './src/context/GastosRecurrentesContext';
+import { useGastos } from './src/context/GastosContext';
 import { useCategorias } from './src/context/CategoriasContext';
 import { useMonedas } from './src/context/MonedasContext';
 import { useTarjetas } from './src/context/TarjetasContext';
+import { useToast } from './src/context/ToastContext';
 import { GastoRecurrente, FrecuenciaGastoRecurrente } from './src/types';
+import { calcularSiguienteFecha } from './src/utils/recurrentes';
 
 export default function GastosRecurrentesScreen() {
   const { tema } = useTema();
-  const { gastosRecurrentes, agregarGastoRecurrente, editarGastoRecurrente, eliminarGastoRecurrente, toggleGastoRecurrente } = useGastosRecurrentes();
+  const { gastosRecurrentes, agregarGastoRecurrente, editarGastoRecurrente, eliminarGastoRecurrente, toggleGastoRecurrente, actualizarProximaFecha } = useGastosRecurrentes();
+  const { agregarGasto } = useGastos();
   const { categorias } = useCategorias();
   const { monedas, monedaBase, convertirAMonedaBase } = useMonedas();
   const { tarjetas } = useTarjetas();
+  const { showToast } = useToast();
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [descripcion, setDescripcion] = useState('');
@@ -142,6 +148,24 @@ export default function GastosRecurrentesScreen() {
         { text: 'Eliminar', style: 'destructive', onPress: () => eliminarGastoRecurrente(gr.id) },
       ]
     );
+  };
+
+  const handleOmitir = (gr: GastoRecurrente) => {
+    actualizarProximaFecha(gr.id, calcularSiguienteFecha(gr));
+    showToast(`"${gr.descripcion}" se omitió este mes`, 'info');
+  };
+
+  const handleAdelantar = (gr: GastoRecurrente) => {
+    agregarGasto({
+      monto: gr.monto,
+      descripcion: `${gr.descripcion} (recurrente)`,
+      categoria: gr.categoriaId,
+      tipo: 'gasto',
+      moneda: gr.moneda,
+      ...(gr.tarjetaId && { tarjetaId: gr.tarjetaId }),
+    });
+    actualizarProximaFecha(gr.id, calcularSiguienteFecha(gr));
+    showToast(`"${gr.descripcion}" se registró hoy`);
   };
 
   const obtenerEtiquetaFrecuencia = (freq: FrecuenciaGastoRecurrente): string => {
@@ -275,8 +299,9 @@ export default function GastosRecurrentesScreen() {
                     ? `Mensual · Día ${gr.diaMes}`
                     : 'Diario';
               const etiqFecha = obtenerEtiquetaProximaFecha(gr.proximaFecha);
+              const swipeHabilitado = gr.frecuencia === 'mensual' && gr.activo;
 
-              return (
+              const tarjetaCard = (
                 <View
                   key={gr.id}
                   style={[styles.card, {
@@ -324,6 +349,38 @@ export default function GastosRecurrentesScreen() {
                     </View>
                   </View>
                 </View>
+              );
+
+              if (!swipeHabilitado) {
+                return tarjetaCard;
+              }
+
+              return (
+                <Swipeable
+                  key={gr.id}
+                  overshootRight={false}
+                  rightThreshold={40}
+                  renderRightActions={(_progress, _drag, swipeable) => (
+                    <View style={styles.accionesSwipe}>
+                      <TouchableOpacity
+                        style={[styles.accionSwipe, { backgroundColor: '#f59e0b' }]}
+                        onPress={() => { swipeable.close(); handleOmitir(gr); }}
+                      >
+                        <Text style={styles.accionSwipeEmoji}>⏭️</Text>
+                        <Text style={styles.accionSwipeTexto}>Omitir</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.accionSwipe, { backgroundColor: '#10b981' }]}
+                        onPress={() => { swipeable.close(); handleAdelantar(gr); }}
+                      >
+                        <Text style={styles.accionSwipeEmoji}>⏩</Text>
+                        <Text style={styles.accionSwipeTexto}>Pagar ahora</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                >
+                  {tarjetaCard}
+                </Swipeable>
               );
             })}
           </View>
@@ -731,6 +788,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 14,
     marginLeft: 10,
+  },
+  accionesSwipe: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    marginLeft: 8,
+    gap: 6,
+  },
+  accionSwipe: {
+    width: 76,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  accionSwipeEmoji: {
+    fontSize: 18,
+  },
+  accionSwipeTexto: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
   },
   fab: {
     position: 'absolute',
