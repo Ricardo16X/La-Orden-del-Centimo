@@ -1,5 +1,4 @@
 import { Drawer } from 'expo-router/drawer';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useTema } from '../src/context/TemaContext';
 import { DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
 import { View, Text, StyleSheet } from 'react-native';
@@ -85,7 +84,7 @@ export default function DrawerLayout() {
   useNotificacionesTarjetas();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: tema.colores.fondo }}>
+    <View style={{ flex: 1, backgroundColor: tema.colores.fondo }}>
       <Drawer
         drawerContent={(props) => <CustomDrawerContent {...props} />}
         {...{
@@ -143,7 +142,7 @@ export default function DrawerLayout() {
           }}
         />
       </Drawer>
-    </GestureHandlerRootView>
+    </View>
   );
 }
 

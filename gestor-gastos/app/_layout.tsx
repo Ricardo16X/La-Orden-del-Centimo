@@ -6,7 +6,7 @@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { ToastProvider } from './src/context/ToastContext';
@@ -35,7 +35,7 @@ function NavigationContent() {
   useGeneradorCuotas();
 
   return (
-    <View style={{ flex: 1, backgroundColor: tema.colores.fondo }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: tema.colores.fondo }}>
       <Stack
         screenOptions={{
           headerShown: false,
@@ -97,7 +97,7 @@ function NavigationContent() {
       </Stack>
       <ActualizadorApp />
       <StatusBar style="auto" />
-    </View>
+    </GestureHandlerRootView>
   );
 }
 
