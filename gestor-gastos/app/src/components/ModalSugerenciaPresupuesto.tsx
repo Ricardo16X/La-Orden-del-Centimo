@@ -53,9 +53,9 @@ export const ModalSugerenciaPresupuesto = ({ visible, onClose }: Props) => {
 
     sugerenciasValidas.forEach(s => {
       const monto = parseFloat(montosEditados[s.categoriaId]);
-      const existente = obtenerPresupuestoPorCategoria(s.categoriaId);
+      const existente = obtenerPresupuestoPorCategoria(s.categoriaId, 'mensual');
 
-      if (existente && existente.periodo === 'mensual') {
+      if (existente) {
         editarPresupuesto(existente.id, { monto });
       } else {
         agregarPresupuesto({
@@ -96,7 +96,7 @@ export const ModalSugerenciaPresupuesto = ({ visible, onClose }: Props) => {
           </View>
 
           <Text style={[styles.subtituloMes, { color: tema.colores.textoSecundario }]}>
-            Para {resultado.mesSugeridoLabel} · basado en {resultado.mesAnalizadoLabel}
+            Para {resultado.mesSugeridoLabel} · promedio de {resultado.mesAnalizadoLabel}
           </Text>
 
           {/* Advertencia de datos insuficientes */}
@@ -105,7 +105,7 @@ export const ModalSugerenciaPresupuesto = ({ visible, onClose }: Props) => {
               <Text style={[styles.advertenciaTexto, { color: '#f59e0b' }]}>
                 ⚠️{' '}
                 {resultado.totalTransacciones === 0
-                  ? `No hay gastos registrados en ${resultado.mesAnalizadoLabel}. Ingresa al menos ${resultado.minTransacciones} transacciones en un mes para recibir una sugerencia personalizada.`
+                  ? `No hay gastos registrados en ${resultado.mesAnalizadoLabel}. Ingresa al menos ${resultado.minTransacciones} transacciones en ese período para recibir una sugerencia personalizada.`
                   : `Solo tienes ${resultado.totalTransacciones} transacción${resultado.totalTransacciones > 1 ? 'es' : ''} en ${resultado.mesAnalizadoLabel}. Se recomiendan al menos ${resultado.minTransacciones} para una mejor sugerencia.`
                 }
               </Text>
@@ -116,11 +116,11 @@ export const ModalSugerenciaPresupuesto = ({ visible, onClose }: Props) => {
 
             {/* Resumen financiero — solo mostrar si hay ingresos registrados */}
             {resultado.ingresosMes > 0 && <View style={[styles.resumenCard, { backgroundColor: tema.colores.fondoSecundario, borderColor: tema.colores.bordes }]}>
-              <Text style={[styles.resumenTitulo, { color: tema.colores.texto }]}>Resumen del mes</Text>
+              <Text style={[styles.resumenTitulo, { color: tema.colores.texto }]}>Resumen promedio mensual</Text>
 
               <View style={styles.resumenFila}>
                 <Text style={[styles.resumenLabel, { color: tema.colores.textoSecundario }]}>
-                  💰 Ingresos ({resultado.mesAnalizadoLabel})
+                  💰 Ingresos promedio ({resultado.mesAnalizadoLabel})
                 </Text>
                 <Text style={[styles.resumenValor, { color: tema.colores.texto }]}>
                   {resultado.monedaBaseSimbolo}{resultado.ingresosMes.toFixed(2)}
@@ -200,7 +200,7 @@ export const ModalSugerenciaPresupuesto = ({ visible, onClose }: Props) => {
                             }
                           </View>
                           <Text style={[styles.categoriaHistorico, { color: tema.colores.textoSecundario }]}>
-                            Histórico: {resultado.monedaBaseSimbolo}{s.montoHistorico.toFixed(0)} · {Math.round(s.proporcion * 100)}%
+                            Promedio: {resultado.monedaBaseSimbolo}{s.montoHistorico.toFixed(0)}/mes · {Math.round(s.proporcion * 100)}%
                           </Text>
                         </View>
                       </View>

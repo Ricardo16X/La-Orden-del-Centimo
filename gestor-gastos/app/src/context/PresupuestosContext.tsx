@@ -16,7 +16,7 @@ interface PresupuestosContextType {
   agregarPresupuesto: (presupuesto: NuevoPresupuesto) => void;
   editarPresupuesto: (id: string, presupuestoActualizado: Partial<Omit<Presupuesto, 'id'>>) => void;
   eliminarPresupuesto: (id: string) => void;
-  obtenerPresupuestoPorCategoria: (categoriaId: string) => Presupuesto | undefined;
+  obtenerPresupuestoPorCategoria: (categoriaId: string, periodo?: 'semanal' | 'mensual' | 'anual') => Presupuesto | undefined;
   obtenerEstadisticasPresupuesto: (categoriaId: string, periodo: 'semanal' | 'mensual' | 'anual') => EstadisticasPresupuesto | null;
 }
 
@@ -37,6 +37,23 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
     const timer = setTimeout(() => guardarPresupuestos(), 500);
     return () => clearTimeout(timer);
   }, [presupuestos, cargado]);
+
+  // Repara duplicados por categoria+periodo dejados por el bug de "Sugerir presupuesto",
+  // que agregaba un presupuesto nuevo en vez de actualizar el existente. Conserva el mas reciente.
+  useEffect(() => {
+    if (!cargado) return;
+    setPresupuestos(prev => {
+      const vistos = new Set<string>();
+      const sinDuplicados: Presupuesto[] = [];
+      for (let i = prev.length - 1; i >= 0; i--) {
+        const clave = `${prev[i].categoriaId}-${prev[i].periodo}`;
+        if (vistos.has(clave)) continue;
+        vistos.add(clave);
+        sinDuplicados.unshift(prev[i]);
+      }
+      return sinDuplicados.length === prev.length ? prev : sinDuplicados;
+    });
+  }, [cargado]);
 
   const cargarPresupuestos = async () => {
     try {
@@ -77,8 +94,11 @@ export const PresupuestosProvider = ({ children }: { children: ReactNode }) => {
     setPresupuestos(prev => prev.filter(p => p.id !== id));
   };
 
-  const obtenerPresupuestoPorCategoria = (categoriaId: string): Presupuesto | undefined => {
-    return presupuestos.find(p => p.categoriaId === categoriaId);
+  const obtenerPresupuestoPorCategoria = (
+    categoriaId: string,
+    periodo?: 'semanal' | 'mensual' | 'anual'
+  ): Presupuesto | undefined => {
+    return presupuestos.find(p => p.categoriaId === categoriaId && (!periodo || p.periodo === periodo));
   };
 
   const obtenerEstadisticasPresupuesto = (

@@ -24,6 +24,7 @@ import { GastosRecurrentesProvider } from './src/context/GastosRecurrentesContex
 import { useGeneradorGastosRecurrentes } from './src/hooks/useGeneradorGastosRecurrentes';
 import { useNotificacionesGastosRecurrentes } from './src/hooks/useNotificacionesGastosRecurrentes';
 import { useGeneradorCuotas } from './src/hooks/useGeneradorCuotas';
+import { useNotificacionesPresupuesto } from './src/hooks/useNotificacionesPresupuesto';
 import { ActualizadorApp } from './src/components/ActualizadorApp';
 
 SplashScreen.preventAutoHideAsync();
@@ -33,6 +34,7 @@ function NavigationContent() {
   useGeneradorGastosRecurrentes();
   useNotificacionesGastosRecurrentes();
   useGeneradorCuotas();
+  useNotificacionesPresupuesto();
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: tema.colores.fondo }}>

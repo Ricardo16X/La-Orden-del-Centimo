@@ -1,8 +1,9 @@
 /**
  * Hook para generar sugerencias de presupuesto dinámico
- * Analiza el mes anterior y propone montos basados en:
+ * Analiza el promedio de los últimos meses (no solo el mes pasado, para no
+ * heredar la distorsión de un mes atípico) y propone montos basados en:
  * - Proporciones históricas de gasto por categoría (solo categorías reales)
- * - Ingresos del mes anterior
+ * - Ingresos promedio mensual del período analizado
  * - Ahorro requerido mensual de metas activas
  *
  * Prioridad: categorías con presupuesto ya configurado primero,
@@ -17,7 +18,8 @@ import { useCategorias } from '../context/CategoriasContext';
 import { usePresupuestos } from '../context/PresupuestosContext';
 import { useGastosRecurrentes } from '../context/GastosRecurrentesContext';
 
-const MIN_TRANSACCIONES = 5;
+const MESES_ANALIZAR = 3;
+const MIN_TRANSACCIONES_POR_MES = 5;
 
 // Categorías internas que nunca deben aparecer como sugerencia de presupuesto
 const CATEGORIAS_EXCLUIDAS = ['ahorro_metas'];
@@ -60,14 +62,22 @@ export const useSugerenciaPresupuesto = (): ResultadoSugerencia => {
 
   return useMemo(() => {
     const hoy = new Date();
-    const mesPasado = hoy.getMonth() === 0 ? 11 : hoy.getMonth() - 1;
-    const anioPasado = hoy.getMonth() === 0 ? hoy.getFullYear() - 1 : hoy.getFullYear();
 
     const monedaBaseId = monedaBase?.codigo || '';
     const monedaBaseSimbolo = monedaBase?.simbolo || '$';
-
-    const mesAnalizadoLabel = `${NOMBRES_MES[mesPasado]} ${anioPasado}`;
     const mesSugeridoLabel = `${NOMBRES_MES[hoy.getMonth()]} ${hoy.getFullYear()}`;
+
+    // Ventana de los últimos N meses completos anteriores al actual (el mes en curso
+    // queda excluido por estar incompleto y distorsionar el promedio)
+    const ventanaMeses = Array.from({ length: MESES_ANALIZAR }, (_, i) => {
+      const fecha = new Date(hoy.getFullYear(), hoy.getMonth() - (i + 1), 1);
+      return { mes: fecha.getMonth(), anio: fecha.getFullYear() };
+    });
+    const masAntiguo = ventanaMeses[ventanaMeses.length - 1];
+    const masReciente = ventanaMeses[0];
+    const mesAnalizadoLabel = masAntiguo.anio === masReciente.anio
+      ? `${NOMBRES_MES[masAntiguo.mes]}–${NOMBRES_MES[masReciente.mes]} ${masReciente.anio}`
+      : `${NOMBRES_MES[masAntiguo.mes]} ${masAntiguo.anio} – ${NOMBRES_MES[masReciente.mes]} ${masReciente.anio}`;
 
     // IDs de categorías reales (las que existen en el catálogo del usuario)
     const idsCategorias = new Set(categorias.map(c => c.id));
@@ -76,29 +86,39 @@ export const useSugerenciaPresupuesto = (): ResultadoSugerencia => {
       presupuestos.filter(p => p.periodo === 'mensual').map(p => p.categoriaId)
     );
 
-    // Gastos del mes anterior: sin transferencias, sin categorías excluidas,
+    // Gastos de la ventana analizada: sin transferencias, sin categorías excluidas,
     // solo categorías que existen actualmente en el catálogo
-    const gastosDelMes = gastos.filter(g => {
+    const gastosDelPeriodo = gastos.filter(g => {
       if (g.esTransferencia) return false;
       if (CATEGORIAS_EXCLUIDAS.includes(g.categoria)) return false;
       const f = new Date(g.fecha);
-      return f.getMonth() === mesPasado && f.getFullYear() === anioPasado;
+      return ventanaMeses.some(v => f.getMonth() === v.mes && f.getFullYear() === v.anio);
     });
 
-    // Gastos del mes sin transferencias, recurrentes ni cuotas para aislar el gasto variable puro
-    const transacciones = gastosDelMes.filter(g => 
-      g.tipo === 'gasto' && 
+    // Cuántos meses de la ventana tienen al menos un movimiento real (evita diluir
+    // el promedio con meses previos a que el usuario empezara a usar la app)
+    const mesesConDatos = new Set(
+      gastosDelPeriodo.map(g => {
+        const f = new Date(g.fecha);
+        return `${f.getFullYear()}-${f.getMonth()}`;
+      })
+    ).size || 1;
+
+    // Gastos sin transferencias, recurrentes ni cuotas para aislar el gasto variable puro
+    const transacciones = gastosDelPeriodo.filter(g =>
+      g.tipo === 'gasto' &&
       idsCategorias.has(g.categoria) &&
       !g.descripcion.toLowerCase().includes('(recurrente)') &&
       !g.descripcion.toLowerCase().includes('cuota')
     );
     const totalTransacciones = transacciones.length;
-    const suficientesDatos = totalTransacciones >= MIN_TRANSACCIONES;
+    const minTransacciones = MIN_TRANSACCIONES_POR_MES * mesesConDatos;
+    const suficientesDatos = totalTransacciones >= minTransacciones;
 
-    // Ingresos del mes anterior en moneda base
-    const ingresosMes = gastosDelMes
+    // Ingresos promedio mensual del período, en moneda base
+    const ingresosMes = gastosDelPeriodo
       .filter(g => g.tipo === 'ingreso')
-      .reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0);
+      .reduce((sum, g) => sum + (g.montoEnMonedaBase ?? g.monto), 0) / mesesConDatos;
 
     // Ahorro requerido mensual de metas activas
     const metasActivas = metas.filter(m => m.estado === 'en_progreso');
@@ -132,12 +152,14 @@ export const useSugerenciaPresupuesto = (): ResultadoSugerencia => {
     const sugerencias: SugerenciaCategoria[] = categorias
       .map(categoria => {
         const categoriaId = categoria.id;
-        const montoHistorico = porCategoria[categoriaId] ?? 0;
+        const montoHistoricoTotal = porCategoria[categoriaId] ?? 0;
+        // Promedio mensual para mostrar (la proporción, en cambio, usa el total de la
+        // ventana ya que el promedio se cancela igual entre numerador y denominador)
+        const montoHistorico = montoHistoricoTotal / mesesConDatos;
 
-        // Proporción variable
-        const proporcion = totalGastado > 0 ? montoHistorico / totalGastado : 0;
+        const proporcion = totalGastado > 0 ? montoHistoricoTotal / totalGastado : 0;
         const montoSugeridoVariable = totalGastado > 0
-          ? Math.round((montoHistorico / totalGastado) * disponible)
+          ? Math.round(proporcion * disponible)
           : 0;
 
         // Calcular recurrentes activos mensuales de esta categoría
@@ -174,7 +196,7 @@ export const useSugerenciaPresupuesto = (): ResultadoSugerencia => {
     return {
       suficientesDatos,
       totalTransacciones,
-      minTransacciones: MIN_TRANSACCIONES,
+      minTransacciones,
       mesAnalizadoLabel,
       mesSugeridoLabel,
       ingresosMes,

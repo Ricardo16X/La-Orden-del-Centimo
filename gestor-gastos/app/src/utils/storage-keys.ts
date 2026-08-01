@@ -18,6 +18,7 @@ export const STORAGE_KEYS = {
   MONEDAS: 'configuracion_monedas',
   GASTOS_RECURRENTES: 'gastos_recurrentes',
   METODO_PAGO_FRECUENCIA: 'metodo_pago_frecuencia',
+  PRESUPUESTOS_ALERTADOS: 'presupuestos_alertados',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

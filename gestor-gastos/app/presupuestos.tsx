@@ -1,5 +1,6 @@
-import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Modal, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, StyleSheet, Modal, KeyboardAvoidingView, Platform, Alert, Dimensions } from 'react-native';
 import { useState } from 'react';
+import { LineChart } from 'react-native-chart-kit';
 import { useTema } from './src/context/TemaContext';
 import { useToast } from './src/context/ToastContext';
 import { EstadoVacio } from './src/components/EstadoVacio';
@@ -8,8 +9,12 @@ import { MenuContextual } from './src/components/MenuContextual';
 import { useCategorias } from './src/context/CategoriasContext';
 import { usePresupuestos } from './src/context/PresupuestosContext';
 import { useMonedas } from './src/context/MonedasContext';
+import { useGastos } from './src/context/GastosContext';
+import { useEstadisticas } from './src/hooks';
 import { ModalSugerenciaPresupuesto } from './src/components/ModalSugerenciaPresupuesto';
 import { Presupuesto } from './src/types';
+
+const screenWidth = Dimensions.get('window').width;
 
 const PERIODOS = [
   { id: 'semanal', nombre: 'Semanal', emoji: '📅' },
@@ -24,6 +29,8 @@ export default function PresupuestosScreen() {
   const { categorias } = useCategorias();
   const { presupuestos, agregarPresupuesto, editarPresupuesto, eliminarPresupuesto, obtenerEstadisticasPresupuesto } = usePresupuestos();
   const { monedas, monedaBase, convertirAMonedaBase } = useMonedas();
+  const { gastos } = useGastos();
+  const { comparativaPorCategoria } = useEstadisticas(gastos, categorias);
   const simbolo = monedaBase?.simbolo ?? '$';
 
   const [formVisible, setFormVisible] = useState(false);
@@ -34,6 +41,7 @@ export default function PresupuestosScreen() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [monedaSeleccionada, setMonedaSeleccionada] = useState(monedaBase?.codigo || '');
   const [modalSugerenciaVisible, setModalSugerenciaVisible] = useState(false);
+  const [historialAbiertoId, setHistorialAbiertoId] = useState<string | null>(null);
 
   // ─── Fecha helpers ───────────────────────────────────────────────────────────
 
@@ -59,6 +67,17 @@ export default function PresupuestosScreen() {
     if (ratio > 1.5) return { label: 'Ritmo alto',     emoji: '⚡', color: '#ef4444', ratio };
     if (ratio > 1.0) return { label: 'Ritmo elevado',  emoji: '⚠️', color: '#f59e0b', ratio };
     return               { label: 'Ritmo ideal',     emoji: '✓',  color: '#10b981', ratio };
+  };
+
+  // Compara el gasto de la categoría este mes vs. el mes anterior (independiente del período del presupuesto)
+  const obtenerComparativaMensual = (categoriaId: string) => {
+    const historial = comparativaPorCategoria.find(h => h.categoriaId === categoriaId);
+    if (!historial) return null;
+    const datos = historial.datos;
+    const actual = datos[datos.length - 1]?.total ?? 0;
+    const anterior = datos[datos.length - 2]?.total ?? 0;
+    const deltaPct = anterior > 0 ? ((actual - anterior) / anterior) * 100 : null;
+    return { historial, deltaPct };
   };
 
   // ─── Estadísticas globales ───────────────────────────────────────────────────
@@ -310,6 +329,59 @@ export default function PresupuestosScreen() {
                       ⏱ {stats.diasRestantes} día{stats.diasRestantes !== 1 ? 's' : ''} para cerrar el período
                     </Text>
                   )}
+
+                  {/* Comparativa mensual e historial */}
+                  {(() => {
+                    const comparativa = obtenerComparativaMensual(p.categoriaId);
+                    if (!comparativa) return null;
+                    const abierto = historialAbiertoId === p.id;
+
+                    return (
+                      <>
+                        <TouchableOpacity
+                          onPress={() => setHistorialAbiertoId(abierto ? null : p.id)}
+                          style={styles.historialToggle}
+                        >
+                          <Text style={[styles.historialToggleTexto, { color: c.textoSecundario }]}>
+                            {comparativa.deltaPct === null
+                              ? '📊 Sin datos del mes pasado'
+                              : comparativa.deltaPct >= 0
+                                ? `📈 ${comparativa.deltaPct.toFixed(0)}% vs. mes pasado`
+                                : `📉 ${Math.abs(comparativa.deltaPct).toFixed(0)}% vs. mes pasado`}
+                            {'  '}{abierto ? '︿ ocultar' : '﹀ ver 6 meses'}
+                          </Text>
+                        </TouchableOpacity>
+
+                        {abierto && (
+                          <LineChart
+                            data={{
+                              labels: comparativa.historial.datos.map(d => d.label),
+                              datasets: [{
+                                data: comparativa.historial.datos.map(d => d.total || 0),
+                                color: () => colorEstado,
+                                strokeWidth: 2,
+                              }],
+                            }}
+                            width={screenWidth - 70}
+                            height={140}
+                            chartConfig={{
+                              backgroundColor: c.fondoSecundario,
+                              backgroundGradientFrom: c.fondoSecundario,
+                              backgroundGradientTo: c.fondoSecundario,
+                              decimalPlaces: 0,
+                              color: () => c.textoSecundario,
+                              labelColor: () => c.textoSecundario,
+                              propsForDots: { r: '3', strokeWidth: '2', stroke: colorEstado },
+                            }}
+                            bezier
+                            withShadow={false}
+                            withInnerLines={false}
+                            style={styles.historialChart}
+                          />
+                        )}
+                      </>
+                    );
+                  })()}
 
                 </View>
               </View>
@@ -714,6 +786,17 @@ const styles = StyleSheet.create({
   budgetDias: {
     fontSize: 11,
     marginTop: 2,
+  },
+  historialToggle: {
+    marginTop: 8,
+  },
+  historialToggleTexto: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  historialChart: {
+    borderRadius: 10,
+    marginTop: 10,
   },
   confirmRow: {
     marginTop: 12,
